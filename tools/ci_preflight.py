@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.36"
-CODE = "36"
+VERSION = "0.1.0-alpha.37"
+CODE = "37"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -14,12 +14,17 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "browser memory policy and lifecycle": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        for x in ["pauseTimers()", "resumeTimers()", "cancelMediaScan()", "onMemoryPressure(int level)", "showPerformanceDiagnosis", "BrowserMemoryReport.capture", "BrowserPerformancePolicy.scheduleDelay"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        for x in ["onTrimMemory(int level)", "onLowMemory()", "browserPane.onMemoryPressure(level)"])
+        and "class BrowserPerformancePolicyTest" in read("app/src/test/java/br/com/baixafacil/BrowserPerformancePolicyTest.java"),
     "Reels context matched to actual video": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["scheduleMediaScan(900)", "videoPreviewMeta", "playing", "findPreview", "decodeVideoFrame"]),
     "Safe video grouping across FB mirrors": all(x in read("app/src/main/java/br/com/baixafacil/VideoMenuModel.java") for x in ["canonicalHost", "mediaIdentity", "getRawQuery", "video_id"]),
     "Titles and active-video ranking tests": all(x in read("app/src/main/java/br/com/baixafacil/VideoPresentation.java") for x in ["cleanTitle", "sort", "mediaIdentity"])
         and all(x in read("app/src/test/java/br/com/baixafacil/VideoPresentationTest.java") for x in ["facebookMirrorSamePathDeduplicated", "playingVisibleVideoRanksFirst", "rejectsSensitiveOrGenericTitles"]),
     "ChatGPT lightweight profile": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        for x in ["BrowserLoadPolicy.lightMode", "if (lightweightPage) return null;", "if(!lightweightPage) applyCosmeticFilters", "if(!lightweightPage)host", "WebViewRenderProcessClient", "rendererUnresponsive"])
+        for x in ["BrowserLoadPolicy.lightMode", "if (!pageActive || lightweightPage || memoryPressure) return null;", "if(!lightweightPage) applyCosmeticFilters", "scheduleMediaScan(1300)", "WebViewRenderProcessClient", "rendererUnresponsive"])
         and "chatGptLight" in read("app/src/main/java/br/com/baixafacil/BrowserPrefs.java")
         and "Compatibilidade com ChatGPT" in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
         and "class BrowserLoadPolicyTest" in read("app/src/test/java/br/com/baixafacil/BrowserLoadPolicyTest.java"),
@@ -54,7 +59,7 @@ checks = {
         and all(x in read("app/src/main/java/br/com/baixafacil/SessionPrefs.java") for x in ["shouldClearAtStart", "clearForNewSession", "deleteAllData", "removeAllCookies"]),
     "address suggestions": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["ListPopupWindow", "updateAddressSuggestions", "BrowserSuggestions.suggest", "dismissAddressSuggestions"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserSuggestions.java") for x in ["LoginWindowPolicy.hasLoginParameters", "AuthNavigation.isSensitiveLoginPage", "LIMIT=5"]),
-    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='36'", "versionName='" + VERSION + "'"]),
+    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='37'", "versionName='" + VERSION + "'"]),
     "signature verification": "apksigner" in workflow,
     "code User-Agent version": "BaixaFacil/" + VERSION in service,
     "foreground notification initialization":

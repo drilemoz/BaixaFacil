@@ -817,6 +817,14 @@ public class MainActivity extends Activity {
         if(browserPane!=null)browserPane.pause();
         super.onPause();
     }
+    @Override public void onTrimMemory(int level){
+        super.onTrimMemory(level);
+        if(browserPane!=null)browserPane.onMemoryPressure(level);
+    }
+    @Override public void onLowMemory(){
+        super.onLowMemory();
+        if(browserPane!=null)browserPane.onMemoryPressure(15);
+    }
     @Override protected void onDestroy(){
         mediaPreviewLoader.shutdown();
         if(Build.VERSION.SDK_INT>=33 && systemBackCallback!=null){

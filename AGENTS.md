@@ -89,3 +89,6 @@
 - Alpha.36: sugestões são exclusivamente locais, só exibem URL HTTP(S) validada de favoritos/histórico e nunca páginas de login ou URL com parâmetros OAuth. Não buscar sugestões remotas por tecla nem registrar conteúdo digitado.
 - Alpha.36: a tela Cookies e sessões deve distinguir claramente `CookieManager.removeAllCookies` (global) de `WebStorage.deleteOrigin` (dados locais por origem, sem remover todos os cookies); nunca enumerar ou registrar valor de cookie.
 - Alpha.36: a opção de não manter logins apaga cookies e armazenamento web na próxima inicialização completa do processo e antes do primeiro carregamento de página; não apagar ao abrir Configurações e não afetar arquivos ou favoritos.
+
+- Alpha.37: só suspender timers com a WebView fora da vista e sempre retomá-los ao retornar, sem interromper serviços de download. O perfil ChatGPT permanece ativado por padrão; não limpar dados/cache por conta própria.
+- Alpha.37: varreduras de vídeo são opcionais e canceladas ao sair da aba, entrar em modo leve ou detectar pressão de memória. Não consultar memória em loop ou na renderização; diagnóstico de PSS é apenas do processo do app (não mede o renderer WebView separado) e deve ficar fora da thread de interface.

@@ -14,6 +14,8 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Message;
+import android.os.SystemClock;
+import android.app.ActivityManager;
 import android.util.Base64;
 import android.content.pm.PackageInfo;
 import android.webkit.WebResourceResponse;
@@ -88,6 +90,9 @@ final class BrowserPane {
     private int unsupportedMedia;
     private int scanGeneration;
     private Runnable pendingMediaScan;
+    private volatile boolean pageActive=true;
+    private volatile boolean memoryPressure;
+    private long lastAutomaticScanUptime;
     private volatile boolean lightweightPage;
     private boolean rendererUnresponsive;
     private int lastProgressBucket=-1;
@@ -323,7 +328,7 @@ final class BrowserPane {
         // Em feeds/Reels, a navegação pode trocar vídeos sem abrir outra página.
         // Varredura após a rolagem, com debounce, sem rede nem loop de polling.
         web.setOnScrollChangeListener((v,sx,sy,oldX,oldY)->{
-            if(sy!=oldY && !lightweightPage && VideoPrefs.autoScan(host))scheduleMediaScan(900);
+            if(sy!=oldY && VideoPrefs.autoScan(host))scheduleMediaScan(900);
         });
         web.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView w,WebResourceRequest request) {
@@ -347,6 +352,8 @@ final class BrowserPane {
                 lastHttpStatus=0;
                 lightweightPage=BrowserLoadPolicy.lightMode(url,BrowserPrefs.chatGptLight(host));
                 lastProgressBucket=-1;
+                lastAutomaticScanUptime=0;
+                rendererUnresponsive=false;
                 scanGeneration++;
                 if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);
                 pendingMediaScan=null;
@@ -359,7 +366,7 @@ final class BrowserPane {
             @Override public WebResourceResponse shouldInterceptRequest(WebView w,WebResourceRequest request) {
                 // Em ChatGPT dispensar TODO processamento opcional em subrecursos: chat pesado e dinâmico.
                 // A WebView segue carregando normalmente; não alteramos respostas, cookies ou TLS.
-                if (lightweightPage) return null;
+                if (!pageActive || lightweightPage || memoryPressure) return null;
                 // Não bloqueia documento principal, POST ou esquemas internos; evita quebrar login.
                 if (!request.isForMainFrame() && "GET".equalsIgnoreCase(request.getMethod())
                         && adBlock.shouldBlock(request.getUrl().toString())) {
@@ -400,11 +407,7 @@ final class BrowserPane {
                     : AuthNavigation.isFacebookCheckpoint(url) ? "Verificação do Facebook: tente abrir no navegador externo pelo menu ⋮."
                     : "Página pronta. Toque num arquivo para baixar.");
                 // O Facebook e outros sites podem carregar o player depois do HTML.
-                final int generation=scanGeneration;
-                if(!lightweightPage)host.getWindow().getDecorView().postDelayed(()->{
-                    if(generation==scanGeneration && web!=null && !lightweightPage && VideoPrefs.autoScan(host)
-                        && !AuthNavigation.isSensitiveLoginPage(web.getUrl()))scanPageVideos(false);
-                },1300);
+                scheduleMediaScan(1300);
             }
             @Override public boolean onRenderProcessGone(WebView w,RenderProcessGoneDetail detail) {
                 lastNavigationProblem="O processo da WebView foi encerrado; o navegador será recriado.";
@@ -441,6 +444,7 @@ final class BrowserPane {
                 host.runOnUiThread(()->{
                     if(web!=w || rendererUnresponsive)return;
                     rendererUnresponsive=true;
+                    cancelMediaScan();
                     lastNavigationProblem="A WebView ficou temporariamente sem responder; verifique memória do aparelho e atualize o componente.";
                     status.setText("Página pesada: a WebView não responde. Use ⋮ para abrir externamente.");
                 });
@@ -595,17 +599,47 @@ final class BrowserPane {
     void home(){navigate(BrowserPrefs.home(host));}
     boolean canGoBack(){return web.canGoBack();}
     void pause(){
-        web.onPause();
+        pageActive=false;
+        cancelMediaScan();
+        if(web!=null){
+            web.onPause();
+            // API global; este app mantém uma única WebView principal e fecha popups ao pausar.
+            web.pauseTimers();
+        }
         // Persiste cookies já aceitos após a navegação, sem armazená-los no histórico do app.
         CookieManager.getInstance().flush();
     }
     void resume(){
+        if(web==null)return;
+        pageActive=true;
+        web.resumeTimers();
+        web.onResume();
         adBlock.loadPreferences();
         lightweightPage=BrowserLoadPolicy.lightMode(web.getUrl(),BrowserPrefs.chatGptLight(host));
-        if(lightweightPage && pendingMediaScan!=null){web.removeCallbacks(pendingMediaScan);pendingMediaScan=null;}
+        if(lightweightPage)cancelMediaScan();
+        refreshMemoryPressure();
         applyPagePreferences(false);
         updateVideosButton();
-        web.onResume();
+    }
+    private void cancelMediaScan(){
+        if(pendingMediaScan!=null){
+            if(web!=null)web.removeCallbacks(pendingMediaScan);
+            pendingMediaScan=null;
+        }
+    }
+    private void refreshMemoryPressure(){
+        ActivityManager am=(ActivityManager)host.getSystemService(Activity.ACTIVITY_SERVICE);
+        if(am==null)return;
+        ActivityManager.MemoryInfo info=new ActivityManager.MemoryInfo();
+        am.getMemoryInfo(info);
+        memoryPressure=!BrowserPerformancePolicy.canResumeOptionalWork(info.lowMemory,info.availMem,info.threshold);
+    }
+    void onMemoryPressure(int level){
+        if(!BrowserPerformancePolicy.seriousMemoryPressure(level))return;
+        memoryPressure=true;
+        cancelMediaScan();
+        // Miniaturas de vídeos ficam somente na sessão, são descartáveis e podem ser pesadas.
+        synchronized(videoPreviewMeta){videoPreviewMeta.clear();}
     }
     private void applyPagePreferences(boolean forceReload){
         WebSettings settings=web.getSettings();
@@ -718,6 +752,7 @@ final class BrowserPane {
     private void showLoginTools(){
         List<AppMenus.Entry> rows=AppMenus.entries();
         rows.add(AppMenus.Entry.item("Diagnóstico do navegador","WebView, cookies e erros sem dados sensíveis","alert",this::showLoginDiagnosis));
+        rows.add(AppMenus.Entry.item("Desempenho e memória","RAM disponível, PSS do app e estado da WebView","settings",this::showPerformanceDiagnosis));
         rows.add(AppMenus.Entry.item("Ajuda com login","Google, Facebook e verificações","lock",this::showLoginHelp));
         rows.add(AppMenus.Entry.item("Abrir em navegador externo","Para sites que exigem autenticação externa","globe",()->openInExternalBrowser(web.getUrl())));
         AppMenus.show(host,"Login e diagnóstico","Ferramentas de compatibilidade e segurança.",rows);
@@ -822,6 +857,37 @@ final class BrowserPane {
         }
     }
 
+    private void showPerformanceDiagnosis(){
+        if(web==null)return;
+        final String origin=LoginWindowPolicy.originForReport(web.getUrl());
+        final boolean hung=rendererUnresponsive;
+        final boolean light=lightweightPage;
+        final boolean pressure=memoryPressure;
+        final boolean visible=pageActive;
+        // Debug.getPss pode ler mapas de memória: nunca chamar no thread da interface.
+        new Thread(()->{
+            final String memory;
+            try{memory=BrowserMemoryReport.capture(host.getApplicationContext()).summary();}
+            catch(RuntimeException failure){
+                host.runOnUiThread(()->Toast.makeText(host,"Não foi possível ler o diagnóstico de memória",Toast.LENGTH_LONG).show());
+                return;
+            }
+            host.runOnUiThread(()->{
+                if(web==null||host.isFinishing()||host.isDestroyed())return;
+                String report="Origem: "+origin+"\n"
+                    +"Navegador em primeiro plano: "+(visible?"sim":"não")+"\n"
+                    +"Modo leve ativo: "+(light?"sim":"não")+"\n"
+                    +"Varreduras opcionais suspensas: "+(pressure||hung||!visible||light?"sim":"não")+"\n"
+                    +"Renderizador: "+(hung?"sem resposta":"sem travamento detectado")+"\n\n"
+                    +memory+"\n\nNenhum cookie, texto da página ou parâmetro de URL é incluído.";
+                List<AppMenus.Entry> rows=AppMenus.entries();
+                rows.add(AppMenus.Entry.item("Copiar relatório","Diagnóstico sem dados de autenticação","copy",()->copyLinkText("Memória Baixa Fácil",report)));
+                rows.add(AppMenus.Entry.item("Abrir navegador externo","Alternativa para páginas que permanecem travadas","globe",()->openInExternalBrowser(web.getUrl())));
+                AppMenus.info(host,"Desempenho e memória",report,rows);
+            });
+        },"bf-memory-report").start();
+    }
+
     private void showLoginDiagnosis(){
         PackageInfo current=WebView.getCurrentWebViewPackage();
         String engine=current==null?"Não identificado":current.packageName+" (versão "+current.versionName+")";
@@ -909,16 +975,22 @@ final class BrowserPane {
     }
 
     private void scheduleMediaScan(long delayMs){
-        if(web==null || lightweightPage || !VideoPrefs.autoScan(host))return;
-        if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);
+        if(web==null || !VideoPrefs.autoScan(host) ||
+            !BrowserPerformancePolicy.allowAutomaticMedia(pageActive,lightweightPage,memoryPressure,rendererUnresponsive))return;
+        cancelMediaScan();
         int generation=scanGeneration;
         Runnable job=()->{
             pendingMediaScan=null;
-            if(generation==scanGeneration && web!=null && !lightweightPage &&
-                !AuthNavigation.isSensitiveLoginPage(web.getUrl()))scanPageVideos(false);
+            if(generation==scanGeneration && web!=null &&
+                BrowserPerformancePolicy.allowAutomaticMedia(pageActive,lightweightPage,memoryPressure,rendererUnresponsive) &&
+                !AuthNavigation.isSensitiveLoginPage(web.getUrl())){
+                lastAutomaticScanUptime=SystemClock.uptimeMillis();
+                scanPageVideos(false);
+            }
         };
         pendingMediaScan=job;
-        web.postDelayed(job,delayMs);
+        long delay=BrowserPerformancePolicy.scheduleDelay(delayMs,SystemClock.uptimeMillis(),lastAutomaticScanUptime);
+        web.postDelayed(job,delay);
     }
 
     private void updateVideosButton() {
@@ -930,6 +1002,8 @@ final class BrowserPane {
     }
 
     private void scanPageVideos(boolean showResult) {
+        if(web==null)return;
+        if(!showResult && !BrowserPerformancePolicy.allowAutomaticMedia(pageActive,lightweightPage,memoryPressure,rendererUnresponsive))return;
         String page=web.getUrl();
         if (AuthNavigation.isSensitiveLoginPage(page)) {
             if (showResult) Toast.makeText(host,"Busca de vídeos indisponível durante login ou verificação de conta",Toast.LENGTH_LONG).show();
@@ -1252,7 +1326,7 @@ final class BrowserPane {
         if(imm!=null)imm.hideSoftInputFromWindow(findInput.getWindowToken(),0);
     }
     void saveState(Bundle output){if(web!=null){Bundle b=new Bundle();web.saveState(b);output.putBundle("BROWSER_WEB_STATE",b);}}
-    void destroy(){ dismissAddressSuggestions(); if(loginPopupDialog!=null)loginPopupDialog.dismiss();if(web!=null){if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);pendingMediaScan=null;web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy();web=null;} }
+    void destroy(){pageActive=false;cancelMediaScan(); dismissAddressSuggestions(); if(loginPopupDialog!=null)loginPopupDialog.dismiss();if(web!=null){if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);pendingMediaScan=null;web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy();web=null;} }
     void clearLocalData(){closeFind();web.clearCache(true);web.clearHistory();navigate(BrowserPrefs.home(host));}
     private void copyAddress(){
         String url=address.getText().toString().trim();

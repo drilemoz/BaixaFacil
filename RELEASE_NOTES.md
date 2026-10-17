@@ -1,19 +1,13 @@
-# Baixa Fácil 0.1.0-alpha.36 (versionCode 36)
+# Baixa Fácil 0.1.0-alpha.37 (versionCode 37)
 
-## Novidades
+## Desempenho e estabilidade
 
-- Nova tela **Cookies e sessões** nas Configurações, com controle de permanência de logins entre inicializações.
-- Opções para apagar cookies globalmente, limpar dados locais do navegador e remover armazenamento local de uma origem individual.
-- Barra de endereços com sugestões locais ao digitar, usando favoritos e histórico, até cinco resultados e sem requisições de pesquisa durante a digitação.
-- Filtro de endereços sensíveis e links com tokens de login.
+- Pause/resume correto do navegador: interrompe tarefas automáticas e temporizadores JavaScript no background, retomando ao abrir a aba novamente.
+- Limite de frequência das varreduras automáticas de vídeos. Menos trabalho em feeds rápidos e sites pesados.
+- Quando o Android indica pressão de memória, o navegador suspende tarefas opcionais e descarta previews temporárias, sem apagar cookies, downloads nem histórico.
+- Diagnóstico de memória sob demanda, com RAM disponível do Android, memória Java do aplicativo, PSS somente do processo Baixa Fácil, estado da WebView e atalho para navegador externo.
 
-## Limitações e segurança
+## Restrições e validação
 
-- A API pública da WebView não fornece uma lista de cookies de todos os sites. O gerenciador exibe apenas origens com WebStorage, que não é a mesma coisa que cookies.
-- Desativar a permanência dos logins apaga cookies e WebStorage na próxima inicialização completa do processo; não no retorno de Configurações.
-- Não mudou o bloqueio padrão de cookies de terceiros nem as restrições de downloads, vídeos e OAuth do Google.
-
-## Validação
-
-- Pré-validação e teste de publicação simulada são executados localmente.
-- Teste de comportamento real, interface e build Android completo ainda exigem GitHub Actions/aparelho.
+- Não há encerramento automático da WebView, limpeza automática de cache ou promessa de memória livre exata do renderizador.
+- Build Android completo no GitHub Actions e teste de desempenho no aparelho continuam pendentes.

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.37 (versionCode 37) - 2026-10-17
+
+- Ciclo de vida da WebView: ao alternar para Downloads ou sair do app, cancelam-se as varreduras agendadas e são suspensos os timers JavaScript; ao voltar ao navegador, timers e processamento são restaurados, mantendo a sessão.
+- Redução de trabalho em feeds: varreduras de vídeo sob demanda por rolagem com debounce existente e limite de frequência de 3,5 s; qualquer resultado antigo é descartado quando a página muda. Varreduras não rodam quando navegador está oculto, o renderizador está sem resposta, ChatGPT leve ativo ou a RAM está sob pressão.
+- Resposta a sinais de pouca memória: interrompe as tarefas opcionais e descarta somente metadados/miniaturas temporários de vídeo, sem limpar cookies, histórico, downloads ou interromper transferência.
+- Novo diagnóstico de desempenho e memória acessível no menu Login e diagnóstico, com leitura sob demanda fora da UI da RAM disponível, Java heap, PSS aproximado do processo do app, estado do renderizador e alternativa de navegador externo. Não alega medir todo o processo WebView.
+- Políticas puras testadas para agendamento, suspensão, memória baixa e recuperação; sincronizados versionCode 37, workflow, preflight, documentação e release.
+- Build Android e medição de desempenho no aparelho ainda pendentes.
+
 ## 0.1.0-alpha.36 (versionCode 36) - 2026-10-17
 
 - Nova seção **Configurações > Cookies e sessões** com estado global de cookies (sem ler valores), limpeza global de cookies e armazenamento WebView e seleção por origem dos dados locais listados por `WebStorage.getOrigins`.

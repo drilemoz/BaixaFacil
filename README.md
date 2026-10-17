@@ -1,4 +1,12 @@
-# Baixa Fácil 0.1.0-alpha.36
+# Baixa Fácil 0.1.0-alpha.37
+
+## Estabilidade e memória do navegador (alpha.37)
+
+- WebView suspende temporizadores quando o navegador fica oculto, restaurando-os quando volta à tela. Downloads independentes seguem funcionando.
+- Varredura automática de vídeos com frequência mínima de 3,5 s e cancelamento imediato ao ocultar, trocar de página ou entrar no modo ChatGPT leve.
+- O aplicativo reage a sinais reais de pressão de memória do Android suspendendo varreduras e descartando miniaturas temporárias, sem apagar cookies ou arquivos.
+- Menu ⋮ > Login e diagnóstico > **Desempenho e memória**: RAM disponível, limite de memória baixa do Android, heap Java, PSS do processo do app e indicador de resposta da WebView. Coleta somente quando solicitada, fora da thread de interface.
+- O PSS do app não inclui necessariamente renderizador WebView externo, GPU ou outras aplicações. Testes no aparelho ainda necessários.
 
 ## Cookies, sessões e sugestões de endereço (alpha.36)
 
