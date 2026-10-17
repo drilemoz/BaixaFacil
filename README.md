@@ -1,4 +1,23 @@
-# Baixa Fácil 0.1.0-alpha.25
+# Baixa Fácil 0.1.0-alpha.28
+
+## Novidades alpha.28
+
+- Central de downloads ganhou **miniaturas de vídeos e imagens concluídos**, geradas a partir do MediaStore sem internet.
+- Para vídeos locais, lê duração e resolução reais com MediaMetadataRetriever; menu **Detalhes da mídia** exibe os dados quando disponíveis.
+- Geração ocorre fora da interface, em fila de uma thread com cache LRU de até 4 MB; formatos sem prévia mantêm o ícone anterior.
+- Preservados Media3 e WebKit, evitando consumo extra em arquivos ainda baixando.
+
+## Novidades alpha.27
+
+- Adicionado reprodutor de mídia **Media3 1.11.1** para vídeos locais concluídos e links públicos MP4/WebM/HLS/DASH.
+- Botão **Reproduzir** na descoberta de vídeos e ação **Reproduzir vídeo** no menu de arquivos concluídos.
+- Downloads de arquivo direto continuam pelo motor HTTP existente. HLS/DASH são reproduzidos online; sem download segmentado nesta etapa, sem DRM e sem importar cookies ou tokens do navegador.
+
+## Novidades alpha.26
+
+- Integrado AndroidX WebKit 1.17.1. Desativa downloads de favicons quando a WebView disponibiliza a API; mantém fallback e as proteções existentes.
+- Trata encerramento do renderer para recriar a tela e evitar falha total do app. Não altera política OAuth do Google, cookies nem o motor HTTP.
+
 
 
 ## Compatibilidade de login (alpha.25)
@@ -117,7 +136,7 @@ O aplicativo verifica as restrições no início, ao iniciar um item da fila e p
 ## Construção
 
 - Java nativo, JDK 17; minSdk 29, targetSdk 34, compileSdk 35; sem biblioteca extra de UI.
-- `versionName 0.1.0-alpha.25`, `versionCode 25`.
+- `versionName 0.1.0-alpha.26`, `versionCode 26`.
 - `.github/workflows/android.yml` executa testes, compila APK, valida assinatura e pacote/versão e publica **somente o APK** em Releases. O script baixa o asset e compara SHA-256.
 - Para APK Release assinado, definir **todos** `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` e `KEY_PASSWORD`. Sem nenhum Secret, fallback Debug; com apenas alguns, o workflow interrompe para evitar assinatura inconsistente.
 - Os Secrets e o arquivo `.p12` privado não devem ser incluídos no projeto ou no repositório.

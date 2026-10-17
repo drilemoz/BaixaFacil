@@ -40,6 +40,7 @@
             android:name=".SettingsActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".MediaPlayerActivity" android:exported="false" android:screenOrientation="unspecified" />
         <service
             android:name=".TransferJobService"
             android:permission="android.permission.BIND_JOB_SERVICE"

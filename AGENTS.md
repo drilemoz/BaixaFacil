@@ -61,3 +61,9 @@
 - Alpha.25: só criar WebView popup quando `WebChromeClient.onCreateWindow` receber gesto do usuário e não houver outra janela; liberar WebView ao fechar, sem pontes JavaScript e sem permitir esquemas locais ou conteúdo misto.
 - Google OAuth continua proibido em WebView; usar navegador externo. Cookies externos jamais são importados. Cookies de terceiros opcionais exigem escolha explícita do usuário.
 - Não registrar no histórico URLs de login nem parâmetros OAuth. Diagnósticos exibem somente origem (sem path/query), motor WebView, flags e códigos numéricos de erro; nunca cookies, tokens ou credenciais.
+
+- Alpha.26: - Integrado AndroidX WebKit 1.17.1. Desativa downloads de favicons quando a WebView disponibiliza a API; mantém fallback e as proteções existentes. - Trata encerramento do renderer para recriar a tela e evitar falha total do app. Não altera política OAuth do Google, cookies nem o motor HTTP.
+
+- Alpha.27: - Adicionado reprodutor de mídia **Media3 1.11.1** para vídeos locais concluídos e links públicos MP4/WebM/HLS/DASH. - Botão **Reproduzir** na descoberta de vídeos e ação **Reproduzir vídeo** no menu de arquivos concluídos. - Downloads de arquivo direto continuam pelo motor HTTP existente. HLS/DASH são reproduzidos online; sem download segmentado nesta etapa, sem DRM e sem importar cookies ou tokens do navegador.
+
+- Alpha.28: - Central de downloads ganhou **miniaturas de vídeos e imagens concluídos**, geradas a partir do MediaStore sem internet. - Para vídeos locais, lê duração e resolução reais com MediaMetadataRetriever; menu **Detalhes da mídia** exibe os dados quando disponíveis. - Geração ocorre fora da interface, em fila de uma thread com cache LRU de até 4 MB; formatos sem prévia mantêm o ícone anterior. - Preservados Media3 e WebKit, evitando consumo extra em arquivos ainda baixando.

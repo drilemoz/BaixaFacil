@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.0-alpha.28 (versionCode 28) - 2026-10-17
+
+- Central de downloads ganhou **miniaturas de vídeos e imagens concluídos**, geradas a partir do MediaStore sem internet.
+- Para vídeos locais, lê duração e resolução reais com MediaMetadataRetriever; menu **Detalhes da mídia** exibe os dados quando disponíveis.
+- Geração ocorre fora da interface, em fila de uma thread com cache LRU de até 4 MB; formatos sem prévia mantêm o ícone anterior.
+- Preservados Media3 e WebKit, evitando consumo extra em arquivos ainda baixando.
+
+## 0.1.0-alpha.27 (versionCode 27) - 2026-10-17
+
+- Adicionado reprodutor de mídia **Media3 1.11.1** para vídeos locais concluídos e links públicos MP4/WebM/HLS/DASH.
+- Botão **Reproduzir** na descoberta de vídeos e ação **Reproduzir vídeo** no menu de arquivos concluídos.
+- Downloads de arquivo direto continuam pelo motor HTTP existente. HLS/DASH são reproduzidos online; sem download segmentado nesta etapa, sem DRM e sem importar cookies ou tokens do navegador.
+
+## 0.1.0-alpha.26 (versionCode 26) - 2026-10-17
+
+- Integrado AndroidX WebKit 1.17.1. Desativa downloads de favicons quando a WebView disponibiliza a API; mantém fallback e as proteções existentes.
+- Trata encerramento do renderer para recriar a tela e evitar falha total do app. Não altera política OAuth do Google, cookies nem o motor HTTP.
+
 ## 0.1.0-alpha.25 (versionCode 25) - 2026-10-17
 
 - Adicionado suporte **conservador a janelas secundárias** da WebView, somente quando disparadas por gesto do usuário, com janela de login separada, botão para abrir no navegador externo e liberação de recursos no fechamento.

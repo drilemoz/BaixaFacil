@@ -30,6 +30,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.webkit.RenderProcessGoneDetail;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -209,6 +210,7 @@ final class BrowserPane {
         // Habilita popups somente com gesto do usuário; o onCreateWindow controla a janela filha.
         options.setSupportMultipleWindows(true);
         options.setSafeBrowsingEnabled(true);
+        WebKitCompat.optimize(options);
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web,appliedThirdPartyCookies);
         web.setFindListener((active,total,finished)->{
@@ -244,11 +246,11 @@ final class BrowserPane {
                 // Apenas observa endereços de arquivos de vídeo diretos. Não intercepta corpo/resposta.
                 if (!request.isForMainFrame() && "GET".equalsIgnoreCase(request.getMethod())) {
                     String candidate=request.getUrl().toString();
-                    if(VideoLinks.isDirectFile(candidate)) {
+                    if(VideoLinks.isDirectFile(candidate) || MediaSourcePolicy.isPlaylist(candidate)) {
                         boolean added=false;
                         synchronized(videoUrls) {
                             if(!videoUrls.containsKey(candidate) && videoUrls.size()<VideoLinks.MAX_VIDEO_URLS) {
-                                videoUrls.put(candidate,"Recurso da página");
+                                videoUrls.put(candidate,MediaSourcePolicy.isPlaylist(candidate)?"Streaming HLS/DASH":"Recurso da página");
                                 added=true;
                             }
                         }
@@ -275,6 +277,19 @@ final class BrowserPane {
                     if(generation==scanGeneration && !AuthNavigation.isSensitiveLoginPage(web.getUrl()))
                         scanPageVideos(false);
                 },1300);
+            }
+            @Override public boolean onRenderProcessGone(WebView w,RenderProcessGoneDetail detail) {
+                lastNavigationProblem="O processo da WebView foi encerrado; o navegador será recriado.";
+                ViewGroup parent=(ViewGroup)w.getParent();
+                if(parent!=null)parent.removeView(w);
+                w.destroy();
+                web=null;
+                if(loginPopupDialog!=null)loginPopupDialog.dismiss();
+                host.getWindow().getDecorView().post(()->{
+                    Toast.makeText(host,"A página parou. Reabrindo o navegador com segurança.",Toast.LENGTH_LONG).show();
+                    host.recreate();
+                });
+                return true;
             }
             @Override public void onReceivedError(WebView w,WebResourceRequest request,WebResourceError error) {
                 if (request.isForMainFrame()) {
@@ -441,10 +456,15 @@ final class BrowserPane {
         settings.setAllowUniversalAccessFromFileURLs(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setSafeBrowsingEnabled(true);
+        WebKitCompat.optimize(settings);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
         settings.setSupportMultipleWindows(false);
         CookieManager.getInstance().setAcceptThirdPartyCookies(popup,BrowserPrefs.thirdPartyCookies(host));
         popup.setWebViewClient(new WebViewClient(){
+            @Override public boolean onRenderProcessGone(WebView w,RenderProcessGoneDetail detail){
+                if(loginPopupDialog!=null)loginPopupDialog.dismiss();
+                return true;
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r) {
                 String url=r.getUrl().toString();
                 if(r.isForMainFrame() && AuthNavigation.isGoogleOAuth(url)){
@@ -641,10 +661,10 @@ final class BrowserPane {
     }
 
     private void addVideoCandidate(String url,String kind,String mime) {
-        if(!VideoLinks.isVideoCandidate(url,kind,mime))return;
+        if(!VideoLinks.isVideoCandidate(url,kind,mime) && !MediaSourcePolicy.isPlaylist(url))return;
         synchronized(videoUrls){
             if(!videoUrls.containsKey(url) && videoUrls.size()<VideoLinks.MAX_VIDEO_URLS)
-                videoUrls.put(url,VideoLinks.label(url));
+                videoUrls.put(url,MediaSourcePolicy.isPlaylist(url)?"Streaming HLS/DASH":VideoLinks.label(url));
         }
     }
 
@@ -657,7 +677,7 @@ final class BrowserPane {
         }
         if(urls.isEmpty()) {
             String reason=(mediaElements>0 || unsupportedMedia>0)
-                ? "Foi encontrado um player, mas nenhum endereço de vídeo direto compatível. Muitos vídeos do Facebook usam blob:, HLS/DASH, sessões restritas ou proteção; o app não converte nem contorna essas tecnologias.\n\nSe houver um link direto de vídeo, tente abrir o vídeo e procurar novamente."
+                ? "Foi encontrado um player, mas nenhum endereço de vídeo direto compatível. Muitos vídeos do Facebook usam blob:, sessões restritas ou proteção; o app não contorna essas tecnologias. Para playlists HLS/DASH públicas, procure a opção Reproduzir.\n\nSe houver um link direto de vídeo, tente abrir o vídeo e procurar novamente."
                 : "Nenhum vídeo direto identificado. Em páginas com conteúdo carregado ao rolar, abra ou reproduza o vídeo e toque em Vídeos novamente.";
             new AlertDialog.Builder(host).setTitle("Vídeos na página")
                 .setMessage(reason).setPositiveButton("Entendi",null).show();
@@ -672,10 +692,22 @@ final class BrowserPane {
         new AlertDialog.Builder(host).setTitle("Vídeos encontrados ("+urls.size()+")")
             .setItems(items,(dialog,index)->{
                 String url=urls.get(index);
+                boolean streaming=MediaSourcePolicy.isPlaylist(url);
+                String[] actions=streaming?new String[]{"Reproduzir", "Copiar link"}
+                                          :new String[]{"Reproduzir", "Baixar arquivo", "Copiar link"};
                 new AlertDialog.Builder(host).setTitle("Vídeo "+(index+1))
-                    .setMessage("Endereço indicado pela página. O download só funcionará se o servidor entregar um arquivo de vídeo direto e autorizar o acesso.\n\n"+VideoLinks.label(url))
-                    .setPositiveButton("Baixar",(d,w)->offerDownload(url,web.getSettings().getUserAgentString(),-1))
-                    .setNeutralButton("Copiar link",(d,w)->copyLink(url))
+                    .setMessage(streaming?
+                        "Playlist HLS/DASH. Reproduz online quando autorizada, mas não baixa o conjunto de segmentos nem contorna DRM.":
+                        "Vídeo direto. O download exige que o servidor entregue o arquivo e autorize o acesso.")
+                    .setItems(actions,(d,choice)->{
+                        String action=actions[choice];
+                        if("Reproduzir".equals(action)) {
+                            android.content.Intent play=new android.content.Intent(host,MediaPlayerActivity.class);
+                            play.putExtra(MediaPlayerActivity.EXTRA_MEDIA_URL,url);
+                            host.startActivity(play);
+                        } else if("Baixar arquivo".equals(action)) offerDownload(url,web.getSettings().getUserAgentString(),-1);
+                        else copyLink(url);
+                    })
                     .setNegativeButton("Voltar",(d,w)->showDetectedVideos())
                     .show();
             }).setNegativeButton("Fechar",null).show();
@@ -712,8 +744,8 @@ final class BrowserPane {
         InputMethodManager imm=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
         if(imm!=null)imm.hideSoftInputFromWindow(findInput.getWindowToken(),0);
     }
-    void saveState(Bundle output){Bundle b=new Bundle();web.saveState(b);output.putBundle("BROWSER_WEB_STATE",b);}
-    void destroy(){ if(loginPopupDialog!=null)loginPopupDialog.dismiss();web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy(); }
+    void saveState(Bundle output){if(web!=null){Bundle b=new Bundle();web.saveState(b);output.putBundle("BROWSER_WEB_STATE",b);}}
+    void destroy(){ if(loginPopupDialog!=null)loginPopupDialog.dismiss();if(web!=null){web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy();web=null;} }
     void clearLocalData(){closeFind();web.clearCache(true);web.clearHistory();navigate(BrowserPrefs.home(host));}
     private void copyAddress(){
         String url=address.getText().toString().trim();

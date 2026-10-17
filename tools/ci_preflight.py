@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.25"
-CODE = "25"
+VERSION = "0.1.0-alpha.28"
+CODE = "28"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -21,7 +21,7 @@ checks = {
     "publication directly in Releases": "bash tools/publish_apk.sh" in workflow,
     "no ZIP Artifacts": "upload-artifact" not in workflow and "download-artifact" not in workflow,
     "unit test and Debug compile": ":app:testDebugUnitTest :app:assembleDebug" in workflow,
-    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='25'", "versionName='" + VERSION + "'"]),
+    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='28'", "versionName='" + VERSION + "'"]),
     "signature verification": "apksigner" in workflow,
     "code User-Agent version": "BaixaFacil/" + VERSION in service,
     "foreground notification initialization":
@@ -61,7 +61,7 @@ checks = {
             for x in ["isVideoCandidate", "isManifest", "allowedHttpUrl", "MAX_VIDEO_URLS"])
         and "class VideoLinksTest" in read("app/src/test/java/br/com/baixafacil/VideoLinksTest.java"),
     "documentation version code": "`versionCode`: `" + CODE + "`" in read("docs/VERSIONING.md")
-        and "Próxima versão sequencial: `0.1.0-alpha.26`" in read("docs/VERSIONING.md"),
+        and "Próxima versão sequencial: `0.1.0-alpha.29`" in read("docs/VERSIONING.md"),
     "login compatibility": "AuthNavigation.isGoogleOAuth" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         and "openInExternalBrowser" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         and "setAcceptThirdPartyCookies(web,appliedThirdPartyCookies)" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
@@ -75,6 +75,20 @@ checks = {
         and "class LoginWindowPolicyTest" in read("app/src/test/java/br/com/baixafacil/LoginWindowPolicyTest.java"),
     "auth tokens excluded from history": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPrefs.java")
         for x in ["AuthNavigation.isSensitiveLoginPage", "LoginWindowPolicy.hasLoginParameters"]),
+    "AndroidX WebKit compatibility": "androidx.webkit:webkit:1.17.1" in app
+        and "WebKitCompat.optimize(options)" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        and "WebViewFeature.DOWNLOAD_FAVICONS_ENABLED" in read("app/src/main/java/br/com/baixafacil/WebKitCompat.java")
+        and "onRenderProcessGone" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java"),
+    "Media3 player and secure classification": all(x in app for x in ["media3-exoplayer:1.11.1", "media3-ui:1.11.1", "media3-exoplayer-hls:1.11.1", "media3-exoplayer-dash:1.11.1"])
+        and "class MediaPlayerActivity" in read("app/src/main/java/br/com/baixafacil/MediaPlayerActivity.java")
+        and "class MediaSourcePolicy" in read("app/src/main/java/br/com/baixafacil/MediaSourcePolicy.java")
+        and "isPlaylist" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        and "MediaSourcePolicyTest" in read("app/src/test/java/br/com/baixafacil/MediaSourcePolicyTest.java")
+        and '.MediaPlayerActivity' in read("app/src/main/AndroidManifest.xml"),
+    "local media thumbnails and metadata": all(x in read("app/src/main/java/br/com/baixafacil/MediaPreviewLoader.java")
+        for x in ["MediaMetadataRetriever", "getScaledFrameAtTime", "loadThumbnail", "Executors.newSingleThreadExecutor", "LruCache", '"content"'])
+        and "mediaPreviewLoader.load" in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        and "MediaPreviewFormatTest" in read("app/src/test/java/br/com/baixafacil/MediaPreviewFormatTest.java"),
     "documentation": all(VERSION in read(x) for x in ["README.md", "RELEASE_NOTES.md", "docs/VERSIONING.md", "docs/VALIDATION.md"]),
 }
 for label, valid in checks.items():

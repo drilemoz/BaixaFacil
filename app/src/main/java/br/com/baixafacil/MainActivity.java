@@ -10,6 +10,7 @@ import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.widget.ImageView;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -50,6 +51,7 @@ public class MainActivity extends Activity {
     };
     private EditText urlInput;
     private DownloadAdapter adapter;
+    private final MediaPreviewLoader mediaPreviewLoader=new MediaPreviewLoader();
     private android.widget.FrameLayout contentHost;
     private ListView downloadsList;
     private BrowserPane browserPane;
@@ -575,6 +577,11 @@ public class MainActivity extends Activity {
         }
         Uri uri = Uri.parse(uriText);
         java.util.List<MenuAction> items = new java.util.ArrayList<>();
+        if ("Vídeos".equals(DownloadInfo.kind(entry.optString("name"))))
+            items.add(new MenuAction("play","Reproduzir vídeo","Abre o reprodutor Media3 integrado.",false,()->playLocalVideo(uri)));
+        String itemKind=DownloadInfo.kind(entry.optString("name"));
+        if ("Vídeos".equals(itemKind)||"Imagens".equals(itemKind))
+            items.add(new MenuAction("search","Detalhes da mídia","Mostrar resolução e duração quando disponíveis.",false,()->showMediaDetails(uri,entry.optString("name"))));
         items.add(new MenuAction("file","Abrir arquivo","Abre o arquivo no app compatível do Android.",false,()->openFile(uri)));
         items.add(new MenuAction("link","Compartilhar arquivo","Envia o arquivo para outro aplicativo.",false,()->shareFile(uri)));
         items.add(new MenuAction("paste","Renomear arquivo","Altera o nome salvo na pasta Download.",false,()->renameFile(entry, uri)));
@@ -756,6 +763,23 @@ public class MainActivity extends Activity {
         String value = getContentResolver().getType(uri);
         return value == null ? "*/*" : value;
     }
+    private void showMediaDetails(Uri uri,String filename){
+        Toast.makeText(this,"Lendo detalhes locais do arquivo...",Toast.LENGTH_SHORT).show();
+        mediaPreviewLoader.load(this,uri,filename,result->{
+            if(isFinishing() || isDestroyed())return;
+            new AlertDialog.Builder(this).setTitle("Detalhes: "+filename)
+                .setMessage(result.details.isEmpty()?"Metadados não disponíveis para este arquivo.":result.details)
+                .setPositiveButton("Fechar",null).show();
+        });
+    }
+    private void playLocalVideo(Uri uri) {
+        if(uri==null || !"content".equalsIgnoreCase(uri.getScheme()))return;
+        Intent play=new Intent(this,MediaPlayerActivity.class);
+        play.putExtra(MediaPlayerActivity.EXTRA_MEDIA_URL,uri.toString());
+        play.putExtra(MediaPlayerActivity.EXTRA_LOCAL,true);
+        play.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(play);
+    }
     private void openFile(Uri uri) {
         Intent open = new Intent(Intent.ACTION_VIEW);
         open.setDataAndType(uri, mime(uri));
@@ -786,6 +810,7 @@ public class MainActivity extends Activity {
         super.onPause();
     }
     @Override protected void onDestroy(){
+        mediaPreviewLoader.shutdown();
         if(Build.VERSION.SDK_INT>=33 && systemBackCallback!=null){
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(systemBackCallback);
             systemBackCallback=null;
@@ -882,7 +907,7 @@ public class MainActivity extends Activity {
             String type="Compactados".equals(DownloadInfo.kind(filename))?"archive":"file";
             fileIcon.addView(Ui.icon(MainActivity.this,type,colors.text,20),
                 new android.widget.FrameLayout.LayoutParams(dp(22),dp(22),Gravity.CENTER));
-            head.addView(fileIcon,new LinearLayout.LayoutParams(dp(38),dp(38)));
+            head.addView(fileIcon,new LinearLayout.LayoutParams(dp(46),dp(46)));
             LinearLayout info=Ui.vertical(MainActivity.this);
             TextView filenameView=Ui.text(MainActivity.this,filename,14,colors.text,true);
             filenameView.setSingleLine(true);
@@ -897,6 +922,22 @@ public class MainActivity extends Activity {
             android.widget.FrameLayout menu=iconButton("more","Mais ações de "+filename,()->showItemActions(entry));
             head.addView(menu,new LinearLayout.LayoutParams(dp(40),dp(40)));
             card.addView(head);
+            if(finished && ("Vídeos".equals(DownloadInfo.kind(filename)) || "Imagens".equals(DownloadInfo.kind(filename)))) {
+                String itemUri=entry.optString("uri");
+                String sourceHost=host;
+                fileIcon.setTag(itemUri);
+                mediaPreviewLoader.load(MainActivity.this,Uri.parse(itemUri),filename,result->{
+                    if(!itemUri.equals(fileIcon.getTag()) || isFinishing() || isDestroyed())return;
+                    if(result.bitmap!=null && !result.bitmap.isRecycled()){
+                        fileIcon.removeAllViews();
+                        ImageView preview=new ImageView(MainActivity.this);
+                        preview.setImageBitmap(result.bitmap);
+                        preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                        fileIcon.addView(preview,new android.widget.FrameLayout.LayoutParams(-1,-1));
+                    }
+                    if(!result.details.isEmpty())hostView.setText(sourceHost+" · "+result.details);
+                });
+            }
 
             String stateLabel=active?(queuePosition>0?"Na fila":"Baixando"):status;
             int percentage=total>0?(int)Math.min(100,bytes*100.0/total):0;
