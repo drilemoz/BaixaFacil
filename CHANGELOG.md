@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.39 (versionCode 39) - 2026-10-17
+
+- Modernizado o diálogo de confirmação de download com visual nativo do app: cartões com ícones, origem, arquivo, destino e aviso claro quando a conexão usa HTTP sem criptografia.
+- Corrigido o fechamento do aplicativo ao tocar nos dois atalhos rápidos da lista de downloads (**Abrir** e **Compartilhar**). Agora o app valida a URI, trata ausência de aplicativo compatível e captura falhas sem derrubar a interface.
+- Adicionada a seção **Configurações > Diagnóstico e alertas**, com opção para capturar localmente erros, alertas e crashes inesperados, visualizar/copiar os registros e limpar o histórico local.
+- Implementado `AppEventLog` com captura opcional local e `UncaughtExceptionHandler` para registrar crashes inesperados de forma privada, sem salvar cookies, tokens nem URLs completas com parâmetros.
+- Player e fluxos principais de download agora registram alertas/erros relevantes quando a captura estiver ativada. Versionamento, User-Agent, workflow, mock de publicação, Sobre e documentação foram sincronizados para a alpha.39.
+- Build Android completo e testes no aparelho continuam pendentes de execução.
+
 ## 0.1.0-alpha.38 (versionCode 38) - 2026-10-17
 
 - Corrigido erro real do workflow **Gerar APK 10**, em `SettingsActivity.java:163`: `incompatible types: Object cannot be converted to Entry<String,Origin>` durante `:app:compileDebugJavaWithJavac`.

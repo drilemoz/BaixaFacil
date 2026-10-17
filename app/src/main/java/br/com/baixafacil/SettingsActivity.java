@@ -3,7 +3,10 @@ package br.com.baixafacil;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,6 +36,7 @@ public final class SettingsActivity extends Activity {
     public static final String EXTRA_OPEN_VIDEOS="open_videos";
     private boolean videoSettingsPage;
     private boolean sessionSettingsPage;
+    private boolean diagnosticsPage;
     private Ui.Palette palette;
     private LinearLayout list;
     private int dp(int x){return Ui.dp(this,x);}
@@ -56,8 +60,8 @@ public final class SettingsActivity extends Activity {
         TextView back=Ui.text(this,"‹",34,palette.text,false);
         back.setGravity(Gravity.CENTER);back.setContentDescription("Voltar");
         heading.addView(back,new LinearLayout.LayoutParams(dp(44),dp(48)));
-        back.setOnClickListener(v->{if(videoSettingsPage||sessionSettingsPage){videoSettingsPage=false;sessionSettingsPage=false;render();}else finish();});
-        TextView title=Ui.text(this,videoSettingsPage?"Vídeos e mídia":sessionSettingsPage?"Cookies e sessões":"Configurações",22,palette.text,true);
+        back.setOnClickListener(v->{if(videoSettingsPage||sessionSettingsPage||diagnosticsPage){videoSettingsPage=false;sessionSettingsPage=false;diagnosticsPage=false;render();}else finish();});
+        TextView title=Ui.text(this,videoSettingsPage?"Vídeos e mídia":sessionSettingsPage?"Cookies e sessões":diagnosticsPage?"Diagnóstico e alertas":"Configurações",22,palette.text,true);
         heading.addView(title,new LinearLayout.LayoutParams(-1,dp(48)));
         root.addView(heading);
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);
@@ -65,6 +69,7 @@ public final class SettingsActivity extends Activity {
         scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if(videoSettingsPage){renderVideoSettings();return;}
         if(sessionSettingsPage){renderSessionSettings();return;}
+        if(diagnosticsPage){renderDiagnosticsSettings();return;}
 
         section("Navegador");
         option("Página inicial",BrowserPrefs.home(this),"home",this::changeHome);
@@ -132,8 +137,9 @@ public final class SettingsActivity extends Activity {
         section("Aplicativo");
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
-        option("Sobre","Baixa Fácil 0.1.0-alpha.38","webdown",()->{
-            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.38\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
+        option("Diagnóstico e alertas",AppEventLog.enabled(this)?"Captura local ativada":"Captura local desativada","alert",()->{diagnosticsPage=true;render();});
+        option("Sobre","Baixa Fácil 0.1.0-alpha.39","webdown",()->{
+            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.39\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
         });
     }
     private void renderSessionSettings(){
@@ -242,11 +248,73 @@ public final class SettingsActivity extends Activity {
         TextView note=Ui.text(this,"As alterações entram em vigor ao voltar ao navegador. Quando houver resultados, o botão flutuante Vídeos aparece sobre a página; dentro da lista use Atualizar para fazer nova busca manualmente.",12,palette.muted,false);
         note.setPadding(dp(8),dp(12),dp(8),dp(6));list.addView(note);
     }
+    private void renderDiagnosticsSettings(){
+        section("Coleta local");
+        downloadSwitch("Capturar erros e alertas do app",
+            "Registra localmente falhas, avisos e crashes inesperados para ajudar no diagnóstico. Não grava cookies, tokens nem URLs completas com parâmetros.",
+            AppEventLog.enabled(this), (context,checked)->{AppEventLog.setEnabled(context,checked);render();});
+        option("Ver registros capturados",AppEventLog.hasItems(this)?"Mostrar, copiar e limpar os eventos locais":"Nenhum alerta ou erro salvo até agora","menu",this::showEventLogViewer);
+        option("Copiar relatório rápido","Gerar um texto único com os eventos recentes","copy",this::copyEventLog);
+        option("Limpar registros","Apagar os alertas e erros armazenados localmente","trash",this::confirmClearEventLog);
+        TextView note=Ui.text(this,
+            "Quando ativado, o aplicativo guarda localmente os principais problemas: crashes inesperados, falhas ao abrir/compartilhar arquivos, bloqueios de download por regras locais e erros relevantes do player. O recurso é local e opcional.",
+            12,palette.muted,false);
+        note.setPadding(dp(8),dp(12),dp(8),dp(6));
+        list.addView(note);
+    }
     @Override public void onBackPressed(){
-        if(videoSettingsPage||sessionSettingsPage){videoSettingsPage=false;sessionSettingsPage=false;render();return;}
+        if(videoSettingsPage||sessionSettingsPage||diagnosticsPage){videoSettingsPage=false;sessionSettingsPage=false;diagnosticsPage=false;render();return;}
         super.onBackPressed();
     }
 
+
+    private void showEventLogViewer(){
+        Ui.Palette p=palette;
+        LinearLayout root=Ui.vertical(this);
+        root.setPadding(dp(18),dp(18),dp(18),dp(14));
+        root.setBackground(Ui.shape(this,p.surface,24));
+        root.addView(Ui.text(this,"Registros locais",18,p.text,true));
+        TextView sub=Ui.text(this,"Lista mais recente de alertas, erros e crashes capturados no aparelho.",12,p.muted,false);
+        root.addView(sub,Ui.lp(this,-1,-2,5));
+        ScrollView scroll=new ScrollView(this);
+        scroll.setFillViewport(false);
+        TextView body=Ui.text(this,AppEventLog.exportText(this,60),12,p.text,false);
+        body.setTypeface(Typeface.MONOSPACE);
+        body.setPadding(dp(10),dp(12),dp(10),dp(12));
+        body.setBackground(Ui.shape(this,p.soft,16));
+        scroll.addView(body,new ScrollView.LayoutParams(-1,-2));
+        root.addView(scroll,new LinearLayout.LayoutParams(-1,getResources().getDisplayMetrics().heightPixels*48/100));
+        LinearLayout actions=Ui.horizontal(this);actions.setGravity(Gravity.END);
+        TextView clear=Ui.pill(this,"Limpar",p.text,p.soft);
+        TextView copy=Ui.pill(this,"Copiar",p.surface,p.teal);
+        LinearLayout.LayoutParams copyP=Ui.lp(this,-2,44,0);copyP.leftMargin=dp(8);
+        actions.addView(clear,Ui.lp(this,-2,44,0));actions.addView(copy,copyP);
+        root.addView(actions,Ui.lp(this,-1,-2,12));
+        AlertDialog dialog=new AlertDialog.Builder(this).setView(root).create();
+        clear.setOnClickListener(v->{dialog.dismiss();confirmClearEventLog();});
+        copy.setOnClickListener(v->{copyEventLog();dialog.dismiss();});
+        dialog.show();
+        if(dialog.getWindow()!=null){
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setLayout(getResources().getDisplayMetrics().widthPixels*94/100,getResources().getDisplayMetrics().heightPixels*78/100);
+        }
+    }
+    private void copyEventLog(){
+        ClipboardManager clipboard=(ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+        if(clipboard!=null){
+            clipboard.setPrimaryClip(ClipData.newPlainText("Diagnóstico Baixa Fácil",AppEventLog.exportText(this,120)));
+            Toast.makeText(this,"Relatório copiado",Toast.LENGTH_SHORT).show();
+        }else Toast.makeText(this,"Área de transferência indisponível",Toast.LENGTH_LONG).show();
+    }
+    private void confirmClearEventLog(){
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.danger("Apagar registros","Remove alertas, erros e crashes já capturados","trash",()->{
+            AppEventLog.clear(this);
+            Toast.makeText(this,"Registros apagados",Toast.LENGTH_SHORT).show();
+            render();
+        }));
+        AppMenus.info(this,"Limpar registros?","A exclusão afeta apenas o histórico local de diagnósticos do aplicativo.",rows);
+    }
     private void chooseAdBlockMode(){
         String[] choices={"Desligado", "Leve", "Forte", "Extremo"};
         String[] notes={"Sem bloqueio de anúncios", "Domínios publicitários conhecidos", "Anúncios e rastreadores", "Filtros agressivos que podem quebrar sites"};
@@ -482,6 +550,7 @@ public final class SettingsActivity extends Activity {
             intent=new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.fromParts("package",getPackageName(),null));
         }
         try{startActivity(intent);}catch(ActivityNotFoundException|SecurityException error){
+            AppEventLog.warn(this,"Configurações","Tela de links padrão indisponível neste Android.");
             Toast.makeText(this,"Configuração indisponível neste Android",Toast.LENGTH_LONG).show();
         }
     }

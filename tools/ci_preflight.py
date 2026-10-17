@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.38"
-CODE = "38"
+VERSION = "0.1.0-alpha.39"
+CODE = "39"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -64,7 +64,7 @@ checks = {
         and all(x in read("app/src/main/java/br/com/baixafacil/SessionPrefs.java") for x in ["shouldClearAtStart", "clearForNewSession", "deleteAllData", "removeAllCookies"]),
     "address suggestions": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["ListPopupWindow", "updateAddressSuggestions", "BrowserSuggestions.suggest", "dismissAddressSuggestions"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserSuggestions.java") for x in ["LoginWindowPolicy.hasLoginParameters", "AuthNavigation.isSensitiveLoginPage", "LIMIT=5"]),
-    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='38'", "versionName='" + VERSION + "'"]),
+    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='" + CODE + "'", "versionName='" + VERSION + "'"]),
     "signature verification": "apksigner" in workflow,
     "code User-Agent version": "BaixaFacil/" + VERSION in service,
     "foreground notification initialization":
@@ -98,6 +98,15 @@ checks = {
         and "String restrictionAfterFailure = DownloadRestrictions.blocked(context);" in service,
     "compact download cards and expand": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
         for x in ["expandedDownloads", "compactDownloads", "smallDownloadAction", "Visualização: ", "setOnClickListener"]),
+    "download confirmation and diagnostics": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        for x in ["DownloadDialogs.confirm", "safeUri(", 'AppEventLog.warn(this,"Downloads"', 'AppEventLog.warn(this,"Arquivos"'])
+        and all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        for x in ["DownloadDialogs.confirm", 'AppEventLog.warn(host,"Downloads"', 'AppEventLog.warn(host,"Navegador"'])
+        and all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
+        for x in ["renderDiagnosticsSettings", "Diagnóstico e alertas", "showEventLogViewer", "copyEventLog"])
+        and "class AppEventLog" in read("app/src/main/java/br/com/baixafacil/AppEventLog.java")
+        and "class DownloadDialogs" in read("app/src/main/java/br/com/baixafacil/DownloadDialogs.java")
+        and 'android:name=".BaixaFacilApp"' in read("app/src/main/AndroidManifest.xml"),
     "video direct-source detection": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         for x in ["VIDEO_SCAN_JS", "shouldInterceptRequest", "scanPageVideos", "showDetectedVideos", "Vídeos (", "VideoLinks.isVideoCandidate"])
         and all(x in read("app/src/main/java/br/com/baixafacil/VideoLinks.java")

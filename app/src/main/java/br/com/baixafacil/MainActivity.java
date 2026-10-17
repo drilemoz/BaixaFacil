@@ -481,6 +481,7 @@ public class MainActivity extends Activity {
         // Uma variável capturada pelo listener do diálogo deve ser final/effectively final.
         final String link = normalized != null ? normalized : UrlTools.extract(urlInput.getText().toString());
         if (link == null) {
+            AppEventLog.warn(this,"Downloads","Link não reconhecido para download direto.");
             new AlertDialog.Builder(this)
                 .setTitle("Link não reconhecido")
                 .setMessage("Digite um endereço válido, por exemplo: site.com/arquivo.zip. Adicionamos HTTPS automaticamente quando necessário. Links privados sandbox: não são acessíveis por este aplicativo.")
@@ -501,16 +502,19 @@ public class MainActivity extends Activity {
             handler.post(() -> {
                 if(isFinishing() || isDestroyed())return;
                 progress.dismiss();
-                StringBuilder detail=new StringBuilder();
-                detail.append("Arquivo: ").append(result.name);
-                detail.append("\nTamanho: ").append(result.length>=0?readableSize(result.length):"não informado");
-                if(!result.type.isEmpty())detail.append("\nTipo: ").append(result.type);
-                detail.append("\n\n").append(result.message);
-                if(url.startsWith("http://"))detail.append("\n\nAtenção: HTTP não criptografado.");
-                new AlertDialog.Builder(this).setTitle("Confirmar download")
-                    .setMessage(detail.toString())
-                    .setNegativeButton("Cancelar",null)
-                    .setPositiveButton("Baixar",(d,w)->enqueue(url)).show();
+                String type=result.type==null||result.type.isEmpty()?"Tipo não informado":result.type;
+                DownloadDialogs.confirm(this,
+                    "Baixar com Baixa Fácil?",
+                    result.name,
+                    "Origem",
+                    hostLabel(url),
+                    "Arquivo",
+                    result.length>=0?readableSize(result.length)+" • "+type:"Tamanho não informado • "+type,
+                    "Destino",
+                    "Download/ pública",
+                    result.message,
+                    url.startsWith("http://"),
+                    ()->enqueue(url));
             });
         },"download-head-preview").start();
     }
@@ -518,6 +522,7 @@ public class MainActivity extends Activity {
     private void enqueue(String link) {
         String restriction=DownloadRestrictions.blocked(this);
         if(restriction!=null) {
+            AppEventLog.warn(this,"Downloads","Download bloqueado pelas regras locais de rede ou bateria.");
             new AlertDialog.Builder(this).setTitle("Download aguardando")
                 .setMessage(restriction+"\n\nAltere as opções em Configurações > Downloads.")
                 .setPositiveButton("Entendi",null).show();
@@ -525,6 +530,7 @@ public class MainActivity extends Activity {
         }
         String id=DownloadStore.create(this,link);
         boolean started=TransferStarter.enqueue(this,id,link,null,null,null);
+        if(!started)AppEventLog.error(this,"Downloads","Android bloqueou ou recusou a fila do download.");
         Toast.makeText(this,started?"Download adicionado":"Android bloqueou o download",Toast.LENGTH_SHORT).show();
         refresh();
     }
@@ -583,17 +589,17 @@ public class MainActivity extends Activity {
             showActionMenu(entry.optString("name", "Download"), detail, items);
             return;
         }
-        Uri uri = Uri.parse(uriText);
+        Uri uri = safeUri(uriText);
         java.util.List<MenuAction> items = new java.util.ArrayList<>();
-        if ("Vídeos".equals(DownloadInfo.kind(entry.optString("name"))))
+        if ("Vídeos".equals(DownloadInfo.kind(entry.optString("name"))) && uri!=null)
             items.add(new MenuAction("play","Reproduzir vídeo","Abre o reprodutor Media3 integrado.",false,()->playLocalVideo(uri)));
         String itemKind=DownloadInfo.kind(entry.optString("name"));
-        if ("Vídeos".equals(itemKind)||"Imagens".equals(itemKind))
+        if (("Vídeos".equals(itemKind)||"Imagens".equals(itemKind)) && uri!=null)
             items.add(new MenuAction("search","Detalhes da mídia","Mostrar resolução e duração quando disponíveis.",false,()->showMediaDetails(uri,entry.optString("name"))));
         items.add(new MenuAction("file","Abrir arquivo","Abre o arquivo no app compatível do Android.",false,()->openFile(uri)));
         items.add(new MenuAction("link","Compartilhar arquivo","Envia o arquivo para outro aplicativo.",false,()->shareFile(uri)));
-        items.add(new MenuAction("paste","Renomear arquivo","Altera o nome salvo na pasta Download.",false,()->renameFile(entry, uri)));
-        items.add(new MenuAction("trash","Excluir arquivo","Remove o arquivo do armazenamento e da lista.",true,()->confirmDeleteFile(entry, uri)));
+        if(uri!=null)items.add(new MenuAction("paste","Renomear arquivo","Altera o nome salvo na pasta Download.",false,()->renameFile(entry, uri)));
+        if(uri!=null)items.add(new MenuAction("trash","Excluir arquivo","Remove o arquivo do armazenamento e da lista.",true,()->confirmDeleteFile(entry, uri)));
         items.add(new MenuAction("folder","Remover só do histórico","Mantém o arquivo, mas tira o item da lista do app.",false,()->{ DownloadStore.remove(this, id); refresh(); }));
         items.add(new MenuAction("copy","Copiar link original","Copia a URL usada para baixar este arquivo.",false,()->copyText("URL", entry.optString("url"))));
         showActionMenu(entry.optString("name"), "Escolha uma ação para este arquivo concluído.", items);
@@ -768,8 +774,36 @@ public class MainActivity extends Activity {
     }
 
     private String mime(Uri uri) {
-        String value = getContentResolver().getType(uri);
-        return value == null ? "*/*" : value;
+        if(uri==null)return "*/*";
+        try{
+            String value = getContentResolver().getType(uri);
+            return value == null ? "*/*" : value;
+        }catch(SecurityException | IllegalArgumentException error){
+            AppEventLog.error(this,"Arquivos",error);
+            return "*/*";
+        }
+    }
+    private Uri safeUri(String raw){
+        if(raw==null)return null;
+        String trimmed=raw.trim();
+        if(trimmed.isEmpty())return null;
+        try{
+            Uri uri=Uri.parse(trimmed);
+            String scheme=uri.getScheme();
+            if(scheme==null)return null;
+            if(!"content".equalsIgnoreCase(scheme) && !"file".equalsIgnoreCase(scheme))return null;
+            return uri;
+        }catch(RuntimeException error){
+            AppEventLog.error(this,"Arquivos",error);
+            return null;
+        }
+    }
+    private String hostLabel(String url){
+        try{
+            java.net.URI uri=new java.net.URI(url);
+            String host=uri.getHost();
+            return host==null||host.isEmpty()?"Origem indisponível":host;
+        }catch(Exception ignored){return "Origem indisponível";}
     }
     private void showMediaDetails(Uri uri,String filename){
         Toast.makeText(this,"Lendo detalhes locais do arquivo...",Toast.LENGTH_SHORT).show();
@@ -789,19 +823,42 @@ public class MainActivity extends Activity {
         startActivity(play);
     }
     private void openFile(Uri uri) {
+        if(uri==null){
+            AppEventLog.warn(this,"Arquivos","Tentativa de abrir arquivo sem URI válida.");
+            Toast.makeText(this, "Arquivo indisponível para abrir", Toast.LENGTH_LONG).show();
+            return;
+        }
         Intent open = new Intent(Intent.ACTION_VIEW);
         open.setDataAndType(uri, mime(uri));
         open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         try { startActivity(Intent.createChooser(open, "Abrir com")); }
-        catch (ActivityNotFoundException e) { Toast.makeText(this, "Nenhum aplicativo pode abrir este arquivo", Toast.LENGTH_LONG).show(); }
+        catch (ActivityNotFoundException e) {
+            AppEventLog.warn(this,"Arquivos","Nenhum app disponível para abrir o arquivo selecionado.");
+            Toast.makeText(this, "Nenhum aplicativo pode abrir este arquivo", Toast.LENGTH_LONG).show();
+        } catch (SecurityException | IllegalArgumentException | RuntimeException error){
+            AppEventLog.error(this,"Arquivos",error);
+            Toast.makeText(this, "Não foi possível abrir o arquivo", Toast.LENGTH_LONG).show();
+        }
     }
     private void shareFile(Uri uri) {
+        if(uri==null){
+            AppEventLog.warn(this,"Arquivos","Tentativa de compartilhar arquivo sem URI válida.");
+            Toast.makeText(this, "Arquivo indisponível para compartilhar", Toast.LENGTH_LONG).show();
+            return;
+        }
         Intent share = new Intent(Intent.ACTION_SEND);
         share.setType(mime(uri));
         share.putExtra(Intent.EXTRA_STREAM, uri);
         share.setClipData(ClipData.newUri(getContentResolver(), "Download", uri));
         share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(Intent.createChooser(share, "Compartilhar arquivo"));
+        try{startActivity(Intent.createChooser(share, "Compartilhar arquivo"));}
+        catch (ActivityNotFoundException error){
+            AppEventLog.warn(this,"Arquivos","Nenhum app disponível para compartilhar o arquivo selecionado.");
+            Toast.makeText(this, "Nenhum aplicativo aceitou o compartilhamento", Toast.LENGTH_LONG).show();
+        } catch (SecurityException | IllegalArgumentException | RuntimeException error){
+            AppEventLog.error(this,"Arquivos",error);
+            Toast.makeText(this, "Não foi possível compartilhar o arquivo", Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override protected void onResume() {
@@ -941,8 +998,9 @@ public class MainActivity extends Activity {
             if(finished && ("Vídeos".equals(DownloadInfo.kind(filename)) || "Imagens".equals(DownloadInfo.kind(filename)))) {
                 String itemUri=entry.optString("uri");
                 String sourceHost=host;
+                Uri previewUri=safeUri(itemUri);
                 fileIcon.setTag(itemUri);
-                mediaPreviewLoader.load(MainActivity.this,Uri.parse(itemUri),filename,result->{
+                if(previewUri!=null)mediaPreviewLoader.load(MainActivity.this,previewUri,filename,result->{
                     if(!itemUri.equals(fileIcon.getTag()) || isFinishing() || isDestroyed())return;
                     if(result.bitmap!=null && !result.bitmap.isRecycled()){
                         fileIcon.removeAllViews();
@@ -996,10 +1054,11 @@ public class MainActivity extends Activity {
 
             // Ações com área de toque de 40 dp; o menu ⋮ mantém todas as operações.
             if(finished){
+                final Uri itemUri=safeUri(entry.optString("uri"));
                 bottom.addView(smallDownloadAction("file","Abrir "+filename,
-                        ()->openFile(Uri.parse(entry.optString("uri")))),new LinearLayout.LayoutParams(dp(40),dp(40)));
+                        ()->openFile(itemUri)),new LinearLayout.LayoutParams(dp(44),dp(44)));
                 bottom.addView(smallDownloadAction("link","Compartilhar "+filename,
-                        ()->shareFile(Uri.parse(entry.optString("uri")))),new LinearLayout.LayoutParams(dp(40),dp(40)));
+                        ()->shareFile(itemUri)),new LinearLayout.LayoutParams(dp(44),dp(44)));
             }else if(active){
                 bottom.addView(smallDownloadAction("pause","Pausar "+filename,
                         ()->controlDownload(id,TransferService.ACTION_PAUSE)),new LinearLayout.LayoutParams(dp(40),dp(40)));

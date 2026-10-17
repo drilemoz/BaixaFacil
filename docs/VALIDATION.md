@@ -1,28 +1,28 @@
-# Validação 0.1.0-alpha.38
+# Validação 0.1.0-alpha.39
 
-## Correção de compilação Gerar APK 10
+## Mudanças desta versão
 
-- Antes: `SettingsActivity.java:163` tentava iterar `WebStorage.getOrigins` (Map bruto) diretamente como `Map.Entry<String,WebStorage.Origin>`, falhando em `:app:compileDebugJavaWithJavac`.
-- Agora: `WebStorageOrigins.checked` valida tipos de chave/valor e origem HTTP(S), retornando lista tipada.
-- Executar `WebStorageOriginsTest` (5 casos) e contrato Java com callback raw `Map`, além de `python3 tools/ci_preflight.py` e `bash tools/test_publish_mock.sh`.
-- Build Android final e testes de UI pendentes de GitHub Actions.
-
-## Cenários funcionais no Android real
-
-- Entrar no ChatGPT, alternar para Downloads e retornar: o site deve continuar vivo; temporizadores JavaScript devem voltar ao primeiro plano.
-- Rolar feed de vídeos: varreduras não devem ocorrer mais de uma vez a cada 3,5 segundos (independente do debounce). Alternar de página invalida resultados antigos.
-- Com pressão de memória, interromper apenas varreduras e descartar previews temporárias, mantendo downloads/cookies/histórico.
-- Abrir ⋮ > Login e diagnóstico > Desempenho e memória: confirmar RAM disponível, heap Java, PSS (somente app), WebView e opção externa; nenhuma informação sensível ou URL com query no relatório.
-- Process renderer crash: o Android deve conseguir recriar a WebView sem crash de todo o aplicativo; validar no aparelho.
+- Novo diálogo visual de confirmação de download usando `DownloadDialogs`, com resumo da origem, do arquivo, do destino e aviso para HTTP não criptografado.
+- Correção defensiva dos atalhos rápidos **Abrir** e **Compartilhar** na lista de downloads concluídos com `safeUri`, tratamento de `ActivityNotFoundException`, `SecurityException`, `IllegalArgumentException` e outros erros de runtime.
+- Nova captura local opcional `AppEventLog` com registros de alertas/erros e `UncaughtExceptionHandler` global via `BaixaFacilApp`.
+- Nova seção **Configurações > Diagnóstico e alertas** com ativação, visualização, cópia e limpeza dos registros locais.
 
 ## Verificações locais
 
 - `python3 tools/ci_preflight.py`
 - `bash tools/test_publish_mock.sh`
-- Testes JVM da política `BrowserPerformancePolicyTest`.
-- Java sintático, estrutura XML/YAML e integridade ZIP.
+- Busca de sincronização de versão (`0.1.0-alpha.39`, `versionCode 39`) em Gradle, workflow, docs, User-Agent e tela Sobre.
+- Inspeção sintática/estrutural dos arquivos Java modificados (`MainActivity`, `BrowserPane`, `SettingsActivity`, `MediaPlayerActivity`, `DownloadDialogs`, `AppEventLog`, `BaixaFacilApp`).
+
+## Cenários funcionais para Android real
+
+- Abrir um download concluído pela ação rápida do card e confirmar que o app não fecha, inclusive quando não houver app compatível instalado.
+- Compartilhar um download concluído pela ação rápida do card e confirmar que falhas são tratadas sem crash.
+- Iniciar um download a partir do navegador e pelo campo manual, validando o novo diálogo visual e o aviso de HTTP quando aplicável.
+- Ativar **Configurações > Diagnóstico e alertas**, provocar um erro tratável (por exemplo, compartilhar item sem handler disponível) e verificar o registro local/copiar relatório.
+- Confirmar que os registros não exibem cookies, tokens nem URLs completas com parâmetros sensíveis.
 
 ## Pendências
 
-- `:app:testDebugUnitTest`, `:app:assembleDebug` e Android lint no GitHub Actions.
-- Medições de memória/reprodução em dispositivo físico.
+- Executar `:app:testDebugUnitTest` e `:app:assembleDebug` no GitHub Actions.
+- Validar a experiência visual final do novo diálogo e da tela de diagnósticos em aparelho físico.

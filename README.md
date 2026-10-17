@@ -1,4 +1,12 @@
-# Baixa Fácil 0.1.0-alpha.38
+# Baixa Fácil 0.1.0-alpha.39
+
+## Novidades da alpha.39
+
+- Diálogo de confirmação de download redesenhado para ficar mais moderno e coerente com o padrão visual do app.
+- Correção do fechamento do aplicativo ao tocar nos botões rápidos **Abrir** e **Compartilhar** na lista de downloads concluídos.
+- Nova seção **Configurações > Diagnóstico e alertas** para capturar localmente erros, alertas e crashes inesperados, com visualização, cópia e limpeza dos registros.
+- Captura global opcional de crashes com armazenamento local privado, sem cookies, tokens nem URLs completas com parâmetros.
+- Mantidos os recursos das versões anteriores: navegador integrado, bloqueio de anúncios, detecção de vídeos, histórico, favoritos, configurações de sessão e restrições de rede/bateria.
 
 ## Correção de compilação do gerenciamento de sessões (alpha.38)
 

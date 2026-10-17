@@ -59,6 +59,7 @@ public final class MediaPlayerActivity extends Activity {
                     else if(playbackState==Player.STATE_ENDED)MediaPlayerActivity.this.state.setText("Vídeo concluído");
                 }
                 @Override public void onPlayerError(PlaybackException error){
+                    AppEventLog.error(MediaPlayerActivity.this,"Player",error);
                     if(MediaPlayerActivity.this.state!=null)MediaPlayerActivity.this.state.setText("Falha na reprodução. O site pode exigir sessão, codec ou DRM indisponível.");
                 }
             });
@@ -66,6 +67,7 @@ public final class MediaPlayerActivity extends Activity {
             player.setMediaItem(item);
             player.prepare();player.play();
         }catch(RuntimeException error){
+            AppEventLog.error(this,"Player",error);
             new AlertDialog.Builder(this).setTitle("Não foi possível reproduzir")
                 .setMessage("Este endereço não pôde ser aberto pelo reprodutor integrado.")
                 .setPositiveButton("Fechar",(d,w)->finish()).show();

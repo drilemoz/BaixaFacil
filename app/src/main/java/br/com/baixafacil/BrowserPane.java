@@ -1372,22 +1372,27 @@ final class BrowserPane {
 
     private void offerDownload(String url,String agent,long length) {
         if(url==null || !url.equals(UrlTools.extract(url))) {
-            new AlertDialog.Builder(host).setTitle("Download não compatível")
-                .setMessage("O mecanismo próprio aceita somente links HTTP/HTTPS. blob:, data: e arquivos internos não são suportados.")
-                .setPositiveButton("OK",null).show();
+            AppEventLog.warn(host,"Navegador","Tentativa de baixar endereço não compatível com o motor HTTP próprio.");
+            DownloadDialogs.info(host,"Download não compatível","O mecanismo próprio aceita somente links HTTP/HTTPS. blob:, data: e arquivos internos não são suportados.");
             return;
         }
         String domain;
         try { domain=new URI(url).getHost(); } catch(Exception ex) { domain="servidor"; }
-        String summary="Origem: "+domain+"\n"+(length>=0?"Tamanho informado: "+(length/1024)+" KB\n":"Tamanho desconhecido\n")+
-            "Será salvo em Download/. Cookies de sessão não serão armazenados no histórico nem enviados a outros domínios.";
-        if (url.startsWith("http://")) summary+="\n\nA conexão HTTP não é criptografada.";
-        new AlertDialog.Builder(host).setTitle("Baixar com Baixa Fácil?").setMessage(summary)
-            .setNegativeButton("Cancelar",null).setPositiveButton("Baixar",(d,w)->startDownload(url,agent)).show();
+        String size=length>=0?(length/1024)+" KB":"Tamanho desconhecido";
+        DownloadDialogs.confirm(host,
+            "Baixar com Baixa Fácil?",
+            "Confirme o envio deste arquivo para a fila local do aplicativo.",
+            "Origem",domain,
+            "Arquivo",size,
+            "Destino","Download/ pública",
+            "Cookies de sessão não serão armazenados no histórico nem enviados a outros domínios.",
+            url.startsWith("http://"),
+            ()->startDownload(url,agent));
     }
     private void startDownload(String url,String agent){
         String restriction=DownloadRestrictions.blocked(host);
         if(restriction!=null){
+            AppEventLog.warn(host,"Downloads","Download bloqueado pelas regras locais de rede ou bateria.");
             new AlertDialog.Builder(host).setTitle("Download aguardando")
                 .setMessage(restriction+"\n\nAltere as opções em Configurações > Downloads.")
                 .setPositiveButton("Entendi",null).show();
@@ -1401,6 +1406,9 @@ final class BrowserPane {
         if(started){
             Toast.makeText(host,"Download adicionado à fila",Toast.LENGTH_SHORT).show();
             host.showDownloads();
-        }else Toast.makeText(host,"Não foi possível iniciar o download",Toast.LENGTH_LONG).show();
+        }else {
+            AppEventLog.error(host,"Downloads","Android bloqueou ou recusou a fila do download.");
+            Toast.makeText(host,"Não foi possível iniciar o download",Toast.LENGTH_LONG).show();
+        }
     }
 }
