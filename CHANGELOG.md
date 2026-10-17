@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.0-alpha.34 (versionCode 34) - 2026-10-17
+
+- Detecção de vídeo em Reels/feed melhorada: varredura após rolagem com debounce sem polling contínuo, relacionando metadados apenas ao `<video>` que realmente expõe aquela URL.
+- A lista ordena primeiro vídeos associados ao player visível e em reprodução, mantendo fontes observadas na rede identificadas como não verificadas visualmente. Não atribui o vídeo ativo a links arbitrários.
+- Captura conservadora de título do próprio player ou de cabeçalho/legenda no artigo HTML correspondente; sanitização e limite de texto, sem incluir tokens de URL.
+- Miniaturas tentam obter frame reduzido (96×70) localmente por canvas com política de origem do navegador e fazem fallback para captura da área visível da WebView. Sem requisições de imagem adicionais, scraping de cookies ou persistência de thumbs.
+- Deduplicação de URLs reassinadas e espelhos `scontent.*.fbcdn.net` quando o caminho contém identidade forte. Preserva separação de vídeos distintos por caminho ou parâmetros ID; evita agrupamento apenas por domínio.
+- Novo `VideoPresentation` e testes JVM de ordenação, títulos, espelhos Facebook e preservação de identidade. Sincronizados versionCode, metadados, CI e documentação.
+- Compilação Android completa e testes em aparelho ainda pendentes; Facebook pode bloquear reprodução externa por sessão, assinaturas ou DRM.
+
+## 0.1.0-alpha.33 (versionCode 33) - 2026-10-17
+
+- Navegador remove o efeito de “site dentro de uma caixa”: a WebView agora ocupa a área principal sem moldura arredondada, mantendo o cabeçalho e os controles externos do app.
+- O atalho de vídeos virou um **botão flutuante** sobre a página e só aparece quando há resultados detectados. O rodapé fica limpo quando não existe vídeo compatível.
+- A lista **Vídeos encontrados** ganhou cards com miniaturas locais sempre que houver um elemento `<video>` visível na tela. A miniatura é recortada da própria WebView, sem buscar cookies nem URLs privadas adicionais.
+- Itens de vídeo exibem uma identificação visual melhor e continuam respeitando os limites de segurança: download apenas para arquivos diretos; HLS/DASH apenas reprodução online; formatos não verificados sem download.
+- Atualizados versionamento, User-Agent, workflow, mock de publicação, tela Sobre e documentação para a alpha.33.
+- Validação Android completa e teste em aparelho continuam pendentes; foram feitas verificações locais de consistência dos arquivos e sincronização de versão.
+
 ## 0.1.0-alpha.32 (versionCode 32) - 2026-10-17
 
 - Lista de vídeos agora agrupa URLs repetidas do **mesmo caminho de mídia** em um único resultado, inclusive quando tokens de acesso temporários da URL mudam; a fonte mais recente é mantida apenas na sessão, nunca em histórico/diagnóstico.

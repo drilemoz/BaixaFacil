@@ -64,7 +64,7 @@ final class VideoMenuModel {
                 if(group==null){group=new Group(kind,host,title);groups.put(id,group);}
                 // Troca o token antigo pela URL mais recente para o mesmo arquivo/caminho,
                 // sem copiar parâmetros da URL para a interface ou para o armazenamento.
-                String variant=schemeHost(uri)+path;
+                String variant=canonicalHost(uri,path)+path;
                 group.variants.put(variant,new Source(url,"", "",quality,pixels(quality)));
             } catch(Exception ignored){}
         }
@@ -102,12 +102,37 @@ final class VideoMenuModel {
         return uri.getScheme().toLowerCase(Locale.ROOT)+"://"+uri.getHost().toLowerCase(Locale.ROOT)+
             (uri.getPort()==-1?"":":"+uri.getPort());
     }
+    /** Espelhos de CDN do Facebook só são equivalentes quando o caminho tem identidade longa.
+     * Não associa vídeos pelo domínio ou por proximidade da requisição.
+     */
+    private static String canonicalHost(URI uri,String path){
+        String host=uri.getHost().toLowerCase(Locale.ROOT);
+        if("https".equalsIgnoreCase(uri.getScheme())
+                && host.matches("scontent[.-][a-z0-9.-]+\\.fbcdn\\.net")
+                && path!=null && path.length()>36
+                && path.matches(".*[a-zA-Z0-9_-]{16,}.*")){
+            return "https://scontent-mirror.fbcdn.net";
+        }
+        return schemeHost(uri);
+    }
+    /** Identidade sem token volátil; só usada para reencontrar metadados da mesma mídia. */
+    static String mediaIdentity(String url){
+        if(!VideoLinks.allowedHttpUrl(url))return "";
+        try{
+            URI uri=new URI(url);
+            if(uri.getFragment()!=null || uri.getUserInfo()!=null)return "";
+            MediaSourcePolicy.Kind kind=MediaSourcePolicy.classify(url);
+            String path=uri.getPath()==null?"":uri.getPath();
+            return key(uri,kind,path);
+        }catch(Exception ignored){return "";}
+    }
+
     private static String key(URI uri,MediaSourcePolicy.Kind kind,String path){
         // URLs do mesmo arquivo com assinaturas diferentes são uma fonte apenas.
         // Somente agrupa variantes de qualidade explícita no MESMO caminho lógico.
         String normalized=QUALITY.matcher(path).replaceAll("$1{qualidade}");
         normalized=NUMBER_FOLDER.matcher(normalized).replaceAll("$1{qualidade}");
-        String key=kind+":"+schemeHost(uri)+normalized;
+        String key=kind+":"+canonicalHost(uri,path)+normalized;
         String query=uri.getRawQuery();
         if(query==null)return key;
         // Se a identidade da mídia está na query, não juntar filmes diferentes.

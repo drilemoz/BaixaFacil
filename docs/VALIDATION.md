@@ -1,21 +1,22 @@
-# Validação 0.1.0-alpha.32
+# Validação 0.1.0-alpha.34
 
-## Agrupamento de vídeos
+## Pontos alterados
 
-- Testar links HLS com assinaturas distintas no mesmo caminho: um único resultado, URL mais recente para ação.
-- Testar playlists 360p, 720p e 1080p do mesmo caminho lógico: grupo único e ordenado, opção de fonte obrigatória.
-- Testar conteúdos distintos no mesmo CDN e IDs distintos na query: resultados separados.
-- Não exibir parâmetros assinados em rótulos, descrições, diagnósticos ou histórico.
-- Preservar diferenciação de download direto vs. HLS/DASH vs. formato não verificado.
+- Validar varredura após rolar por vídeos/Reels, sem chamadas repetidas a cada frame ou execução em páginas sensíveis de autenticação.
+- Confirmar que a relação entre título/thumb e URL utiliza o elemento de vídeo ou identidade segura do mesmo arquivo; outros recursos devem aparecer como sem associação visual confirmada.
+- Confirmar deduplicação de espelhos `scontent.*.fbcdn.net` com mesmo caminho longo e parâmetros de identidade iguais; vídeos distintos não são fundidos.
+- Miniatura: tentar frame canvas somente com política padrão de origem, fallback WebView; nem JavaScript nem Android fazem downloads adicionais para thumbnails.
+- Regressão: download só de arquivo direto, HLS/DASH apenas player online, DRM não suportado; controles de login, anúncios e rede intactos.
 
-## Validações locais
+## Testes executados
 
-- `python3 tools/ci_preflight.py`
-- `bash tools/test_publish_mock.sh`
-- Compilar e executar testes JVM `VideoMenuModelTest` com 11 casos.
-- Analisar sintaticamente arquivos Java e validar XML/YAML/ZIP.
+- `python3 tools/ci_preflight.py`.
+- `bash tools/test_publish_mock.sh`.
+- JVM `VideoMenuModelTest` e `VideoPresentationTest` com executor de JUnit compatível.
+- Teste de sintaxe e execução JavaScript em Node.js com player simulado.
+- Parser sintático de fontes Java com JavacTask e integridade/estrutura ZIP.
 
 ## Pendências
 
-- Compilação Android completa no GitHub Actions, testes de interface e execução no aparelho.
-- Reprodução e download reais dependem da disponibilidade e autorização do servidor da mídia.
+- Build Android/Gradle completo no GitHub Actions e validação de interface no aparelho.
+- Testar no Facebook e em sites de vídeos, considerando URLs temporárias/autenticação e restrições de origem.

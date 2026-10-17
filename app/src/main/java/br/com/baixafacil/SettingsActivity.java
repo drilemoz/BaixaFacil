@@ -121,8 +121,8 @@ public final class SettingsActivity extends Activity {
         section("Aplicativo");
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
-        option("Sobre","Baixa Fácil 0.1.0-alpha.32","webdown",()->{
-            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.32\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
+        option("Sobre","Baixa Fácil 0.1.0-alpha.34","webdown",()->{
+            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.34\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
         });
     }
     private String adBlockModeName(){
@@ -147,7 +147,7 @@ public final class SettingsActivity extends Activity {
                 + "HLS (.m3u8) e DASH (.mpd) são playlists: nesta versão o Media3 pode reproduzi-las online, mas o app não faz download completo de segmentos.\n\n"
                 + "Fontes blob:, DRM e conteúdo de sessões protegidas não são convertidos em arquivos. Os resultados detectados não ficam salvos no histórico.",actions);
         });
-        TextView note=Ui.text(this,"As alterações entram em vigor ao voltar ao navegador. Use o botão Vídeos para atualizar a busca manualmente.",12,palette.muted,false);
+        TextView note=Ui.text(this,"As alterações entram em vigor ao voltar ao navegador. Quando houver resultados, o botão flutuante Vídeos aparece sobre a página; dentro da lista use Atualizar para fazer nova busca manualmente.",12,palette.muted,false);
         note.setPadding(dp(8),dp(12),dp(8),dp(6));list.addView(note);
     }
     @Override public void onBackPressed(){

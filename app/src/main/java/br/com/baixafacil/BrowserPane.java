@@ -8,9 +8,13 @@ import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.net.Uri;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Message;
+import android.util.Base64;
 import android.content.pm.PackageInfo;
 import android.webkit.WebResourceResponse;
 import android.text.InputType;
@@ -33,7 +37,9 @@ import android.webkit.WebViewClient;
 import android.webkit.RenderProcessGoneDetail;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -71,35 +77,104 @@ final class BrowserPane {
     private boolean googleLoginDialogVisible;
     private TextView videosButton;
     private final LinkedHashMap<String,String> videoUrls = new LinkedHashMap<>();
+    private final LinkedHashMap<String,PreviewMeta> videoPreviewMeta = new LinkedHashMap<>();
     private int mediaElements;
     private int unsupportedMedia;
     private int scanGeneration;
+    private Runnable pendingMediaScan;
     private final AdBlockController adBlock;
 
     // Executado somente quando a pessoa pede a busca ou após uma página terminar.
     // Não injeta bridge JS nem lê cookies, tokens de sessão ou dados de outros frames.
-    private static final String VIDEO_SCAN_JS = "(function(){try{" +
-            "var out={media:[],players:0,unsupported:0};" +
-            "function put(u,k,t){if(!u||typeof u!=='string')return;" +
-            "if(u.startsWith('blob:')||u.startsWith('data:')||u.startsWith('mediasource:')){out.unsupported++;return;}" +
-            "if(out.media.length<40&&u.length<4096)out.media.push({url:u,kind:k,mime:t||''});}" +
-            "var players=document.querySelectorAll('video');out.players=players.length;" +
-            "for(var i=0;i<players.length&&i<30;i++){var v=players[i];put(v.currentSrc||v.src,'video',v.getAttribute('type'));" +
-            "var src=v.querySelectorAll('source');for(var j=0;j<src.length&&j<6;j++)put(src[j].src,'source',src[j].type);}" +
-            "var sources=document.querySelectorAll('source[type^=\"video/\"]');" +
-            "for(var i=0;i<sources.length&&i<30;i++)put(sources[i].src,'source',sources[i].type);" +
-            "var links=document.querySelectorAll('a[href]');for(var i=0;i<links.length&&i<150;i++){" +
-            "var a=links[i];if(/\\.(mp4|m4v|webm|mov|ogv|3gp)(\\?|#|$)/i.test(a.href))put(a.href,'link','');}" +
-            "return JSON.stringify(out);" +
-            "}catch(e){return JSON.stringify({media:[],players:0,unsupported:0});}})();";
+    private static final String VIDEO_SCAN_JS =
+        "(function(){" +
+        "try {" +
+        "var out={media:[],players:0,unsupported:0};" +
+        "var attemptedFrames=0;" +
+        "function safeText(x){return typeof x==='string'?x.replace(/\\s+/g,' ').trim().slice(0,105):'';}" +
+        "function bounds(el){" +
+        "if(!el)return {x:0,y:0,w:0,h:0,visible:false};" +
+        "try {" +
+        "var r=el.getBoundingClientRect();" +
+        "var w=Math.max(0,Math.round(r.width)),h=Math.max(0,Math.round(r.height));" +
+        "return {x:Math.round(r.left),y:Math.round(r.top),w:w,h:h," +
+        "visible:w>25&&h>25&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth};" +
+        "}catch(e){return {x:0,y:0,w:0,h:0,visible:false};}" +
+        "}" +
+        "function titleFor(v){" +
+        "if(!v)return '';" +
+        "var t=safeText(v.getAttribute('aria-label')||v.getAttribute('title')||'');" +
+        "if(t)return t;" +
+        "try{" +
+        "var block=v.closest('article,[role=\"article\"],[data-pagelet]');" +
+        "if(block){" +
+        "var heading=block.querySelector('[data-ad-preview=\"message\"],h1,h2,h3,[role=\"heading\"]');" +
+        "if(heading)return safeText(heading.textContent);" +
+        "}" +
+        "}catch(e){}" +
+        "return '';" +
+        "}" +
+        "function frameFor(v,rect){" +
+        "if(!v||!rect.visible||attemptedFrames>=3||v.readyState<2||!v.videoWidth||!v.videoHeight)return '';" +
+        "attemptedFrames++;" +
+        "try {" +
+        "var c=document.createElement('canvas');c.width=96;c.height=70;" +
+        "c.getContext('2d').drawImage(v,0,0,96,70);" +
+        "var data=c.toDataURL('image/jpeg',0.52);" +
+        "return data.length<18000?data:'';" +
+        "}catch(e){return '';}" +
+        "}" +
+        "function put(u,kind,mime,v){" +
+        "if(!u||typeof u!=='string')return;" +
+        "if(/^(blob:|data:|mediasource:)/i.test(u)){out.unsupported++;return;}" +
+        "if(out.media.length>=40||u.length>4096)return;" +
+        "var r=bounds(v), playing=!!(v&&!v.paused&&!v.ended&&v.readyState>=2);" +
+        "out.media.push({url:u,kind:kind,mime:mime||'',title:titleFor(v)," +
+        "playing:playing,visible:r.visible,x:r.x,y:r.y,w:r.w,h:r.h,frame:frameFor(v,r)});" +
+        "}" +
+        "var players=document.querySelectorAll('video');out.players=players.length;" +
+        "for(var i=0;i<players.length&&i<25;i++){" +
+        "var v=players[i];" +
+        "put(v.currentSrc||v.src,'video',v.getAttribute('type'),v);" +
+        "var src=v.querySelectorAll('source');" +
+        "for(var j=0;j<src.length&&j<5;j++)put(src[j].src,'source',src[j].type,v);" +
+        "}" +
+        "var sources=document.querySelectorAll('source[type^=\"video/\"]');" +
+        "for(var k=0;k<sources.length&&k<20;k++){" +
+        "var node=sources[k];" +
+        "var owner=node.parentElement&&node.parentElement.tagName==='VIDEO'?node.parentElement:null;" +
+        "if(!owner)put(node.src,'source',node.type,null);" +
+        "}" +
+        "var links=document.querySelectorAll('a[href]');" +
+        "for(var l=0;l<links.length&&l<100;l++){" +
+        "var a=links[l];" +
+        "if(/\\.(mp4|m4v|webm|mov|ogv|3gp)(\\?|#|$)/i.test(a.href))put(a.href,'link','',null);" +
+        "}" +
+        "return JSON.stringify(out);" +
+        "} catch(e){return JSON.stringify({media:[],players:0,unsupported:0});}" +
+        "})()";
 
+    private static final class PreviewMeta {
+        final String title,frame;
+        final int x,y,width,height;
+        final boolean playing,visible;
+        PreviewMeta(String title,int x,int y,int width,int height,boolean playing,boolean visible,String frame){
+            this.title=VideoPresentation.cleanTitle(title);
+            this.x=x;this.y=y;this.width=width;this.height=height;
+            this.playing=playing;this.visible=visible;
+            this.frame=frame==null?"":frame.length()<18000?frame:"";
+        }
+        boolean hasBounds(){return width>25 && height>25 && visible;}
+        boolean hasInfo(){return hasBounds()||!title.isEmpty()||!frame.isEmpty()||playing;}
+        int rank(){return playing&&visible?3:visible?2:playing?1:0;}
+    }
 
     BrowserPane(MainActivity host, Ui.Palette colors, Bundle saved) {
         this.host = host;
         this.colors = colors;
         adBlock = new AdBlockController(host);
         view = Ui.vertical(host);
-        view.setPadding(dp(12),dp(4),dp(12),dp(4));
+        view.setPadding(0,dp(4),0,0);
         view.setBackgroundColor(colors.background);
         build(saved);
     }
@@ -141,7 +216,9 @@ final class BrowserPane {
         LinearLayout.LayoutParams settingsP = new LinearLayout.LayoutParams(dp(44),dp(44));
         settingsP.leftMargin = dp(2);
         top.addView(iconButton("settings","Configurações",44,host::openSettings),settingsP);
-        view.addView(top,Ui.lp(host,-1,48,0));
+        LinearLayout.LayoutParams topP=Ui.lp(host,-1,48,0);
+        topP.leftMargin=dp(12);topP.rightMargin=dp(12);
+        view.addView(top,topP);
         showSecurity(BrowserPrefs.home(host));
 
         findBar = Ui.horizontal(host);
@@ -177,17 +254,21 @@ final class BrowserPane {
             }
             @Override public void afterTextChanged(Editable e){}
         });
-        view.addView(findBar,Ui.lp(host,-1,44,5));
+        LinearLayout.LayoutParams findP=Ui.lp(host,-1,44,5);
+        findP.leftMargin=dp(12);findP.rightMargin=dp(12);
+        view.addView(findBar,findP);
 
         loading=new ProgressBar(host,null,android.R.attr.progressBarStyleHorizontal);
         loading.setMax(100);
         loading.setProgressTintList(android.content.res.ColorStateList.valueOf(colors.teal));
         loading.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(colors.background));
-        view.addView(loading,Ui.lp(host,-1,3,4));
+        LinearLayout.LayoutParams loadP=Ui.lp(host,-1,3,4);
+        loadP.leftMargin=dp(12);loadP.rightMargin=dp(12);
+        view.addView(loading,loadP);
 
         FrameLayout frame=new FrameLayout(host);
-        frame.setBackground(Ui.shape(host,colors.surface,20));
-        frame.setClipToOutline(true);
+        frame.setBackgroundColor(colors.background);
+        frame.setClipToPadding(false);
         web=new WebView(host);
         WebSettings options=web.getSettings();
         standardUserAgent=options.getUserAgentString();
@@ -219,6 +300,11 @@ final class BrowserPane {
             if(finished && findCount!=null && findBar.getVisibility()==View.VISIBLE)
                 findCount.setText(total==0?"0/0":(active+1)+"/"+total);
         });
+        // Em feeds/Reels, a navegação pode trocar vídeos sem abrir outra página.
+        // Varredura após a rolagem, com debounce, sem rede nem loop de polling.
+        web.setOnScrollChangeListener((v,sx,sy,oldX,oldY)->{
+            if(sy!=oldY && VideoPrefs.autoScan(host))scheduleMediaScan(900);
+        });
         web.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView w,WebResourceRequest request) {
                 String target=request.getUrl().toString();
@@ -240,7 +326,10 @@ final class BrowserPane {
                 }
                 lastHttpStatus=0;
                 scanGeneration++;
+                if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);
+                pendingMediaScan=null;
                 synchronized(videoUrls){ videoUrls.clear(); }
+                synchronized(videoPreviewMeta){ videoPreviewMeta.clear(); }
                 mediaElements=0;
                 unsupportedMedia=0;
                 updateVideosButton();
@@ -263,7 +352,11 @@ final class BrowserPane {
                                 added=true;
                             }
                         }
-                        if(added)host.runOnUiThread(BrowserPane.this::updateVideosButton);
+                        if(added)host.runOnUiThread(()->{
+                            updateVideosButton();
+                            if(web!=null && web.getUrl()!=null && web.getUrl().contains("facebook.com"))
+                                scheduleMediaScan(950);
+                        });
                     }
                 }
                 return null;
@@ -342,20 +435,25 @@ final class BrowserPane {
         });
         web.setDownloadListener((url,agent,disposition,mime,length)->offerDownload(url,agent,length));
         frame.addView(web,new FrameLayout.LayoutParams(-1,-1));
+        videosButton=Ui.pill(host,"Vídeos",colors.teal,colors.soft);
+        videosButton.setTextSize(12);
+        videosButton.setPadding(dp(12),0,dp(12),0);
+        videosButton.setMinHeight(dp(40));
+        videosButton.setVisibility(View.GONE);
+        videosButton.setContentDescription("Abrir vídeos encontrados nesta página");
+        videosButton.setOnClickListener(v->showDetectedVideos());
+        FrameLayout.LayoutParams videoP=new FrameLayout.LayoutParams(-2,dp(40),Gravity.END|Gravity.BOTTOM);
+        videoP.rightMargin=dp(14);videoP.bottomMargin=dp(14);
+        frame.addView(videosButton,videoP);
         view.addView(frame,new LinearLayout.LayoutParams(-1,0,1));
         status=Ui.text(host,"Digite um endereço ou pesquise na web.",11,colors.muted,false);
         status.setSingleLine(true);status.setEllipsize(TextUtils.TruncateAt.END);
-        status.setPadding(dp(7),0,dp(7),0);
+        status.setPadding(dp(19),0,dp(19),0);
         LinearLayout bottomInfo=Ui.horizontal(host);
         bottomInfo.addView(status,new LinearLayout.LayoutParams(0,dp(28),1));
-        videosButton=Ui.pill(host,"Vídeos",colors.teal,colors.soft);
-        videosButton.setTextSize(12);
-        videosButton.setPadding(dp(10),0,dp(10),0);
-        videosButton.setMinHeight(dp(28));
-        videosButton.setContentDescription("Procurar vídeos nesta página");
-        videosButton.setOnClickListener(v->scanPageVideos(true));
-        bottomInfo.addView(videosButton,new LinearLayout.LayoutParams(-2,dp(28)));
-        view.addView(bottomInfo,Ui.lp(host,-1,28,2));
+        LinearLayout.LayoutParams bottomP=Ui.lp(host,-1,28,2);
+        bottomP.leftMargin=0;bottomP.rightMargin=0;
+        view.addView(bottomInfo,bottomP);
         if (saved != null) {
             Bundle webState=saved.getBundle("BROWSER_WEB_STATE");
             if (webState != null && web.restoreState(webState)!=null) return;
@@ -690,11 +788,25 @@ final class BrowserPane {
         }
     }
 
+    private void scheduleMediaScan(long delayMs){
+        if(web==null || !VideoPrefs.autoScan(host))return;
+        if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);
+        int generation=scanGeneration;
+        Runnable job=()->{
+            pendingMediaScan=null;
+            if(generation==scanGeneration && web!=null &&
+                !AuthNavigation.isSensitiveLoginPage(web.getUrl()))scanPageVideos(false);
+        };
+        pendingMediaScan=job;
+        web.postDelayed(job,delayMs);
+    }
+
     private void updateVideosButton() {
         if(videosButton==null)return;
         int count;
         synchronized(videoUrls){count=VideoMenuModel.display(videoUrls,VideoPrefs.showStreams(host),VideoPrefs.showSources(host)).size();}
         videosButton.setText(count>0?"Vídeos ("+count+")":"Vídeos");
+        videosButton.setVisibility(count>0?View.VISIBLE:View.GONE);
     }
 
     private void scanPageVideos(boolean showResult) {
@@ -719,7 +831,9 @@ final class BrowserPane {
                 if(found!=null)for(int i=0;i<found.length();i++) {
                     JSONObject obj=found.optJSONObject(i);
                     if(obj==null)continue;
-                    addVideoCandidate(obj.optString("url"),obj.optString("kind"),obj.optString("mime"));
+                    PreviewMeta meta=new PreviewMeta(obj.optString("title"),obj.optInt("x",0),obj.optInt("y",0),
+                        obj.optInt("w",0),obj.optInt("h",0),obj.optBoolean("playing",false),obj.optBoolean("visible",false),obj.optString("frame"));
+                    addVideoCandidate(obj.optString("url"),obj.optString("kind"),obj.optString("mime"),meta);
                 }
             } catch(Exception ignored) {
                 if(showResult)Toast.makeText(host,"Não foi possível analisar esta página",Toast.LENGTH_SHORT).show();
@@ -730,10 +844,24 @@ final class BrowserPane {
     }
 
     private void addVideoCandidate(String url,String kind,String mime) {
+        addVideoCandidate(url,kind,mime,null);
+    }
+
+    private void addVideoCandidate(String url,String kind,String mime,PreviewMeta meta) {
         if(!VideoLinks.isVideoCandidate(url,kind,mime) && !MediaSourcePolicy.isPlaylist(url))return;
         synchronized(videoUrls){
             if(!videoUrls.containsKey(url) && videoUrls.size()<VideoLinks.MAX_VIDEO_URLS)
                 videoUrls.put(url,MediaSourcePolicy.isPlaylist(url)?"stream":(MediaSourcePolicy.isDirect(url)?"direct":("video".equals(kind)||"source".equals(kind)?"video":"unverified")));
+        }
+        if(meta!=null && meta.hasInfo()) {
+            synchronized(videoPreviewMeta){
+                PreviewMeta existing=videoPreviewMeta.get(url);
+                if(videoPreviewMeta.size()<VideoLinks.MAX_VIDEO_URLS || existing!=null){
+                    if(existing==null || meta.rank()>existing.rank() ||
+                       (meta.rank()==existing.rank() && !meta.title.isEmpty() && existing.title.isEmpty()) ||
+                       (!meta.frame.isEmpty() && existing.frame.isEmpty())) videoPreviewMeta.put(url,meta);
+                }
+            }
         }
     }
 
@@ -742,8 +870,8 @@ final class BrowserPane {
         synchronized(videoUrls){
             videos=VideoMenuModel.display(videoUrls,VideoPrefs.showStreams(host),VideoPrefs.showSources(host));
         }
-        List<AppMenus.Entry> rows=AppMenus.entries();
         if(videos.isEmpty()){
+            List<AppMenus.Entry> rows=AppMenus.entries();
             String message=(mediaElements>0 || unsupportedMedia>0)
                 ? "Há um player na página, mas não foi encontrado um arquivo direto ou playlist pública compatível. Algumas páginas usam blob:, segmentos protegidos ou sessões restritas."
                 : "Nenhum vídeo compatível identificado. Abra ou reproduza o vídeo da página e faça uma nova busca.";
@@ -752,23 +880,190 @@ final class BrowserPane {
             AppMenus.info(host,"Vídeos na página",message,rows);
             return;
         }
+        java.util.HashMap<String,VideoPresentation.Context> contexts=new java.util.HashMap<>();
+        synchronized(videoPreviewMeta){
+            for(Map.Entry<String,PreviewMeta> entry:videoPreviewMeta.entrySet()){
+                PreviewMeta meta=entry.getValue();
+                contexts.put(entry.getKey(),new VideoPresentation.Context(meta.title,meta.playing,meta.visible));
+            }
+        }
+        showDetectedVideosDialog(VideoPresentation.sort(videos,contexts));
+    }
+
+    private void showDetectedVideosDialog(List<VideoMenuModel.Video> videos){
+        final Ui.Palette p=new Ui.Palette(host);
+        final int d=dp(1);
+        final Bitmap snapshot=captureVisiblePage();
+        LinearLayout root=Ui.vertical(host);
+        root.setPadding(dp(18),dp(19),dp(18),dp(12));
+        root.setBackground(Ui.shape(host,p.surface,24));
+        TextView heading=Ui.text(host,"Vídeos encontrados ("+videos.size()+")",19,p.text,true);
+        root.addView(heading,new LinearLayout.LayoutParams(-1,-2));
+        TextView subtitle=Ui.text(host,"Miniaturas usam a área visível da página quando possível. Fontes do mesmo vídeo permanecem agrupadas.",12,p.muted,false);
+        root.addView(subtitle,Ui.lp(host,-1,-2,6));
+        ScrollView scroll=new ScrollView(host){
+            @Override protected void onMeasure(int w,int h){
+                int limit=host.getResources().getDisplayMetrics().heightPixels*62/100;
+                super.onMeasure(w,MeasureSpec.makeMeasureSpec(limit,MeasureSpec.AT_MOST));
+            }
+        };
+        scroll.setVerticalScrollBarEnabled(false);
+        LinearLayout list=Ui.vertical(host);
+        list.setPadding(0,d*5,0,d*4);
         boolean addedDirect=false,addedStreaming=false,addedUnverified=false;
         int shown=0;
+        final AlertDialog dialog=new AlertDialog.Builder(host).setView(root).create();
         for(VideoMenuModel.Video video:videos){
             boolean streaming=video.kind==MediaSourcePolicy.Kind.HLS||video.kind==MediaSourcePolicy.Kind.DASH;
-            if(streaming && !addedStreaming){rows.add(AppMenus.Entry.section("TRANSMISSÕES • SOMENTE ONLINE"));addedStreaming=true;}
-            if(!streaming && video.kind==MediaSourcePolicy.Kind.DIRECT && !addedDirect){rows.add(AppMenus.Entry.section("ARQUIVOS • DOWNLOAD DISPONÍVEL"));addedDirect=true;}
-            if(video.kind==MediaSourcePolicy.Kind.UNSUPPORTED && !addedUnverified){rows.add(AppMenus.Entry.section("FONTES NÃO VERIFICADAS"));addedUnverified=true;}
+            if(streaming && !addedStreaming){
+                TextView section=Ui.text(host,"TRANSMISSÕES • SOMENTE ONLINE",12,p.muted,true);
+                section.setPadding(d*8,d*12,0,d*3); list.addView(section); addedStreaming=true;
+            }
+            if(!streaming && video.kind==MediaSourcePolicy.Kind.DIRECT && !addedDirect){
+                TextView section=Ui.text(host,"ARQUIVOS • DOWNLOAD DISPONÍVEL",12,p.muted,true);
+                section.setPadding(d*8,d*12,0,d*3); list.addView(section); addedDirect=true;
+            }
+            if(video.kind==MediaSourcePolicy.Kind.UNSUPPORTED && !addedUnverified){
+                TextView section=Ui.text(host,"FONTES NÃO VERIFICADAS",12,p.muted,true);
+                section.setPadding(d*8,d*12,0,d*3); list.addView(section); addedUnverified=true;
+            }
             final int number=++shown;
-            String title=video.sources.size()>1?video.title+" • "+video.sources.size()+" opções":video.title;
-            rows.add(AppMenus.Entry.item(title,video.detail,streaming?"globe":"play",()->showVideoActions(video,number)));
+            list.addView(buildVideoRow(dialog,video,number,p,snapshot),Ui.lp(host,-1,-2,7));
         }
-        rows.add(AppMenus.Entry.section("OPÇÕES"));
-        rows.add(AppMenus.Entry.item("Pesquisar novamente","Atualizar os vídeos encontrados","reload",()->scanPageVideos(true)));
-        rows.add(AppMenus.Entry.item("Configurações de vídeos","Detecção automática e formatos","settings",host::openVideoSettings));
-        AppMenus.show(host,"Vídeos encontrados ("+videos.size()+")",
-            "Fontes do mesmo vídeo são agrupadas quando o endereço permite identificá-las. Qualidade estimada pelo link.",rows);
+        scroll.addView(list,new ScrollView.LayoutParams(-1,-2));
+        root.addView(scroll,Ui.lp(host,-1,-2,8));
+        LinearLayout actions=Ui.horizontal(host);
+        actions.setGravity(Gravity.END);
+        TextView refresh=Ui.pill(host,"Atualizar",p.teal,p.soft);
+        refresh.setOnClickListener(v->{dialog.dismiss();scanPageVideos(true);});
+        actions.addView(refresh,new LinearLayout.LayoutParams(-2,dp(44)));
+        TextView settings=Ui.pill(host,"Configurar",p.text,p.soft);
+        settings.setOnClickListener(v->{dialog.dismiss();host.openVideoSettings();});
+        LinearLayout.LayoutParams settingsP=new LinearLayout.LayoutParams(-2,dp(44)); settingsP.leftMargin=dp(8);
+        actions.addView(settings,settingsP);
+        TextView close=Ui.pill(host,"Fechar",p.text,p.soft);
+        close.setOnClickListener(v->dialog.dismiss());
+        LinearLayout.LayoutParams closeP=new LinearLayout.LayoutParams(-2,dp(44)); closeP.leftMargin=dp(8);
+        actions.addView(close,closeP);
+        root.addView(actions,Ui.lp(host,-1,-2,8));
+        dialog.setOnDismissListener(v->{ if(snapshot!=null && !snapshot.isRecycled()) snapshot.recycle(); });
+        dialog.show();
+        if(dialog.getWindow()!=null){
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout(host.getResources().getDisplayMetrics().widthPixels*94/100,ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
     }
+
+    private View buildVideoRow(AlertDialog dialog,VideoMenuModel.Video video,int number,Ui.Palette p,Bitmap snapshot){
+        boolean streaming=video.kind==MediaSourcePolicy.Kind.HLS||video.kind==MediaSourcePolicy.Kind.DASH;
+        PreviewMeta meta=findPreview(video);
+        LinearLayout row=Ui.horizontal(host);
+        row.setPadding(dp(12),dp(10),dp(12),dp(10));
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackground(Ui.shape(host,p.soft,18));
+        row.setClickable(true); row.setFocusable(true);
+
+        FrameLayout thumbBox=new FrameLayout(host);
+        thumbBox.setBackground(Ui.shape(host,p.surface,14));
+        LinearLayout.LayoutParams thumbP=new LinearLayout.LayoutParams(dp(76),dp(56));
+        Bitmap thumb=meta==null?null:decodeVideoFrame(meta.frame);
+        if(thumb==null && snapshot!=null && meta!=null)thumb=cropVisiblePreview(snapshot,meta);
+        if(thumb!=null){
+            ImageView preview=new ImageView(host);
+            preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            preview.setImageBitmap(thumb);
+            thumbBox.addView(preview,new FrameLayout.LayoutParams(-1,-1));
+        }else{
+            thumbBox.addView(Ui.icon(host,streaming?"globe":"play",p.teal,24),new FrameLayout.LayoutParams(dp(26),dp(26),Gravity.CENTER));
+        }
+        row.addView(thumbBox,thumbP);
+
+        LinearLayout labels=Ui.vertical(host);
+        String title=meta!=null && !TextUtils.isEmpty(meta.title)?meta.title:
+            (video.title.equals("Arquivo de vídeo") || video.title.length()>48?"Vídeo "+number:video.title);
+        if(video.sources.size()>1)title+=" • "+video.sources.size()+" fontes";
+        TextView titleView=Ui.text(host,title,14,p.text,true);
+        titleView.setMaxLines(2);titleView.setEllipsize(TextUtils.TruncateAt.END);
+        labels.addView(titleView);
+        String detail=video.detail;
+        if(meta!=null && meta.playing && meta.visible) detail="Em reprodução • "+detail;
+        else if(meta!=null && meta.visible) detail="Visível na página • "+detail;
+        else detail="Fonte sem associação visual confirmada • "+detail;
+        TextView sub=Ui.text(host,detail,12,p.muted,false);
+        sub.setMaxLines(2); sub.setEllipsize(TextUtils.TruncateAt.END);
+        labels.addView(sub,Ui.lp(host,-1,-2,2));
+        LinearLayout.LayoutParams labelP=new LinearLayout.LayoutParams(0,-2,1); labelP.leftMargin=dp(11);
+        row.addView(labels,labelP);
+        row.addView(Ui.icon(host,"forward",p.muted,18),new LinearLayout.LayoutParams(dp(20),dp(20)));
+        row.setOnClickListener(v->{dialog.dismiss();showVideoActions(video,number);});
+        return row;
+    }
+
+    private PreviewMeta findPreview(VideoMenuModel.Video video){
+        synchronized(videoPreviewMeta){
+            PreviewMeta best=null;
+            for(VideoMenuModel.Source source:video.sources){
+                PreviewMeta meta=videoPreviewMeta.get(source.url);
+                if(meta==null){
+                    // Link assinado pode ter sido renovado pelo CDN; usa somente a mesma
+                    // identidade de arquivo/caminho, nunca domínio isolado ou horário.
+                    String identity=VideoMenuModel.mediaIdentity(source.url);
+                    if(!identity.isEmpty())for(Map.Entry<String,PreviewMeta> entry:videoPreviewMeta.entrySet()){
+                        if(identity.equals(VideoMenuModel.mediaIdentity(entry.getKey()))){
+                            PreviewMeta possible=entry.getValue();
+                            if(meta==null || possible.rank()>meta.rank())meta=possible;
+                        }
+                    }
+                }
+                if(meta==null)continue;
+                if(best==null || meta.rank()>best.rank() ||
+                    (meta.rank()==best.rank() && best.title.isEmpty() && !meta.title.isEmpty()))best=meta;
+            }
+            return best;
+        }
+    }
+
+    private Bitmap decodeVideoFrame(String frame){
+        if(frame==null || !frame.startsWith("data:image/jpeg;base64,") || frame.length()>18000)return null;
+        try{
+            byte[] bytes=Base64.decode(frame.substring("data:image/jpeg;base64,".length()),Base64.DEFAULT);
+            if(bytes.length>14500)return null;
+            BitmapFactory.Options options=new BitmapFactory.Options();
+            options.inPreferredConfig=Bitmap.Config.RGB_565;
+            Bitmap image=BitmapFactory.decodeByteArray(bytes,0,bytes.length,options);
+            if(image!=null && image.getWidth()<=160 && image.getHeight()<=120)return image;
+            if(image!=null)image.recycle();
+        }catch(RuntimeException | OutOfMemoryError ignored){}
+        return null;
+    }
+
+    private Bitmap captureVisiblePage(){
+        if(web==null || web.getWidth()<10 || web.getHeight()<10) return null;
+        try{
+            Bitmap snapshot=Bitmap.createBitmap(web.getWidth(),web.getHeight(),Bitmap.Config.RGB_565);
+            Canvas canvas=new Canvas(snapshot);
+            web.draw(canvas);
+            return snapshot;
+        }catch(OutOfMemoryError | RuntimeException ignored){
+            return null;
+        }
+    }
+
+    private Bitmap cropVisiblePreview(Bitmap snapshot,PreviewMeta meta){
+        if(snapshot==null || meta==null || !meta.hasBounds()) return null;
+        int left=Math.max(0,Math.min(snapshot.getWidth()-1,meta.x));
+        int top=Math.max(0,Math.min(snapshot.getHeight()-1,meta.y));
+        int width=Math.min(snapshot.getWidth()-left,Math.max(1,meta.width));
+        int height=Math.min(snapshot.getHeight()-top,Math.max(1,meta.height));
+        if(width<8 || height<8) return null;
+        try{
+            Bitmap raw=Bitmap.createBitmap(snapshot,left,top,width,height);
+            return Bitmap.createScaledBitmap(raw,dp(76),dp(56),true);
+        }catch(IllegalArgumentException | OutOfMemoryError ignored){
+            return null;
+        }
+    }
+
     private void showVideoActions(VideoMenuModel.Video video,int number){
         if(video.sources.size()==1){
             showSourceActions(video,video.sources.get(0),number);
@@ -837,7 +1132,7 @@ final class BrowserPane {
         if(imm!=null)imm.hideSoftInputFromWindow(findInput.getWindowToken(),0);
     }
     void saveState(Bundle output){if(web!=null){Bundle b=new Bundle();web.saveState(b);output.putBundle("BROWSER_WEB_STATE",b);}}
-    void destroy(){ if(loginPopupDialog!=null)loginPopupDialog.dismiss();if(web!=null){web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy();web=null;} }
+    void destroy(){ if(loginPopupDialog!=null)loginPopupDialog.dismiss();if(web!=null){if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);pendingMediaScan=null;web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy();web=null;} }
     void clearLocalData(){closeFind();web.clearCache(true);web.clearHistory();navigate(BrowserPrefs.home(host));}
     private void copyAddress(){
         String url=address.getText().toString().trim();

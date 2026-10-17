@@ -1,21 +1,19 @@
-# Baixa Fácil 0.1.0-alpha.32 (versionCode 32)
+# Baixa Fácil 0.1.0-alpha.34 (versionCode 34)
 
-## Vídeos sem repetições desnecessárias
+## Novidades
 
-- Links repetidos para o mesmo arquivo ou playlist agora formam uma única entrada quando a identidade do caminho é a mesma, mesmo que a URL assinada mude.
-- Quando o caminho indica qualidades diferentes do mesmo vídeo (como 720p e 1080p), as fontes compatíveis ficam agrupadas e aparecem em ordem de resolução estimada.
-- É possível escolher a fonte no menu antes de reproduzir ou, em arquivos diretos, baixar.
-- O contador de vídeos passa a mostrar quantas entradas agrupadas foram identificadas.
-- Vídeos diferentes no mesmo domínio continuam separados; URLs com identidade da mídia na query também não são misturadas.
+- **Reels e feeds:** a busca de vídeos reage à rolagem, identifica quando a própria página vincula um arquivo ao player visível e prioriza o vídeo em reprodução.
+- **Mais informações:** título e legenda curta quando encontrados próximos ao player correspondente; não tenta adivinhar nomes pelo domínio do arquivo.
+- **Thumb melhorada:** captura limitada de frame com canvas quando permitido, ou recorte da WebView visível. Caso indisponível, mantém ícone de vídeo.
+- **Menos duplicatas:** une URLs reassinadas e espelhos Facebook somente quando o caminho e a identidade da mídia conferem, sem misturar vídeos diferentes.
+- **Transparência:** fontes sem correspondência visual confirmada são identificadas na lista.
 
-## Limitações
+## Limites
 
-- Qualidade é uma estimativa textual extraída do endereço, não verificação técnica do conteúdo.
-- HLS/DASH apenas online via Media3. Não há captura de DRM, conversão de streaming em MP4 ou integração com cookies externos.
-- A detecção pode deixar de agrupar fontes quando o site não fornece identidade suficiente; essa escolha evita fundir vídeos diferentes por engano.
+- A WebView pode restringir captura de frames e leitura de vídeos de outra origem. Links temporários podem exigir sessão, expirar ou não funcionar no Media3.
+- Downloads apenas de arquivos HTTP(S) diretos; HLS/DASH apenas reprodução online; sem DRM ou captura fora das permissões do navegador.
 
-## Validação
+## Verificações
 
-- 11 testes JVM do modelo de vídeos aprovados, incluindo 7 cenários novos.
-- Preflight, testes de publicação simulada, análise sintática Java, XML e integridade ZIP devem ser conferidos antes de publicar.
-- Build Android completo e visual no aparelho pendentes do workflow.
+- Testes JVM do agrupamento e dos metadados, validação JavaScript e validação prévia da CI.
+- Build Android completo e teste com Facebook real pendentes no workflow e no celular.

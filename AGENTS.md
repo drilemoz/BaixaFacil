@@ -78,3 +78,7 @@
 
 - Alpha.32: agrupar mídias apenas por identidade conservadora de caminho e tipo, com tratamento de parâmetros de identidade (`id`, `video_id`, `media_id` etc.). Nunca agrupar apenas por domínio e nunca expor query/tokens no menu. Qualidade deduzida pelo caminho é estimativa, não metadado verificado.
 - Alpha.32: se há várias variantes, exigir escolha explícita da fonte no menu; manter download só de vídeos diretos reconhecidos, HLS/DASH apenas reprodução e formatos não verificados sem botão de download.
+
+- Alpha.34: fontes de rede sem correspondência comprovada não recebem título ou thumb do Reels visível. Associar somente por URL direta exata ou identidade conservadora de arquivo, nunca apenas pelo host ou por tempo de requisição.
+- Alpha.34: varreduras após rolagem têm debounce e só usam DOM da própria página, sem polling contínuo, bridge JS, download extra, acesso a cookies ou violação de políticas de origem do canvas.
+- Alpha.34: frame/miniatura de vídeo somente em memória e de tamanho limitado; não salvar imagens de páginas ou URLs assinadas no histórico/diagnóstico. Manter bloqueio de DRM e HLS/DASH como download completo.

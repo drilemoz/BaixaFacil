@@ -1,4 +1,20 @@
-# Baixa Fácil 0.1.0-alpha.32
+# Baixa Fácil 0.1.0-alpha.34
+
+## Reels, identificação e duplicatas (alpha.34)
+
+- O detector diferencia fontes simplesmente vistas na rede de fontes **associadas diretamente** a um elemento de vídeo na página. Quando possível, prioriza o vídeo visível/em reprodução, inclusive após rolagem nos feeds e Reels, com varredura adiada e sem polling.
+- Títulos são extraídos apenas do próprio player ou da legenda/cabeçalho dentro do mesmo artigo HTML, normalizados e limitados; não atribui indiscriminadamente o título da página às mídias.
+- Miniaturas tentam utilizar um quadro pequeno do próprio elemento `<video>` com canvas (somente quando autorizado pelo navegador), usando como alternativa a captura da área renderizada na WebView. Nenhuma imagem é obtida por chamadas HTTP extras ou de outras sessões.
+- Fontes renovadas com novas assinaturas e espelhos conhecidos do CDN Facebook são associadas à mesma identidade quando o **caminho forte do arquivo** coincide. Caminhos e identidades de vídeo diferentes continuam separados.
+- Quando a relação com o vídeo da tela não puder ser comprovada, aparece indicação de **fonte sem associação visual confirmada**. Isso reduz erros de identificação em páginas de feed com várias mídias.
+- O player Media3 e o motor HTTP preservam as limitações atuais: alguns links do Facebook podem não reproduzir fora da página ou exigir sessão; não há download de HLS/DASH segmentado nem contorno de DRM.
+
+## Miniaturas e botão flutuante de vídeos (alpha.33)
+
+- O atalho **Vídeos** agora aparece como **botão flutuante** sobre a página e só fica visível quando a detecção encontra mídia compatível.
+- A lista de vídeos passou a mostrar **miniaturas** usando a área visível do vídeo na própria página, quando houver um elemento `<video>` renderizado na WebView.
+- A moldura arredondada ao redor dos sites foi removida: a página fica mais aberta e aproveita melhor a tela.
+- O agrupamento conservador, a escolha de fonte/qualidade e as limitações de download seguro das versões anteriores foram mantidos.
 
 ## Lista de vídeos agrupada (alpha.32)
 

@@ -15,9 +15,9 @@ case "$sub" in
   view)
     [[ -f "$state/created" ]] || exit 1
     if [[ "$*" == *'--json assets'* ]]; then
-      [[ -f "$state/asset.apk" ]] && echo 'Baixa-Facil-v0.1.0-alpha.32.apk'
+      [[ -f "$state/asset.apk" ]] && echo 'Baixa-Facil-v0.1.0-alpha.34.apk'
     elif [[ "$*" == *'--json url'* ]]; then
-      echo 'https://example.invalid/releases/v0.1.0-alpha.32'
+      echo 'https://example.invalid/releases/v0.1.0-alpha.34'
     fi
     ;;
   create|upload)
@@ -33,17 +33,17 @@ case "$sub" in
       if [[ "$1" == '--dir' ]]; then dir="$2"; shift 2; else shift; fi
     done
     [[ -f "$state/asset.apk" ]] || exit 8
-    cp "$state/asset.apk" "$dir/Baixa-Facil-v0.1.0-alpha.32.apk"
-    if [[ "${MOCK_CORRUPT:-0}" == 1 ]]; then printf X >> "$dir/Baixa-Facil-v0.1.0-alpha.32.apk"; fi
+    cp "$state/asset.apk" "$dir/Baixa-Facil-v0.1.0-alpha.34.apk"
+    if [[ "${MOCK_CORRUPT:-0}" == 1 ]]; then printf X >> "$dir/Baixa-Facil-v0.1.0-alpha.34.apk"; fi
     ;;
   *) exit 8;;
 esac
 MOCK
 chmod +x "$work/bin/gh"
-printf 'apk-exemplo-da-versao-32\n' > "$work/Baixa-Facil-v0.1.0-alpha.32.apk"
+printf 'apk-exemplo-da-versao-34\n' > "$work/Baixa-Facil-v0.1.0-alpha.34.apk"
 export PATH="$work/bin:$PATH" MOCK_GH_STATE="$work/github" GH_TOKEN=ficticio
 export GITHUB_REPOSITORY=example/test GITHUB_SHA=abc123 RELEASE_MAX_ATTEMPTS=1
-export VERSION=0.1.0-alpha.32 APK_FILE="$work/Baixa-Facil-v0.1.0-alpha.32.apk"
+export VERSION=0.1.0-alpha.34 APK_FILE="$work/Baixa-Facil-v0.1.0-alpha.34.apk"
 export GITHUB_STEP_SUMMARY="$work/summary.txt" SIGNING_MODE=debug
 (cd "$root" && bash tools/publish_apk.sh) > "$work/first.log"
 [[ -f "$work/github/created" ]] && grep -q 'SHA-256' "$work/summary.txt"
