@@ -85,3 +85,7 @@
 
 - Alpha.35: perfil de compatibilidade para páginas pesadas deve reconhecer somente hosts oficiais ChatGPT, sem User-Agent falso ou remoção de cookies/JS/TLS. Evitar trabalhos opcionais de varredura de vídeo, filtragem por requisições e CSS cosmético na WebView apenas enquanto o perfil estiver ativo.
 - Alpha.35: observar renderizador não responsivo sem terminá-lo automaticamente; preservar histórico, sessão e o acesso a navegador externo. Perfil opt-out persistido e teste contra falsos domínios.
+
+- Alpha.36: sugestões são exclusivamente locais, só exibem URL HTTP(S) validada de favoritos/histórico e nunca páginas de login ou URL com parâmetros OAuth. Não buscar sugestões remotas por tecla nem registrar conteúdo digitado.
+- Alpha.36: a tela Cookies e sessões deve distinguir claramente `CookieManager.removeAllCookies` (global) de `WebStorage.deleteOrigin` (dados locais por origem, sem remover todos os cookies); nunca enumerar ou registrar valor de cookie.
+- Alpha.36: a opção de não manter logins apaga cookies e armazenamento web na próxima inicialização completa do processo e antes do primeiro carregamento de página; não apagar ao abrir Configurações e não afetar arquivos ou favoritos.

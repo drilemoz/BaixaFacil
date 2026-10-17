@@ -38,6 +38,8 @@ import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebViewRenderProcess;
 import android.webkit.WebViewRenderProcessClient;
 import android.widget.EditText;
+import android.widget.ListPopupWindow;
+import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -62,6 +64,8 @@ final class BrowserPane {
     final LinearLayout view;
     private WebView web;
     private EditText address;
+    private ListPopupWindow suggestionsPopup;
+    private boolean suppressSuggestions;
     private TextView status;
     private ProgressBar loading;
     private FrameLayout securityIcon;
@@ -208,6 +212,17 @@ final class BrowserPane {
         address.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         address.setImeOptions(EditorInfo.IME_ACTION_GO);
         address.setPadding(0,0,dp(3),0);
+        address.setOnFocusChangeListener((v,focused)->{
+            if(focused)updateAddressSuggestions();
+            else dismissAddressSuggestions();
+        });
+        address.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count){
+                if(!suppressSuggestions)updateAddressSuggestions();
+            }
+            @Override public void afterTextChanged(Editable e){}
+        });
         address.setOnEditorActionListener((v,a,event)->{
             if (a==EditorInfo.IME_ACTION_GO) { navigate(address.getText().toString()); return true; }
             return false;
@@ -374,7 +389,7 @@ final class BrowserPane {
             @Override public void onPageFinished(WebView w,String url) {
                 if(!lightweightPage) applyCosmeticFilters(url);
                 if (url!=null && url.equals(UrlTools.extract(url))) {
-                    address.setText(url);
+                    setAddressFromPage(url);
                     showSecurity(url);
                     BrowserPrefs.remember(host,url);
                 }
@@ -487,12 +502,76 @@ final class BrowserPane {
         LinearLayout.LayoutParams bottomP=Ui.lp(host,-1,28,2);
         bottomP.leftMargin=0;bottomP.rightMargin=0;
         view.addView(bottomInfo,bottomP);
+        if(SessionPrefs.shouldClearAtStart(host)) {
+            // Não restaura estado WebView antes da limpeza assíncrona de cookies e storage.
+            SessionPrefs.clearForNewSession(()->{
+                if(web!=null)navigate(BrowserPrefs.home(host));
+            });
+            return;
+        }
         if (saved != null) {
             Bundle webState=saved.getBundle("BROWSER_WEB_STATE");
             if (webState != null && web.restoreState(webState)!=null) return;
         }
         navigate(BrowserPrefs.home(host));
     }
+    private void dismissAddressSuggestions(){
+        if(suggestionsPopup!=null && suggestionsPopup.isShowing())suggestionsPopup.dismiss();
+    }
+    private void setAddressFromPage(String url){
+        if(address.hasFocus())return;
+        suppressSuggestions=true;
+        address.setText(url);
+        suppressSuggestions=false;
+    }
+    private void updateAddressSuggestions(){
+        if(address==null||!address.hasFocus()||suppressSuggestions)return;
+        String term=address.getText().toString().trim();
+        if(term.isEmpty()) {dismissAddressSuggestions();return;}
+        java.util.List<BrowserSuggestions.Candidate> candidates=new ArrayList<>();
+        for(BrowserPrefs.Favorite favorite:BrowserPrefs.favorites(host))
+            candidates.add(new BrowserSuggestions.Candidate(favorite.url,favorite.title,true));
+        for(String previous:BrowserPrefs.history(host))
+            candidates.add(new BrowserSuggestions.Candidate(previous,"",false));
+        java.util.List<BrowserSuggestions.Item> items=BrowserSuggestions.suggest(term,candidates);
+        if(items.isEmpty()){dismissAddressSuggestions();return;}
+        if(suggestionsPopup==null){
+            suggestionsPopup=new ListPopupWindow(host);
+            suggestionsPopup.setAnchorView(address);
+            suggestionsPopup.setModal(false);
+            suggestionsPopup.setBackgroundDrawable(Ui.shape(host,colors.surface,14));
+            suggestionsPopup.setOnItemClickListener((parent,view,index,id)->{
+                BrowserSuggestions.Item selected=(BrowserSuggestions.Item)parent.getItemAtPosition(index);
+                dismissAddressSuggestions();
+                navigate(selected.url);
+            });
+        }
+        suggestionsPopup.setAdapter(new BaseAdapter(){
+            @Override public int getCount(){return items.size();}
+            @Override public Object getItem(int position){return items.get(position);}
+            @Override public long getItemId(int position){return position;}
+            @Override public android.view.View getView(int position,android.view.View convert,android.view.ViewGroup parent){
+                BrowserSuggestions.Item item=items.get(position);
+                LinearLayout row=Ui.horizontal(host);
+                row.setPadding(dp(12),dp(8),dp(10),dp(8));
+                row.addView(Ui.icon(host,item.favorite?"bookmark":"globe",colors.teal,20),
+                    new LinearLayout.LayoutParams(dp(24),dp(24)));
+                LinearLayout labels=Ui.vertical(host);
+                TextView name=Ui.text(host,item.title,14,colors.text,true);
+                name.setSingleLine(true);name.setEllipsize(TextUtils.TruncateAt.END);
+                labels.addView(name);
+                labels.addView(Ui.text(host,item.host+(item.favorite?" • Favorito":" • Histórico"),11,colors.muted,false));
+                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.leftMargin=dp(10);
+                row.addView(labels,lp);
+                row.setMinimumHeight(dp(52));
+                return row;
+            }
+        });
+        suggestionsPopup.setWidth(Math.min(host.getResources().getDisplayMetrics().widthPixels-dp(24),dp(450)));
+        suggestionsPopup.setHeight(-2);
+        suggestionsPopup.show();
+    }
+
     private void showSecurity(String url) {
         securityIcon.removeAllViews();
         boolean https = url!=null&&url.startsWith("https://");
@@ -502,7 +581,9 @@ final class BrowserPane {
     void navigate(String input) {
         String url=BrowserPrefs.destination(host,input);
         if(url==null) { Toast.makeText(host,"Endereço inválido ou não suportado",Toast.LENGTH_SHORT).show(); return; }
-        address.setText(url);showSecurity(url);
+        dismissAddressSuggestions();
+        suppressSuggestions=true;address.setText(url);suppressSuggestions=false;
+        showSecurity(url);
         InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
         if (keyboard!=null) keyboard.hideSoftInputFromWindow(address.getWindowToken(),0);
         address.clearFocus();
@@ -1171,7 +1252,7 @@ final class BrowserPane {
         if(imm!=null)imm.hideSoftInputFromWindow(findInput.getWindowToken(),0);
     }
     void saveState(Bundle output){if(web!=null){Bundle b=new Bundle();web.saveState(b);output.putBundle("BROWSER_WEB_STATE",b);}}
-    void destroy(){ if(loginPopupDialog!=null)loginPopupDialog.dismiss();if(web!=null){if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);pendingMediaScan=null;web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy();web=null;} }
+    void destroy(){ dismissAddressSuggestions(); if(loginPopupDialog!=null)loginPopupDialog.dismiss();if(web!=null){if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);pendingMediaScan=null;web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy();web=null;} }
     void clearLocalData(){closeFind();web.clearCache(true);web.clearHistory();navigate(BrowserPrefs.home(host));}
     private void copyAddress(){
         String url=address.getText().toString().trim();

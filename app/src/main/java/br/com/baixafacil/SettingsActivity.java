@@ -21,12 +21,18 @@ import android.webkit.CookieManager;
 import android.webkit.WebStorage;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Map;
+import java.net.URI;
+import java.util.Locale;
 
 /** Página de configurações: navegador, aparência, privacidade e links padrão. */
 public final class SettingsActivity extends Activity {
     public static final String EXTRA_OPEN_FAVORITES="open_favorites";
     public static final String EXTRA_OPEN_VIDEOS="open_videos";
     private boolean videoSettingsPage;
+    private boolean sessionSettingsPage;
     private Ui.Palette palette;
     private LinearLayout list;
     private int dp(int x){return Ui.dp(this,x);}
@@ -50,14 +56,15 @@ public final class SettingsActivity extends Activity {
         TextView back=Ui.text(this,"‹",34,palette.text,false);
         back.setGravity(Gravity.CENTER);back.setContentDescription("Voltar");
         heading.addView(back,new LinearLayout.LayoutParams(dp(44),dp(48)));
-        back.setOnClickListener(v->{if(videoSettingsPage){videoSettingsPage=false;render();}else finish();});
-        TextView title=Ui.text(this,videoSettingsPage?"Vídeos e mídia":"Configurações",22,palette.text,true);
+        back.setOnClickListener(v->{if(videoSettingsPage||sessionSettingsPage){videoSettingsPage=false;sessionSettingsPage=false;render();}else finish();});
+        TextView title=Ui.text(this,videoSettingsPage?"Vídeos e mídia":sessionSettingsPage?"Cookies e sessões":"Configurações",22,palette.text,true);
         heading.addView(title,new LinearLayout.LayoutParams(-1,dp(48)));
         root.addView(heading);
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);
         list=Ui.vertical(this);list.setPadding(dp(16),dp(5),dp(16),dp(24));
         scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         if(videoSettingsPage){renderVideoSettings();return;}
+        if(sessionSettingsPage){renderSessionSettings();return;}
 
         section("Navegador");
         option("Página inicial",BrowserPrefs.home(this),"home",this::changeHome);
@@ -73,6 +80,7 @@ public final class SettingsActivity extends Activity {
         option("Histórico de navegação","Ver os últimos endereços visitados","menu",this::showHistory);
         option("Limpar dados do navegador","Cookies, cache e histórico locais","trash",this::confirmClear);
         option("Compatibilidade de login", "Cookies de terceiros: " + (BrowserPrefs.thirdPartyCookies(this) ? "ativados (menos privacidade)" : "bloqueados (padrão)"), "lock", this::chooseCookieCompatibility);
+        option("Cookies e sessões","Manter logins, excluir cookies e dados por origem","lock",()->{sessionSettingsPage=true;render();});
 
         section("🛡 Bloqueio de anúncios");
         option("Proteção", adBlockModeName(), "shield", this::chooseAdBlockMode);
@@ -124,10 +132,94 @@ public final class SettingsActivity extends Activity {
         section("Aplicativo");
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
-        option("Sobre","Baixa Fácil 0.1.0-alpha.35","webdown",()->{
-            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.35\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
+        option("Sobre","Baixa Fácil 0.1.0-alpha.36","webdown",()->{
+            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.36\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
         });
     }
+    private void renderSessionSettings(){
+        section("Sessões e privacidade");
+        downloadSwitch("Manter logins entre aberturas",
+            "Ativado: cookies e armazenamento da WebView permanecem conforme as regras do site. Desativado: na próxima abertura completa do aplicativo serão apagados todos os cookies e dados locais dos sites, sem apagar favoritos ou downloads.",
+            SessionPrefs.keepLogins(this),SessionPrefs::setKeepLogins);
+        option("Cookies armazenados",CookieManager.getInstance().hasCookies()?"Existem cookies na WebView (sem lista por site)":"Nenhum cookie detectado", "lock",this::showCookiesInfo);
+        option("Sites com dados locais","Consultar origens com armazenamento WebView e apagar individualmente","globe",this::showSiteStorage);
+        section("Limpeza manual");
+        option("Apagar todos os cookies","Encerra sessões baseadas em cookies, sem apagar histórico","trash",this::confirmClearCookiesOnly);
+        option("Apagar todo armazenamento web","Exclui dados locais dos sites; não remove cookies","trash",this::confirmClearStorageOnly);
+        TextView notice=Ui.text(this,
+            "A WebView não oferece listagem confiável de cookies por site nem exclusão individual completa. Apagar uma origem remove dados de WebStorage, mas pode não desconectar uma conta enquanto existirem cookies. Outros navegadores não são afetados.",
+            12,palette.muted,false);
+        notice.setPadding(dp(8),dp(14),dp(8),dp(8));list.addView(notice);
+    }
+    private void showCookiesInfo(){
+        AppMenus.info(this,"Cookies da WebView",
+            (CookieManager.getInstance().hasCookies()?"Há cookies salvos nesta WebView. ":"Não foram detectados cookies. ")+
+            "Por segurança, o Baixa Fácil não lê nem mostra valores de sessão. O Android não oferece uma API para enumerar ou remover todos os cookies de um site específico.\n\n"+
+            "Cookies de terceiros permanecem bloqueados por padrão, a menos que você escolha permiti-los em Compatibilidade de login.",AppMenus.entries());
+    }
+    private void showSiteStorage(){
+        WebStorage.getInstance().getOrigins(origins->runOnUiThread(()->{
+            List<Map.Entry<String,WebStorage.Origin>> items=new ArrayList<>();
+            if(origins!=null)for(Map.Entry<String,WebStorage.Origin> e:origins.entrySet()){
+                try {
+                    URI u=new URI(e.getKey());
+                    if(("https".equalsIgnoreCase(u.getScheme())||"http".equalsIgnoreCase(u.getScheme()))
+                        && u.getHost()!=null&&u.getUserInfo()==null)items.add(e);
+                }catch(Exception ignored){}
+            }
+            items.sort(Comparator.comparing(e->e.getKey().toLowerCase(Locale.ROOT)));
+            List<AppMenus.Entry> actions=AppMenus.entries();
+            for(int i=0;i<Math.min(35,items.size());i++){
+                Map.Entry<String,WebStorage.Origin> item=items.get(i);
+                URI url;
+                try{url=new URI(item.getKey());}catch(Exception ignored){continue;}
+                String displayHost=url.getHost();
+                long bytes=Math.max(0,item.getValue().getUsage());
+                actions.add(AppMenus.Entry.item(displayHost,"Dados locais: "+sizeForStorage(bytes)+" • "+url.getScheme().toUpperCase(Locale.ROOT),"globe",
+                    ()->confirmClearSiteStorage(item.getKey(),displayHost)));
+            }
+            if(items.size()>35)actions.add(AppMenus.Entry.note("Lista limitada aos primeiros 35 registros para manter o menu leve."));
+            AppMenus.info(this,"Dados locais por site",
+                items.isEmpty()?"Nenhuma origem com armazenamento local listada pela WebView. Cookies podem existir mesmo assim.":
+                    "Origem e espaço usado informados pelo Android. Toque para apagar somente o WebStorage da origem; cookies e cache continuam.",actions);
+        }));
+    }
+    private String sizeForStorage(long bytes){
+        if(bytes<1024)return bytes+" B";
+        if(bytes<1024*1024)return (bytes/1024)+" KB";
+        return String.format(Locale.ROOT,"%.1f MB",bytes/1048576.0);
+    }
+    private void confirmClearSiteStorage(String origin,String host){
+        List<AppMenus.Entry> actions=AppMenus.entries();
+        actions.add(AppMenus.Entry.danger("Excluir dados desta origem","Mantém cookies, histórico e arquivos","trash",()->{
+            WebStorage.getInstance().deleteOrigin(origin);
+            Toast.makeText(this,"Dados locais excluídos para "+host,Toast.LENGTH_SHORT).show();
+            showSiteStorage();
+        }));
+        AppMenus.info(this,"Dados locais de "+host,
+            "Apaga o armazenamento local da origem exata (incluindo o protocolo), mas NÃO apaga cookies, cache, outros subdomínios nem arquivos baixados. Pode ser necessário recarregar a página.",actions);
+    }
+    private void confirmClearCookiesOnly(){
+        List<AppMenus.Entry> actions=AppMenus.entries();
+        actions.add(AppMenus.Entry.danger("Excluir todos os cookies","Pode encerrar logins em todos os sites","trash",()->{
+            CookieManager.getInstance().removeAllCookies(ok->runOnUiThread(()->{
+                CookieManager.getInstance().flush();
+                Toast.makeText(this,"Cookies removidos: "+(ok?"sim":"não havia cookies ou não houve alteração"),Toast.LENGTH_LONG).show();
+                render();
+            }));
+        }));
+        AppMenus.info(this,"Apagar cookies?","A exclusão vale para TODOS os sites do Baixa Fácil; não será possível recuperar sessões apagadas.",actions);
+    }
+    private void confirmClearStorageOnly(){
+        List<AppMenus.Entry> actions=AppMenus.entries();
+        actions.add(AppMenus.Entry.danger("Excluir dados web","Mantém cookies, favoritos e downloads","trash",()->{
+            WebStorage.getInstance().deleteAllData();
+            Toast.makeText(this,"Solicitada limpeza de armazenamento web",Toast.LENGTH_SHORT).show();
+            render();
+        }));
+        AppMenus.info(this,"Apagar armazenamento web?","Apaga dados locais de TODAS as origens registradas na WebView, mas não seus cookies ou arquivos baixados.",actions);
+    }
+
     private String adBlockModeName(){
         String[] names={"Desligado","Leve","Forte (padrão)","Extremo"};
         int mode=AdBlockController.savedMode(this);
@@ -154,7 +246,7 @@ public final class SettingsActivity extends Activity {
         note.setPadding(dp(8),dp(12),dp(8),dp(6));list.addView(note);
     }
     @Override public void onBackPressed(){
-        if(videoSettingsPage){videoSettingsPage=false;render();return;}
+        if(videoSettingsPage||sessionSettingsPage){videoSettingsPage=false;sessionSettingsPage=false;render();return;}
         super.onBackPressed();
     }
 

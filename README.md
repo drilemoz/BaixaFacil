@@ -1,4 +1,11 @@
-# Baixa Fácil 0.1.0-alpha.35
+# Baixa Fácil 0.1.0-alpha.36
+
+## Cookies, sessões e sugestões de endereço (alpha.36)
+
+- Acesse **Configurações > Cookies e sessões** para verificar se existem cookies, limpar todos os cookies, limpar WebStorage ou remover apenas os dados locais de uma origem listada pela WebView. A limpeza por origem **não remove todos os cookies do site**.
+- Em **Manter logins entre aberturas**, escolha se o app conservará cookies/dados locais no próximo início completo. Padrão: conservar. Se desligar, a próxima abertura fria limpa globalmente cookies e armazenamento web antes de navegar, sem apagar downloads, histórico ou favoritos.
+- Ao começar a digitar no endereço, aparecem sugestões locais de favoritos e histórico, com domínio/título e até cinco resultados, sem pesquisa remota por tecla. URLs de autenticação são filtradas.
+- Limitações: a lista de origens usa `WebStorage.getOrigins` e pode não incluir todos os sites que guardaram cookies. A WebView não oferece remoção completa de cookies por site na API pública.
 
 ## Compatibilidade com páginas pesadas (alpha.35)
 

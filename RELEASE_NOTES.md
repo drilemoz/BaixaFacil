@@ -1,15 +1,19 @@
-# Baixa Fácil 0.1.0-alpha.35 (versionCode 35)
+# Baixa Fácil 0.1.0-alpha.36 (versionCode 36)
 
-## Melhorias de desempenho e compatibilidade para ChatGPT
+## Novidades
 
-- Perfil de navegação leve automático em `chatgpt.com` (e variantes oficiais), reduzindo processos opcionais dentro do navegador incorporado.
-- Detecção de vídeos, análise de subrecursos pelo bloqueador e CSS cosmético são evitados nesses sites; os recursos permanecem nos demais sites.
-- Nova opção **Configurações > Navegador > Compatibilidade com ChatGPT**, ligada por padrão.
-- Menos atualizações visuais durante o carregamento de páginas complexas.
-- Diagnóstico de renderizador WebView sem resposta e botão de acesso rápido a navegador externo em páginas do ChatGPT.
+- Nova tela **Cookies e sessões** nas Configurações, com controle de permanência de logins entre inicializações.
+- Opções para apagar cookies globalmente, limpar dados locais do navegador e remover armazenamento local de uma origem individual.
+- Barra de endereços com sugestões locais ao digitar, usando favoritos e histórico, até cinco resultados e sem requisições de pesquisa durante a digitação.
+- Filtro de endereços sensíveis e links com tokens de login.
 
-## Observações
+## Limitações e segurança
 
-- Não desativa JavaScript, cookies essenciais, segurança TLS ou acesso seguro; não contorna restrições de login Google OAuth.
-- Reduz trabalho adicional do Baixa Fácil, mas não garante corrigir problemas do próprio site, de memória, de rede ou do componente WebView instalado.
-- APK e testes reais em aparelho dependem do GitHub Actions e de validação física.
+- A API pública da WebView não fornece uma lista de cookies de todos os sites. O gerenciador exibe apenas origens com WebStorage, que não é a mesma coisa que cookies.
+- Desativar a permanência dos logins apaga cookies e WebStorage na próxima inicialização completa do processo; não no retorno de Configurações.
+- Não mudou o bloqueio padrão de cookies de terceiros nem as restrições de downloads, vídeos e OAuth do Google.
+
+## Validação
+
+- Pré-validação e teste de publicação simulada são executados localmente.
+- Teste de comportamento real, interface e build Android completo ainda exigem GitHub Actions/aparelho.

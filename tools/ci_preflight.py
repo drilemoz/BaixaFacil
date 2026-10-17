@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.35"
-CODE = "35"
+VERSION = "0.1.0-alpha.36"
+CODE = "36"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -50,7 +50,11 @@ checks = {
     "publication directly in Releases": "bash tools/publish_apk.sh" in workflow,
     "no ZIP Artifacts": "upload-artifact" not in workflow and "download-artifact" not in workflow,
     "unit test and Debug compile": ":app:testDebugUnitTest :app:assembleDebug" in workflow,
-    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='35'", "versionName='" + VERSION + "'"]),
+    "session management": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["renderSessionSettings", "getOrigins(", "deleteOrigin(", "removeAllCookies", "Manter logins entre aberturas"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/SessionPrefs.java") for x in ["shouldClearAtStart", "clearForNewSession", "deleteAllData", "removeAllCookies"]),
+    "address suggestions": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["ListPopupWindow", "updateAddressSuggestions", "BrowserSuggestions.suggest", "dismissAddressSuggestions"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/BrowserSuggestions.java") for x in ["LoginWindowPolicy.hasLoginParameters", "AuthNavigation.isSensitiveLoginPage", "LIMIT=5"]),
+    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='36'", "versionName='" + VERSION + "'"]),
     "signature verification": "apksigner" in workflow,
     "code User-Agent version": "BaixaFacil/" + VERSION in service,
     "foreground notification initialization":

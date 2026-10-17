@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.36 (versionCode 36) - 2026-10-17
+
+- Nova seção **Configurações > Cookies e sessões** com estado global de cookies (sem ler valores), limpeza global de cookies e armazenamento WebView e seleção por origem dos dados locais listados por `WebStorage.getOrigins`.
+- Preferência **Manter logins entre aberturas** ativada por padrão. Se desativada, na próxima inicialização fria do processo o app apaga cookies e WebStorage antes de navegar, preservando favoritos, histórico e downloads. Nenhuma limpeza ocorre ao alternar para Configurações.
+- Documentado que a API pública não enumera cookies por site e `deleteOrigin` remove apenas dados de armazenamento web da origem, não todos os cookies/cache do site.
+- Barra de endereço com sugestões suspensas de até cinco sites do histórico e favoritos, ordenadas por prefixo de domínio, correspondência de título e recência, sem rede durante a digitação.
+- A seleção de sugestão navega apenas para URL HTTP(S) validada; páginas sensíveis e URLs com parâmetros de autenticação não são sugeridas. Sugestões são ocultadas ao navegar ou perder foco.
+- Sincronizados versionCode, versionName, User-Agent, Sobre, workflows, documentação e testes preventivos. Build Android completo continua pendente do GitHub Actions.
+
 ## 0.1.0-alpha.35 (versionCode 35) - 2026-10-17
 
 - Perfil automático de compatibilidade **ChatGPT**, reconhecendo somente domínios oficiais `chatgpt.com`, `www.chatgpt.com` e `chat.openai.com` sem aceitar domínios parecidos.

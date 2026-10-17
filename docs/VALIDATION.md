@@ -1,19 +1,21 @@
-# Validação 0.1.0-alpha.35
+# Validação 0.1.0-alpha.36
 
-## Objetivo
+## Cookies e sessões
 
-Diminuir o trabalho opcional realizado pela WebView em páginas do ChatGPT e disponibilizar monitoramento seguro de renderizador bloqueado.
+- Conferir `WebStorage.getOrigins` e `deleteOrigin` sem confundir limpeza por origem com limpeza de cookies.
+- Conferir `CookieManager.removeAllCookies` assíncrono, flush e confirmação explícita; preservar dados de downloads e favoritos.
+- Testar opção Manter logins: ativada por padrão; ao desativar, limpar somente na próxima inicialização completa do processo, antes de abrir a página inicial.
+- Nunca incluir cookies ou tokens em diagnósticos.
 
-## Verificações
+## Sugestões da barra de endereços
 
-- `BrowserLoadPolicyTest`: domínios oficiais exatos, variantes de caixa e caminhos válidos, domínios impostores/URLs maliciosas, opt-out da preferência, outros sites preservados.
-- `tools/ci_preflight.py`: versão, workflow, segurança, integração do perfil de desempenho e existência dos testes.
-- `tools/test_publish_mock.sh`: teste de publicação simulada.
-- Confirmar que `shouldInterceptRequest()` retorna sem trabalho adicional quando o perfil está ativo; não manipular respostas HTTP e não interceptar POST.
-- Testar no aparelho abertura de ChatGPT, digitação em conversa longa, navegação, teclados, rolagem e retorno de sessão.
-- Testar modo desativado, depois retorno ativado e outros sites com vídeos e bloqueador.
-- Testar renderizador responsivo/não responsivo em Android 10+ sem encerrá-lo automaticamente.
+- Filtrar a entrada local por domínio, título e URL, máximo cinco sugestões, favoritos e histórico, sem consultas remotas por tecla.
+- Rejeitar URL com credenciais, esquemas proibidos, páginas sensíveis e parâmetros de autenticação.
+- Escolher sugestão deve navegar normalmente e fechar a lista; perder foco também deve fechar.
 
-## Pendente
+## Verificações locais
 
-- Compilação Android e testes físicos no dispositivo pelo GitHub Actions; não há dados medidos de memória ou FPS.
+- `python3 tools/ci_preflight.py`
+- `bash tools/test_publish_mock.sh`
+- JVM: `BrowserSuggestions` + UrlTools/LoginWindowPolicy/AuthNavigation
+- Sintaxe Java, YAML e ZIP; build Android completo e testes em aparelho pendentes.

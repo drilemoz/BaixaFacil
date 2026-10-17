@@ -10,8 +10,8 @@ android {
         applicationId 'br.com.baixafacil'
         minSdk 29
         targetSdk 34
-        versionCode 35
-        versionName '0.1.0-alpha.35'
+        versionCode 36
+        versionName '0.1.0-alpha.36'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
