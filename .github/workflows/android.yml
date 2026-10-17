@@ -1,0 +1,114 @@
+name: Gerar APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Evita publicações simultâneas da mesma versão em push e execução manual.
+concurrency:
+  group: baixa-facil-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    name: Compilar, verificar e publicar APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+
+      - name: Instalar SDK API 35
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Configurar Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Checagens de versão e estrutura
+        run: python3 tools/ci_preflight.py
+
+      - name: Testar publicador sem acessar GitHub
+        run: bash tools/test_publish_mock.sh
+
+      - name: Testar e compilar APK Debug obrigatoriamente
+        run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
+
+      - name: Compilar e verificar APK de publicação
+        id: build_apk
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          version='0.1.0-alpha.23'
+          count=0
+          [[ -n "$KEYSTORE_BASE64" ]] && count=$((count+1))
+          [[ -n "$KEYSTORE_PASSWORD" ]] && count=$((count+1))
+          [[ -n "$KEY_ALIAS" ]] && count=$((count+1))
+          [[ -n "$KEY_PASSWORD" ]] && count=$((count+1))
+          if [[ "$count" -eq 4 ]]; then
+            export KEYSTORE_FILE="$RUNNER_TEMP/baixa-facil-release.p12"
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_FILE"
+            chmod 600 "$KEYSTORE_FILE"
+            keytool -list -storetype PKCS12 -keystore "$KEYSTORE_FILE" \
+              -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
+            gradle --no-daemon --stacktrace :app:assembleRelease
+            source_apk='app/build/outputs/apk/release/app-release.apk'
+            mode='release'
+          elif [[ "$count" -eq 0 ]]; then
+            source_apk='app/build/outputs/apk/debug/app-debug.apk'
+            mode='debug'
+            echo '::warning::Usando assinatura Debug temporária. Configure os quatro Secrets para assinatura estável.'
+          else
+            echo '::error::Assinatura incompleta: configure os quatro Secrets ou nenhum.'
+            exit 1
+          fi
+          test -s "$source_apk"
+          mkdir -p dist
+          name="Baixa-Facil-v${version}.apk"
+          cp "$source_apk" "dist/$name"
+          tool_dir="$ANDROID_HOME/build-tools/35.0.0"
+          "$tool_dir/apksigner" verify --verbose --print-certs "dist/$name"
+          badging="$("$tool_dir/aapt" dump badging "dist/$name")"
+          package_line="$(printf '%s\n' "$badging" | grep '^package: ' | head -1)"
+          printf '%s\n' "$package_line"
+          [[ "$package_line" == *"name='br.com.baixafacil'"* ]] || { echo '::error::applicationId inesperado'; exit 1; }
+          [[ "$package_line" == *"versionCode='23'"* ]] || { echo '::error::versionCode incorreto no APK'; exit 1; }
+          [[ "$package_line" == *"versionName='0.1.0-alpha.23'"* ]] || { echo '::error::versionName incorreto no APK'; exit 1; }
+          sha256sum "dist/$name"
+          echo "apk_file=dist/$name" >> "$GITHUB_OUTPUT"
+          echo "signing_mode=$mode" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar e verificar APK em Releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK_FILE: ${{ steps.build_apk.outputs.apk_file }}
+          VERSION: 0.1.0-alpha.23
+          SIGNING_MODE: ${{ steps.build_apk.outputs.signing_mode }}
+        run: bash tools/publish_apk.sh
+
+      - name: Apagar chave de assinatura temporária
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/baixa-facil-release.p12"
