@@ -1,22 +1,19 @@
-# Validação 0.1.0-alpha.34
+# Validação 0.1.0-alpha.35
 
-## Pontos alterados
+## Objetivo
 
-- Validar varredura após rolar por vídeos/Reels, sem chamadas repetidas a cada frame ou execução em páginas sensíveis de autenticação.
-- Confirmar que a relação entre título/thumb e URL utiliza o elemento de vídeo ou identidade segura do mesmo arquivo; outros recursos devem aparecer como sem associação visual confirmada.
-- Confirmar deduplicação de espelhos `scontent.*.fbcdn.net` com mesmo caminho longo e parâmetros de identidade iguais; vídeos distintos não são fundidos.
-- Miniatura: tentar frame canvas somente com política padrão de origem, fallback WebView; nem JavaScript nem Android fazem downloads adicionais para thumbnails.
-- Regressão: download só de arquivo direto, HLS/DASH apenas player online, DRM não suportado; controles de login, anúncios e rede intactos.
+Diminuir o trabalho opcional realizado pela WebView em páginas do ChatGPT e disponibilizar monitoramento seguro de renderizador bloqueado.
 
-## Testes executados
+## Verificações
 
-- `python3 tools/ci_preflight.py`.
-- `bash tools/test_publish_mock.sh`.
-- JVM `VideoMenuModelTest` e `VideoPresentationTest` com executor de JUnit compatível.
-- Teste de sintaxe e execução JavaScript em Node.js com player simulado.
-- Parser sintático de fontes Java com JavacTask e integridade/estrutura ZIP.
+- `BrowserLoadPolicyTest`: domínios oficiais exatos, variantes de caixa e caminhos válidos, domínios impostores/URLs maliciosas, opt-out da preferência, outros sites preservados.
+- `tools/ci_preflight.py`: versão, workflow, segurança, integração do perfil de desempenho e existência dos testes.
+- `tools/test_publish_mock.sh`: teste de publicação simulada.
+- Confirmar que `shouldInterceptRequest()` retorna sem trabalho adicional quando o perfil está ativo; não manipular respostas HTTP e não interceptar POST.
+- Testar no aparelho abertura de ChatGPT, digitação em conversa longa, navegação, teclados, rolagem e retorno de sessão.
+- Testar modo desativado, depois retorno ativado e outros sites com vídeos e bloqueador.
+- Testar renderizador responsivo/não responsivo em Android 10+ sem encerrá-lo automaticamente.
 
-## Pendências
+## Pendente
 
-- Build Android/Gradle completo no GitHub Actions e validação de interface no aparelho.
-- Testar no Facebook e em sites de vídeos, considerando URLs temporárias/autenticação e restrições de origem.
+- Compilação Android e testes físicos no dispositivo pelo GitHub Actions; não há dados medidos de memória ou FPS.

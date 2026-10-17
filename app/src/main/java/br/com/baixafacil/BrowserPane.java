@@ -35,6 +35,8 @@ import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.RenderProcessGoneDetail;
+import android.webkit.WebViewRenderProcess;
+import android.webkit.WebViewRenderProcessClient;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -82,6 +84,9 @@ final class BrowserPane {
     private int unsupportedMedia;
     private int scanGeneration;
     private Runnable pendingMediaScan;
+    private volatile boolean lightweightPage;
+    private boolean rendererUnresponsive;
+    private int lastProgressBucket=-1;
     private final AdBlockController adBlock;
 
     // Executado somente quando a pessoa pede a busca ou após uma página terminar.
@@ -303,7 +308,7 @@ final class BrowserPane {
         // Em feeds/Reels, a navegação pode trocar vídeos sem abrir outra página.
         // Varredura após a rolagem, com debounce, sem rede nem loop de polling.
         web.setOnScrollChangeListener((v,sx,sy,oldX,oldY)->{
-            if(sy!=oldY && VideoPrefs.autoScan(host))scheduleMediaScan(900);
+            if(sy!=oldY && !lightweightPage && VideoPrefs.autoScan(host))scheduleMediaScan(900);
         });
         web.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView w,WebResourceRequest request) {
@@ -325,6 +330,8 @@ final class BrowserPane {
                     return;
                 }
                 lastHttpStatus=0;
+                lightweightPage=BrowserLoadPolicy.lightMode(url,BrowserPrefs.chatGptLight(host));
+                lastProgressBucket=-1;
                 scanGeneration++;
                 if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);
                 pendingMediaScan=null;
@@ -335,6 +342,9 @@ final class BrowserPane {
                 updateVideosButton();
             }
             @Override public WebResourceResponse shouldInterceptRequest(WebView w,WebResourceRequest request) {
+                // Em ChatGPT dispensar TODO processamento opcional em subrecursos: chat pesado e dinâmico.
+                // A WebView segue carregando normalmente; não alteramos respostas, cookies ou TLS.
+                if (lightweightPage) return null;
                 // Não bloqueia documento principal, POST ou esquemas internos; evita quebrar login.
                 if (!request.isForMainFrame() && "GET".equalsIgnoreCase(request.getMethod())
                         && adBlock.shouldBlock(request.getUrl().toString())) {
@@ -362,7 +372,7 @@ final class BrowserPane {
                 return null;
             }
             @Override public void onPageFinished(WebView w,String url) {
-                applyCosmeticFilters(url);
+                if(!lightweightPage) applyCosmeticFilters(url);
                 if (url!=null && url.equals(UrlTools.extract(url))) {
                     address.setText(url);
                     showSecurity(url);
@@ -376,13 +386,14 @@ final class BrowserPane {
                     : "Página pronta. Toque num arquivo para baixar.");
                 // O Facebook e outros sites podem carregar o player depois do HTML.
                 final int generation=scanGeneration;
-                host.getWindow().getDecorView().postDelayed(()->{
-                    if(generation==scanGeneration && VideoPrefs.autoScan(host) && !AuthNavigation.isSensitiveLoginPage(web.getUrl()))
-                        scanPageVideos(false);
+                if(!lightweightPage)host.getWindow().getDecorView().postDelayed(()->{
+                    if(generation==scanGeneration && web!=null && !lightweightPage && VideoPrefs.autoScan(host)
+                        && !AuthNavigation.isSensitiveLoginPage(web.getUrl()))scanPageVideos(false);
                 },1300);
             }
             @Override public boolean onRenderProcessGone(WebView w,RenderProcessGoneDetail detail) {
                 lastNavigationProblem="O processo da WebView foi encerrado; o navegador será recriado.";
+                rendererUnresponsive=false;
                 ViewGroup parent=(ViewGroup)w.getParent();
                 if(parent!=null)parent.removeView(w);
                 w.destroy();
@@ -409,14 +420,36 @@ final class BrowserPane {
                 }
             }
         });
+        // API 29+: observe travamentos reais do processo de renderização sem matar a sessão.
+        web.setWebViewRenderProcessClient(new WebViewRenderProcessClient() {
+            @Override public void onRenderProcessUnresponsive(WebView w,WebViewRenderProcess renderer) {
+                host.runOnUiThread(()->{
+                    if(web!=w || rendererUnresponsive)return;
+                    rendererUnresponsive=true;
+                    lastNavigationProblem="A WebView ficou temporariamente sem responder; verifique memória do aparelho e atualize o componente.";
+                    status.setText("Página pesada: a WebView não responde. Use ⋮ para abrir externamente.");
+                });
+            }
+            @Override public void onRenderProcessResponsive(WebView w,WebViewRenderProcess renderer) {
+                host.runOnUiThread(()->{
+                    if(web!=w)return;
+                    if(rendererUnresponsive)status.setText("A página voltou a responder.");
+                    rendererUnresponsive=false;
+                });
+            }
+        });
         web.setWebChromeClient(new WebChromeClient(){
             @Override public boolean onCreateWindow(WebView source, boolean isDialog, boolean isUserGesture, Message resultMsg) {
                 return createLoginWindow(isUserGesture,resultMsg);
             }
             @Override public void onProgressChanged(WebView w,int progress) {
+                // O progresso pode disparar dezenas de vezes em aplicativos SPA; evite refazer texto toda vez.
+                int bucket=progress/10;
+                if(bucket==lastProgressBucket && progress!=100)return;
+                lastProgressBucket=bucket;
                 loading.setProgress(progress);
                 loading.setVisibility(progress>=100?View.INVISIBLE:View.VISIBLE);
-                if(progress<100) status.setText("Carregando página: "+progress+"%");
+                if(progress<100) status.setText("Carregando página: "+(bucket*10)+"%");
             }
         });
         // O menu usa somente a URL HTTP(S) que a WebView identificou no toque longo.
@@ -487,6 +520,8 @@ final class BrowserPane {
     }
     void resume(){
         adBlock.loadPreferences();
+        lightweightPage=BrowserLoadPolicy.lightMode(web.getUrl(),BrowserPrefs.chatGptLight(host));
+        if(lightweightPage && pendingMediaScan!=null){web.removeCallbacks(pendingMediaScan);pendingMediaScan=null;}
         applyPagePreferences(false);
         updateVideosButton();
         web.onResume();
@@ -518,7 +553,7 @@ final class BrowserPane {
         +".ad-container[data-ad],.ad-banner[data-ad],.adsbox[data-ad]"
         +"{display:none!important;visibility:hidden!important;}";
     private void applyCosmeticFilters(String url){
-        if(web==null || !BrowserPrefs.javascript(host)||!adBlock.shouldHideCosmetic(url))return;
+        if(web==null || lightweightPage || !BrowserPrefs.javascript(host)||!adBlock.shouldHideCosmetic(url))return;
         // CSS estático local: não lê formulário, cookies, DOM pessoal nem elementos de login.
         String script="(function(){try{var id='bf-ad-css';if(document.getElementById(id))return;"
             +"var s=document.createElement('style');s.id=id;s.textContent=\""+AD_CSS+"\";"
@@ -546,6 +581,8 @@ final class BrowserPane {
         rows.add(AppMenus.Entry.item("Vídeos e mídia","Vídeos encontrados, reprodução e opções","play",this::showVideoTools));
         rows.add(AppMenus.Entry.item("Favoritos","Abrir ou salvar sites","bookmark",this::showFavoriteTools));
         rows.add(AppMenus.Entry.item("Ferramentas da página","Localizar, zoom e modo computador","search",this::showDisplayTools));
+        if(BrowserLoadPolicy.isChatGpt(web.getUrl()))
+            rows.add(AppMenus.Entry.item("Abrir ChatGPT no Chrome ou navegador","Alternativa se a WebView estiver lenta","globe",()->openInExternalBrowser(web.getUrl())));
         rows.add(AppMenus.Entry.item("Proteção e privacidade","Bloqueador e exceções do site","shield",this::showProtectionTools));
         rows.add(AppMenus.Entry.item("Login e diagnóstico","Compatibilidade, erros e ajuda","lock",this::showLoginTools));
         AppMenus.show(host,"Ferramentas do navegador","Escolha uma área para configurar ou utilizar.",rows);
@@ -713,6 +750,8 @@ final class BrowserPane {
             +"JavaScript: "+(BrowserPrefs.javascript(host)?"ativado":"desativado")+"\n"
             +"Cookies de terceiros: "+(BrowserPrefs.thirdPartyCookies(host)?"permitidos":"bloqueados")+"\n"
             +"Modo computador: "+(BrowserPrefs.desktop(host)?"ativado":"desativado")+"\n"
+            +"Compatibilidade ChatGPT: "+(BrowserPrefs.chatGptLight(host)?"ativada":"desativada")+"\n"
+            +"Renderizador: "+(rendererUnresponsive?"sem resposta":"sem falha de resposta detectada")+"\n"
             +"Janela de login: "+(loginPopup==null?"fechada":"aberta")+"\n"
             +"Falha recente: "+lastNavigationProblem+"\n"
             +"Dados sensíveis como cookies, senhas, caminhos e parâmetros de URLs não são incluídos.";
@@ -789,12 +828,12 @@ final class BrowserPane {
     }
 
     private void scheduleMediaScan(long delayMs){
-        if(web==null || !VideoPrefs.autoScan(host))return;
+        if(web==null || lightweightPage || !VideoPrefs.autoScan(host))return;
         if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);
         int generation=scanGeneration;
         Runnable job=()->{
             pendingMediaScan=null;
-            if(generation==scanGeneration && web!=null &&
+            if(generation==scanGeneration && web!=null && !lightweightPage &&
                 !AuthNavigation.isSensitiveLoginPage(web.getUrl()))scanPageVideos(false);
         };
         pendingMediaScan=job;

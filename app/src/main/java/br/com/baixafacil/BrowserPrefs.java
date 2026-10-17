@@ -21,6 +21,7 @@ public final class BrowserPrefs {
     private static final String KEY_THIRD_PARTY_COOKIES = "third_party_cookies_opt_in";
     private static final String KEY_CLEAR = "clear_requested";
     private static final String KEY_DESKTOP = "desktop_mode";
+    private static final String KEY_CHATGPT_LIGHT = "chatgpt_lightweight_v1";
     private static final String KEY_TEXT_ZOOM = "text_zoom";
     private static final String KEY_FAVORITES = "favorite_sites_v1";
     public static final String DEFAULT_HOME = "https://www.google.com/";
@@ -33,6 +34,8 @@ public final class BrowserPrefs {
     public static void setJavascript(Context c, boolean enabled) { prefs(c).edit().putBoolean(KEY_JS, enabled).apply(); }
     public static boolean thirdPartyCookies(Context c) { return prefs(c).getBoolean(KEY_THIRD_PARTY_COOKIES, false); }
     public static void setThirdPartyCookies(Context c, boolean enabled) { prefs(c).edit().putBoolean(KEY_THIRD_PARTY_COOKIES, enabled).apply(); }
+    public static boolean chatGptLight(Context c) { return prefs(c).getBoolean(KEY_CHATGPT_LIGHT, true); }
+    public static void setChatGptLight(Context c, boolean enabled) { prefs(c).edit().putBoolean(KEY_CHATGPT_LIGHT, enabled).apply(); }
     public static boolean desktop(Context c) { return prefs(c).getBoolean(KEY_DESKTOP, false); }
     public static void setDesktop(Context c, boolean enabled) { prefs(c).edit().putBoolean(KEY_DESKTOP, enabled).apply(); }
     public static int textZoom(Context c) {

@@ -82,3 +82,6 @@
 - Alpha.34: fontes de rede sem correspondência comprovada não recebem título ou thumb do Reels visível. Associar somente por URL direta exata ou identidade conservadora de arquivo, nunca apenas pelo host ou por tempo de requisição.
 - Alpha.34: varreduras após rolagem têm debounce e só usam DOM da própria página, sem polling contínuo, bridge JS, download extra, acesso a cookies ou violação de políticas de origem do canvas.
 - Alpha.34: frame/miniatura de vídeo somente em memória e de tamanho limitado; não salvar imagens de páginas ou URLs assinadas no histórico/diagnóstico. Manter bloqueio de DRM e HLS/DASH como download completo.
+
+- Alpha.35: perfil de compatibilidade para páginas pesadas deve reconhecer somente hosts oficiais ChatGPT, sem User-Agent falso ou remoção de cookies/JS/TLS. Evitar trabalhos opcionais de varredura de vídeo, filtragem por requisições e CSS cosmético na WebView apenas enquanto o perfil estiver ativo.
+- Alpha.35: observar renderizador não responsivo sem terminá-lo automaticamente; preservar histórico, sessão e o acesso a navegador externo. Perfil opt-out persistido e teste contra falsos domínios.

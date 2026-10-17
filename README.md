@@ -1,4 +1,12 @@
-# Baixa Fácil 0.1.0-alpha.34
+# Baixa Fácil 0.1.0-alpha.35
+
+## Compatibilidade com páginas pesadas (alpha.35)
+
+- **ChatGPT:** em `chatgpt.com`, `www.chatgpt.com` e `chat.openai.com`, o navegador evita varredura automática de vídeos, bloqueio extra de anúncios em subrecursos e CSS cosmético. O objetivo é reduzir processamento opcional e falsos positivos sem interferir em JavaScript, cookies, TLS ou login.
+- A otimização é ativada por padrão e pode ser desativada em **Configurações > Navegador > Compatibilidade com ChatGPT**.
+- O feedback de carregamento passou a ser atualizado em passos, reduzindo notificações visuais repetidas em sites SPA.
+- Monitoramento de processos WebView sem resposta (Android 10+), preservando a sessão e oferecendo acesso ao diagnóstico/navegador externo. Não mata o processo automaticamente nem garante desempenho em todos os dispositivos.
+- O bloqueador e a detecção de vídeos continuam funcionando normalmente em outros domínios.
 
 ## Reels, identificação e duplicatas (alpha.34)
 

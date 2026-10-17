@@ -65,6 +65,9 @@ public final class SettingsActivity extends Activity {
         downloadSwitch("Modo computador",
             "Solicitar versão desktop dos sites. Alguns sites podem ignorar esta preferência.",
             BrowserPrefs.desktop(this), BrowserPrefs::setDesktop);
+        downloadSwitch("Compatibilidade com ChatGPT",
+            "Pula varreduras de vídeo e filtros extras no chatgpt.com para diminuir trabalho do navegador. Não desativa JavaScript ou cookies. Padrão: ativado.",
+            BrowserPrefs.chatGptLight(this), BrowserPrefs::setChatGptLight);
         option("Tamanho do texto",BrowserPrefs.textZoom(this)+"%", "search", this::chooseTextZoom);
         option("Favoritos","Sites salvos: "+BrowserPrefs.favorites(this).size(),"bookmark",this::manageFavorites);
         option("Histórico de navegação","Ver os últimos endereços visitados","menu",this::showHistory);
@@ -121,8 +124,8 @@ public final class SettingsActivity extends Activity {
         section("Aplicativo");
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
-        option("Sobre","Baixa Fácil 0.1.0-alpha.34","webdown",()->{
-            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.34\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
+        option("Sobre","Baixa Fácil 0.1.0-alpha.35","webdown",()->{
+            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.35\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
         });
     }
     private String adBlockModeName(){

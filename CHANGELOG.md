@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0-alpha.35 (versionCode 35) - 2026-10-17
+
+- Perfil automático de compatibilidade **ChatGPT**, reconhecendo somente domínios oficiais `chatgpt.com`, `www.chatgpt.com` e `chat.openai.com` sem aceitar domínios parecidos.
+- Durante navegação nessas origens, desativados trabalhos opcionais de detecção automática de mídia, análise de bloqueio de anúncios por subrecurso e injeção de CSS de ocultação, que acrescentavam processamento à página e podiam prejudicar sites dinâmicos.
+- Adicionada preferência persistente **Compatibilidade com ChatGPT** (ligada por padrão); pode ser desativada a qualquer momento, sem apagar sessões, cookies ou histórico.
+- Mensagens de progresso da WebView foram reduzidas a passos de 10%, preservando indicador de carregamento e erros de navegação.
+- Monitoramento de WebView `onRenderProcessUnresponsive` e recuperação visual em `onRenderProcessResponsive`, sem matar renderizador ou perder a página automaticamente. Diagnóstico mostra o estado de resposta do renderizador.
+- Menu de ferramentas disponibiliza atalho contextual **Abrir ChatGPT no navegador externo** como alternativa para páginas que ainda travam.
+- JUnit para classificador de sites confiáveis e verificações preventivas no preflight. Sem alteração de permissões, Media3, cookies, User-Agent de navegação, TLS ou motor de downloads.
+
 ## 0.1.0-alpha.34 (versionCode 34) - 2026-10-17
 
 - Detecção de vídeo em Reels/feed melhorada: varredura após rolagem com debounce sem polling contínuo, relacionando metadados apenas ao `<video>` que realmente expõe aquela URL.

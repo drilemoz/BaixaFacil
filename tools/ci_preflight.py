@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.34"
-CODE = "34"
+VERSION = "0.1.0-alpha.35"
+CODE = "35"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -18,6 +18,11 @@ checks = {
     "Safe video grouping across FB mirrors": all(x in read("app/src/main/java/br/com/baixafacil/VideoMenuModel.java") for x in ["canonicalHost", "mediaIdentity", "getRawQuery", "video_id"]),
     "Titles and active-video ranking tests": all(x in read("app/src/main/java/br/com/baixafacil/VideoPresentation.java") for x in ["cleanTitle", "sort", "mediaIdentity"])
         and all(x in read("app/src/test/java/br/com/baixafacil/VideoPresentationTest.java") for x in ["facebookMirrorSamePathDeduplicated", "playingVisibleVideoRanksFirst", "rejectsSensitiveOrGenericTitles"]),
+    "ChatGPT lightweight profile": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        for x in ["BrowserLoadPolicy.lightMode", "if (lightweightPage) return null;", "if(!lightweightPage) applyCosmeticFilters", "if(!lightweightPage)host", "WebViewRenderProcessClient", "rendererUnresponsive"])
+        and "chatGptLight" in read("app/src/main/java/br/com/baixafacil/BrowserPrefs.java")
+        and "Compatibilidade com ChatGPT" in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
+        and "class BrowserLoadPolicyTest" in read("app/src/test/java/br/com/baixafacil/BrowserLoadPolicyTest.java"),
     "styled native menus": all(x in read("app/src/main/java/br/com/baixafacil/AppMenus.java") for x in ["class AppMenus", "static AlertDialog show", "static Entry section", "InputMethodManager"]),
     "dedicated video preferences": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["Vídeos e mídia", "renderVideoSettings", "VideoPrefs.autoScan", "VideoPrefs.showStreams", "VideoPrefs.showSources"]),
     "accurate video list": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["VideoMenuModel.display", "showVideoActions", "TRANSMISSÕES", "ARQUIVOS"]),
@@ -45,7 +50,7 @@ checks = {
     "publication directly in Releases": "bash tools/publish_apk.sh" in workflow,
     "no ZIP Artifacts": "upload-artifact" not in workflow and "download-artifact" not in workflow,
     "unit test and Debug compile": ":app:testDebugUnitTest :app:assembleDebug" in workflow,
-    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='34'", "versionName='" + VERSION + "'"]),
+    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='35'", "versionName='" + VERSION + "'"]),
     "signature verification": "apksigner" in workflow,
     "code User-Agent version": "BaixaFacil/" + VERSION in service,
     "foreground notification initialization":

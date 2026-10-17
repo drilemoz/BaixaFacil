@@ -60,7 +60,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          version='0.1.0-alpha.34'
+          version='0.1.0-alpha.35'
           count=0
           [[ -n "$KEYSTORE_BASE64" ]] && count=$((count+1))
           [[ -n "$KEYSTORE_PASSWORD" ]] && count=$((count+1))
@@ -93,8 +93,8 @@ jobs:
           package_line="$(printf '%s\n' "$badging" | grep '^package: ' | head -1)"
           printf '%s\n' "$package_line"
           [[ "$package_line" == *"name='br.com.baixafacil'"* ]] || { echo '::error::applicationId inesperado'; exit 1; }
-          [[ "$package_line" == *"versionCode='34'"* ]] || { echo '::error::versionCode incorreto no APK'; exit 1; }
-          [[ "$package_line" == *"versionName='0.1.0-alpha.34'"* ]] || { echo '::error::versionName incorreto no APK'; exit 1; }
+          [[ "$package_line" == *"versionCode='35'"* ]] || { echo '::error::versionCode incorreto no APK'; exit 1; }
+          [[ "$package_line" == *"versionName='0.1.0-alpha.35'"* ]] || { echo '::error::versionName incorreto no APK'; exit 1; }
           sha256sum "dist/$name"
           echo "apk_file=dist/$name" >> "$GITHUB_OUTPUT"
           echo "signing_mode=$mode" >> "$GITHUB_OUTPUT"
@@ -104,7 +104,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           APK_FILE: ${{ steps.build_apk.outputs.apk_file }}
-          VERSION: 0.1.0-alpha.34
+          VERSION: 0.1.0-alpha.35
           SIGNING_MODE: ${{ steps.build_apk.outputs.signing_mode }}
         run: bash tools/publish_apk.sh
 
