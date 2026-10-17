@@ -1,28 +1,24 @@
-# Validação 0.1.0-alpha.39
+# Validação 0.1.0-alpha.40
 
-## Mudanças desta versão
+## Mudanças
 
-- Novo diálogo visual de confirmação de download usando `DownloadDialogs`, com resumo da origem, do arquivo, do destino e aviso para HTTP não criptografado.
-- Correção defensiva dos atalhos rápidos **Abrir** e **Compartilhar** na lista de downloads concluídos com `safeUri`, tratamento de `ActivityNotFoundException`, `SecurityException`, `IllegalArgumentException` e outros erros de runtime.
-- Nova captura local opcional `AppEventLog` com registros de alertas/erros e `UncaughtExceptionHandler` global via `BaixaFacilApp`.
-- Nova seção **Configurações > Diagnóstico e alertas** com ativação, visualização, cópia e limpeza dos registros locais.
+- Correção de Java: eliminar `catch (SecurityException | IllegalArgumentException | RuntimeException)`, que é inválido porque os dois primeiros tipos derivam de `RuntimeException`.
+- Atalhos Abrir/Enviar com rótulos e toques de 44 dp, compatíveis com os três temas do app.
+- Proteção ao abrir/compartilhar URI `content://` com autoridade, incluindo a construção de ClipData e do Intent dentro de `try`.
+- Proteção conservadora de duplicatas (`DownloadDuplicatePolicy`) com igualdade exata incluindo query e host, aplicada tanto ao navegador quanto à área de downloads.
+- Eventos diagnósticos sem URL completa em falhas de carregamento da página principal e renderizador WebView.
 
-## Verificações locais
+## Testes automatizados locais
 
-- `python3 tools/ci_preflight.py`
-- `bash tools/test_publish_mock.sh`
-- Busca de sincronização de versão (`0.1.0-alpha.39`, `versionCode 39`) em Gradle, workflow, docs, User-Agent e tela Sobre.
-- Inspeção sintática/estrutural dos arquivos Java modificados (`MainActivity`, `BrowserPane`, `SettingsActivity`, `MediaPlayerActivity`, `DownloadDialogs`, `AppEventLog`, `BaixaFacilApp`).
+- `DownloadDuplicatePolicyTest` cobre URL ativa, pausada, interrompida, concluída, falha, alterada por assinatura, outro domínio e listas vazias.
+- `python3 tools/ci_preflight.py` deve conferir versionamento, integração, políticas e workflow.
+- `bash tools/test_publish_mock.sh` verifica criação/atualização da release simulada e SHA-256.
+- Sintaxe Java/XML/YAML/ZIP deve ser validada, sem alegar Android compilado.
 
-## Cenários funcionais para Android real
+## Testes pendentes no aparelho
 
-- Abrir um download concluído pela ação rápida do card e confirmar que o app não fecha, inclusive quando não houver app compatível instalado.
-- Compartilhar um download concluído pela ação rápida do card e confirmar que falhas são tratadas sem crash.
-- Iniciar um download a partir do navegador e pelo campo manual, validando o novo diálogo visual e o aviso de HTTP quando aplicável.
-- Ativar **Configurações > Diagnóstico e alertas**, provocar um erro tratável (por exemplo, compartilhar item sem handler disponível) e verificar o registro local/copiar relatório.
-- Confirmar que os registros não exibem cookies, tokens nem URLs completas com parâmetros sensíveis.
-
-## Pendências
-
-- Executar `:app:testDebugUnitTest` e `:app:assembleDebug` no GitHub Actions.
-- Validar a experiência visual final do novo diálogo e da tela de diagnósticos em aparelho físico.
+- Compilar com GitHub Actions `:app:testDebugUnitTest :app:assembleDebug`.
+- Baixar arquivo grande, abrir e compartilhar pelos atalhos sem crash.
+- Tentar repetir o mesmo link enquanto ativo/pausado, e depois de concluído.
+- Testar dois links assinados diferentes para o mesmo caminho, que não devem ser agrupados sem confirmação de conteúdo.
+- Verificar logs em Configurações > Diagnóstico e alertas para falhas do navegador sem exposição de endereços com tokens.

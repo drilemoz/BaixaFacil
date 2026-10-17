@@ -1,4 +1,13 @@
-# Baixa Fácil 0.1.0-alpha.39
+# Baixa Fácil 0.1.0-alpha.40
+
+## Ações rápidas e prevenção de duplicatas (alpha.40)
+
+- Os cartões de arquivos concluídos mostram os atalhos **Abrir** e **Enviar** com ícones e rótulos, áreas de toque de 44 dp e espaço entre os botões.
+- Corrigida incompatibilidade do compilador Java na versão anterior: o tratamento de `RuntimeException` não usa `catch` múltiplo com suas subclasses.
+- Para abrir ou compartilhar arquivos, a URI deve ser um `content://` com autoridade válida, e todas as chamadas que podem lançar exceções são tratadas para não fechar o app indevidamente.
+- Antes de adicionar o download pelo navegador ou pelo campo de endereço, o app detecta somente a **URL exatamente igual** já presente na lista. Se estiver ativa/pausada, direciona para o registro; se concluída, pergunta antes de baixar novamente. Não ignora assinaturas/queries e não deduz duplicata pelo nome.
+- O diagnóstico local opcional também registra falhas da página principal e travamentos do renderizador WebView sem incluir os endereços sensíveis.
+- Requer validação do workflow e teste no aparelho para confirmar compilação e comportamento das ações.
 
 ## Novidades da alpha.39
 

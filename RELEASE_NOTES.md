@@ -1,14 +1,14 @@
-# Baixa Fácil 0.1.0-alpha.39 (versionCode 39)
+# Baixa Fácil 0.1.0-alpha.40 (versionCode 40)
 
-## Novidades principais
+## Novidades
 
-- Diálogo **Baixar com Baixa Fácil?** modernizado, com ícones, resumo visual da origem, do arquivo e do destino, além de aviso destacado para links HTTP sem criptografia.
-- Corrigido o crash ao tocar nos dois atalhos rápidos da tela **Meus downloads** (abrir e compartilhar).
-- Nova área **Configurações > Diagnóstico e alertas** para ativar captura local de erros/alertas, abrir os registros, copiar relatório e limpar o histórico.
-- Captura opcional de crashes inesperados por handler global, preservando a privacidade: sem cookies, sem tokens e sem URLs completas com query.
+- Na aba **Meus downloads**, ações rápidas **Abrir** e **Enviar** ganharam ícone + texto e foram separadas visualmente.
+- Correção de `catch` incompatível introduzido na alpha.39, com validação de URI `content://` e tratamento de falhas ao abrir ou compartilhar.
+- Links exatamente iguais já ativos ou pausados não são enfileirados de novo. Se o download estiver concluído, um menu permite baixar novamente somente por escolha explícita.
+- O diagnóstico local opcional agora registra erros de páginas principais (sem URL), eventos do renderizador WebView e falhas relevantes de arquivo.
 
-## Validação
+## Observações
 
-- Verificações locais previstas: `python3 tools/ci_preflight.py`, `bash tools/test_publish_mock.sh` e checagem sintática/estrutural dos arquivos Java, XML, Markdown e workflow.
-- A correção do crash dos atalhos rápidos depende de validação final em aparelho Android com arquivos reais concluídos.
-- **Pendente:** repetir `:app:testDebugUnitTest :app:assembleDebug` no GitHub Actions; este pacote é o código-fonte, não o APK.
+- Comparação de URL exata não equivale a comparação de conteúdo ou checksum; links assinados diferentes continuam sendo tratados como endereços distintos.
+- Nenhuma sessão de site, cookie ou token de autenticação é armazenado nos eventos de diagnóstico.
+- O ZIP contém o código-fonte. O build Android completo e os testes no aparelho ainda precisam ser confirmados via GitHub Actions.

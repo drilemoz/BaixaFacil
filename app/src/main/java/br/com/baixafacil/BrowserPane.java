@@ -411,6 +411,7 @@ final class BrowserPane {
             }
             @Override public boolean onRenderProcessGone(WebView w,RenderProcessGoneDetail detail) {
                 lastNavigationProblem="O processo da WebView foi encerrado; o navegador será recriado.";
+                AppEventLog.error(host,"Navegador","Renderizador WebView encerrado pelo Android.");
                 rendererUnresponsive=false;
                 ViewGroup parent=(ViewGroup)w.getParent();
                 if(parent!=null)parent.removeView(w);
@@ -426,6 +427,7 @@ final class BrowserPane {
             @Override public void onReceivedError(WebView w,WebResourceRequest request,WebResourceError error) {
                 if (request.isForMainFrame()) {
                     lastNavigationProblem="Erro de rede da WebView: "+error.getErrorCode();
+                    AppEventLog.error(host,"Navegador","Falha de carregamento da página: código "+error.getErrorCode());
                     status.setText("Falha ao abrir página ("+error.getErrorCode()+"). Consulte ⋮ > Diagnóstico de login.");
                 }
             }
@@ -433,8 +435,10 @@ final class BrowserPane {
                 if (request.isForMainFrame()) {
                     lastHttpStatus=response.getStatusCode();
                     lastNavigationProblem="Resposta HTTP da página: "+response.getStatusCode();
-                    if (response.getStatusCode() >= 400)
+                    if (response.getStatusCode() >= 400) {
+                        AppEventLog.warn(host,"Navegador","Resposta HTTP "+response.getStatusCode()+" da página principal.");
                         status.setText("Site retornou HTTP "+response.getStatusCode()+". Consulte ⋮ > Diagnóstico de login.");
+                    }
                 }
             }
         });
@@ -446,6 +450,7 @@ final class BrowserPane {
                     rendererUnresponsive=true;
                     cancelMediaScan();
                     lastNavigationProblem="A WebView ficou temporariamente sem responder; verifique memória do aparelho e atualize o componente.";
+                    AppEventLog.warn(host,"Navegador","Renderizador WebView sem resposta durante a navegação.");
                     status.setText("Página pesada: a WebView não responde. Use ⋮ para abrir externamente.");
                 });
             }
@@ -1390,6 +1395,10 @@ final class BrowserPane {
             ()->startDownload(url,agent));
     }
     private void startDownload(String url,String agent){
+        if(DownloadDuplicateUi.maybeShow(host,url,()->startNewDownload(url,agent),host::showDownloads))return;
+        startNewDownload(url,agent);
+    }
+    private void startNewDownload(String url,String agent){
         String restriction=DownloadRestrictions.blocked(host);
         if(restriction!=null){
             AppEventLog.warn(host,"Downloads","Download bloqueado pelas regras locais de rede ou bateria.");

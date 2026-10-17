@@ -520,6 +520,10 @@ public class MainActivity extends Activity {
     }
 
     private void enqueue(String link) {
+        if(DownloadDuplicateUi.maybeShow(this,link,()->enqueueNew(link),this::showDownloads))return;
+        enqueueNew(link);
+    }
+    private void enqueueNew(String link) {
         String restriction=DownloadRestrictions.blocked(this);
         if(restriction!=null) {
             AppEventLog.warn(this,"Downloads","Download bloqueado pelas regras locais de rede ou bateria.");
@@ -778,7 +782,7 @@ public class MainActivity extends Activity {
         try{
             String value = getContentResolver().getType(uri);
             return value == null ? "*/*" : value;
-        }catch(SecurityException | IllegalArgumentException error){
+        }catch(RuntimeException error){
             AppEventLog.error(this,"Arquivos",error);
             return "*/*";
         }
@@ -791,7 +795,8 @@ public class MainActivity extends Activity {
             Uri uri=Uri.parse(trimmed);
             String scheme=uri.getScheme();
             if(scheme==null)return null;
-            if(!"content".equalsIgnoreCase(scheme) && !"file".equalsIgnoreCase(scheme))return null;
+            // MediaStore retorna content://. Não compartilhar file:// (FileUriExposedException).
+            if(!"content".equalsIgnoreCase(scheme) || uri.getAuthority()==null || uri.getAuthority().isEmpty())return null;
             return uri;
         }catch(RuntimeException error){
             AppEventLog.error(this,"Arquivos",error);
@@ -820,7 +825,11 @@ public class MainActivity extends Activity {
         play.putExtra(MediaPlayerActivity.EXTRA_MEDIA_URL,uri.toString());
         play.putExtra(MediaPlayerActivity.EXTRA_LOCAL,true);
         play.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(play);
+        try { startActivity(play); }
+        catch(RuntimeException error){
+            AppEventLog.error(this,"Player",error);
+            Toast.makeText(this,"Não foi possível abrir o reprodutor",Toast.LENGTH_LONG).show();
+        }
     }
     private void openFile(Uri uri) {
         if(uri==null){
@@ -828,14 +837,17 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "Arquivo indisponível para abrir", Toast.LENGTH_LONG).show();
             return;
         }
-        Intent open = new Intent(Intent.ACTION_VIEW);
-        open.setDataAndType(uri, mime(uri));
-        open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        try { startActivity(Intent.createChooser(open, "Abrir com")); }
+        try {
+            Intent open = new Intent(Intent.ACTION_VIEW);
+            open.setDataAndType(uri, mime(uri));
+            open.setClipData(ClipData.newUri(getContentResolver(), "Arquivo", uri));
+            open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(open, "Abrir com"));
+        }
         catch (ActivityNotFoundException e) {
             AppEventLog.warn(this,"Arquivos","Nenhum app disponível para abrir o arquivo selecionado.");
             Toast.makeText(this, "Nenhum aplicativo pode abrir este arquivo", Toast.LENGTH_LONG).show();
-        } catch (SecurityException | IllegalArgumentException | RuntimeException error){
+        } catch (RuntimeException error){
             AppEventLog.error(this,"Arquivos",error);
             Toast.makeText(this, "Não foi possível abrir o arquivo", Toast.LENGTH_LONG).show();
         }
@@ -846,16 +858,18 @@ public class MainActivity extends Activity {
             Toast.makeText(this, "Arquivo indisponível para compartilhar", Toast.LENGTH_LONG).show();
             return;
         }
-        Intent share = new Intent(Intent.ACTION_SEND);
-        share.setType(mime(uri));
-        share.putExtra(Intent.EXTRA_STREAM, uri);
-        share.setClipData(ClipData.newUri(getContentResolver(), "Download", uri));
-        share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        try{startActivity(Intent.createChooser(share, "Compartilhar arquivo"));}
+        try {
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType(mime(uri));
+            share.putExtra(Intent.EXTRA_STREAM, uri);
+            share.setClipData(ClipData.newUri(getContentResolver(), "Download", uri));
+            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(share, "Compartilhar arquivo"));
+        }
         catch (ActivityNotFoundException error){
             AppEventLog.warn(this,"Arquivos","Nenhum app disponível para compartilhar o arquivo selecionado.");
             Toast.makeText(this, "Nenhum aplicativo aceitou o compartilhamento", Toast.LENGTH_LONG).show();
-        } catch (SecurityException | IllegalArgumentException | RuntimeException error){
+        } catch (RuntimeException error){
             AppEventLog.error(this,"Arquivos",error);
             Toast.makeText(this, "Não foi possível compartilhar o arquivo", Toast.LENGTH_LONG).show();
         }
@@ -1052,13 +1066,15 @@ public class MainActivity extends Activity {
             }
             bottom.addView(metrics,new LinearLayout.LayoutParams(0,dp(36),1));
 
-            // Ações com área de toque de 40 dp; o menu ⋮ mantém todas as operações.
+            // Atalhos com ícones e rótulos: toque >= 44 dp, espaço entre botões.
             if(finished){
                 final Uri itemUri=safeUri(entry.optString("uri"));
-                bottom.addView(smallDownloadAction("file","Abrir "+filename,
-                        ()->openFile(itemUri)),new LinearLayout.LayoutParams(dp(44),dp(44)));
-                bottom.addView(smallDownloadAction("link","Compartilhar "+filename,
-                        ()->shareFile(itemUri)),new LinearLayout.LayoutParams(dp(44),dp(44)));
+                LinearLayout.LayoutParams openP=new LinearLayout.LayoutParams(-2,dp(44));
+                openP.leftMargin=dp(6);
+                bottom.addView(labeledDownloadAction("file","Abrir","Abrir "+filename,()->openFile(itemUri)),openP);
+                LinearLayout.LayoutParams shareP=new LinearLayout.LayoutParams(-2,dp(44));
+                shareP.leftMargin=dp(7);
+                bottom.addView(labeledDownloadAction("link","Enviar","Compartilhar "+filename,()->shareFile(itemUri)),shareP);
             }else if(active){
                 bottom.addView(smallDownloadAction("pause","Pausar "+filename,
                         ()->controlDownload(id,TransferService.ACTION_PAUSE)),new LinearLayout.LayoutParams(dp(40),dp(40)));
@@ -1068,7 +1084,7 @@ public class MainActivity extends Activity {
                 bottom.addView(smallDownloadAction("play","Retomar "+filename,
                         ()->retryDownload(entry)),new LinearLayout.LayoutParams(dp(40),dp(40)));
             }
-            card.addView(bottom,Ui.lp(MainActivity.this,-1,40,0));
+            card.addView(bottom,Ui.lp(MainActivity.this,-1,44,0));
 
             if(expanded){
                 View separator=new View(MainActivity.this);
@@ -1088,6 +1104,20 @@ public class MainActivity extends Activity {
         }
     }
 
+    private LinearLayout labeledDownloadAction(String icon,String label,String description,Runnable action){
+        LinearLayout row=Ui.horizontal(this);
+        row.setGravity(Gravity.CENTER);
+        row.setPadding(dp(10),0,dp(11),0);
+        row.setBackground(Ui.shape(this,colors.soft,14));
+        row.setContentDescription(description);
+        row.setClickable(true);row.setFocusable(true);
+        row.addView(Ui.icon(this,icon,colors.teal,17),new LinearLayout.LayoutParams(dp(18),dp(18)));
+        TextView title=Ui.text(this,label,12,colors.text,true);
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,-2);p.leftMargin=dp(6);
+        row.addView(title,p);
+        row.setOnClickListener(v->action.run());
+        return row;
+    }
     private android.widget.FrameLayout smallDownloadAction(String icon,String description,Runnable action){
         android.widget.FrameLayout box=new android.widget.FrameLayout(this);
         box.setBackground(Ui.shape(this,colors.soft,12));

@@ -94,3 +94,6 @@
 - Alpha.37: varreduras de vídeo são opcionais e canceladas ao sair da aba, entrar em modo leve ou detectar pressão de memória. Não consultar memória em loop ou na renderização; diagnóstico de PSS é apenas do processo do app (não mede o renderer WebView separado) e deve ficar fora da thread de interface.
 
 - Alpha.38: `WebStorage.getOrigins` é callback de `Map` bruto no Android. Nunca iterar `origins.entrySet()` diretamente como `Map.Entry<String,WebStorage.Origin>`. Usar adaptador `WebStorageOrigins.checked` com verificação de tipos de cada entrada e apenas origens HTTP(S), com testes JVM de regressão. Apagar WebStorage por origem não remove cookies da origem.
+
+- Alpha.40: URLs repetidas são verificadas por igualdade exata, inclusive query; não deduplicar por nome, domínio, path sem assinatura nem tamanho aparente. Downloads ativos/pausados devem ser acessados pela lista e um arquivo concluído só deve ser baixado novamente por escolha explícita.
+- Alpha.40: `catch` múltiplo não pode conter `RuntimeException` e subclasses. Atalhos Abrir/Enviar validam URIs content:// e capturam falhas de Intent/ClipData/chooser, mantendo leituras de cookies e URLs assinadas fora do diagnóstico.

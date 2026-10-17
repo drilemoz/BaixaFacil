@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.40 (versionCode 40) - 2026-10-17
+
+- Ações rápidas de arquivos concluídos agora têm ícones **e** rótulos Abrir/Enviar, com espaço entre os botões e alvos de 44 dp.
+- Corrigidos `catch` múltiplos incompatíveis no código da alpha.39 (`RuntimeException` junto a subclasses), garantindo que a proteção contra falhas possa compilar.
+- Abertura/compartilhamento aceita apenas `content://` com autoridade, protege a construção do Intent, da ClipData e do chooser, e trata indisponibilidade de apps sem encerrar o Baixa Fácil.
+- Nova confirmação de URL repetida no campo de download e na WebView: detecta igualdade exata, não duplica uma transferência em fila/pausada e exige confirmação para baixar novamente um arquivo concluído. Não inspeciona nem remove parâmetros de tokens.
+- Registros locais opcionais ganham códigos HTTP da navegação principal, códigos de falhas WebView e eventos do renderizador, sem endereços completos ou cookies.
+- Testes JVM da `DownloadDuplicatePolicy`, preflight e validações locais; versão, publicação e documentação sincronizados para alpha.40. Build Android completo ainda não validado localmente.
+
 ## 0.1.0-alpha.39 (versionCode 39) - 2026-10-17
 
 - Modernizado o diálogo de confirmação de download com visual nativo do app: cartões com ícones, origem, arquivo, destino e aviso claro quando a conexão usa HTTP sem criptografia.

@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.39"
-CODE = "39"
+VERSION = "0.1.0-alpha.40"
+CODE = "40"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -98,6 +98,19 @@ checks = {
         and "String restrictionAfterFailure = DownloadRestrictions.blocked(context);" in service,
     "compact download cards and expand": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
         for x in ["expandedDownloads", "compactDownloads", "smallDownloadAction", "Visualização: ", "setOnClickListener"]),
+    "alpha40 duplicate protection": all(x in read("app/src/main/java/br/com/baixafacil/DownloadDuplicatePolicy.java")
+        for x in ["class DownloadDuplicatePolicy", "url.equals(r.url)", "Kind.IN_PROGRESS", "Kind.COMPLETED"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/DownloadDuplicateUi.java")
+        for x in ["maybeShow(", "Baixar novamente", "DownloadStore.all", "Ver downloads"])
+        and "DownloadDuplicateUi.maybeShow" in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        and "DownloadDuplicateUi.maybeShow" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        and "class DownloadDuplicatePolicyTest" in read("app/src/test/java/br/com/baixafacil/DownloadDuplicatePolicyTest.java"),
+    "alpha40 quick action crash correction": "labeledDownloadAction" in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        and '"Abrir","Abrir "' in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        and '"Enviar","Compartilhar "' in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        and 'catch (SecurityException | IllegalArgumentException | RuntimeException error)' not in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        and 'catch (RuntimeException error)' in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        and 'ClipData.newUri' in read("app/src/main/java/br/com/baixafacil/MainActivity.java"),
     "download confirmation and diagnostics": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
         for x in ["DownloadDialogs.confirm", "safeUri(", 'AppEventLog.warn(this,"Downloads"', 'AppEventLog.warn(this,"Arquivos"'])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
