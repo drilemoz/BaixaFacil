@@ -4,14 +4,14 @@ plugins {
 
 android {
     namespace 'br.com.baixafacil'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId 'br.com.baixafacil'
         minSdk 29
         targetSdk 34
-        versionCode 28
-        versionName '0.1.0-alpha.28'
+        versionCode 29
+        versionName '0.1.0-alpha.29'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 

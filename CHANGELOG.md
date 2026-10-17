@@ -1,6 +1,15 @@
 # Changelog
 
-## 0.1.0-alpha.28 (versionCode 28) - 2026-10-17
+## 0.1.0-alpha.29 (versionCode 29) - 2026-10-17
+
+- **Correção do workflow Gerar APK 4:** `:app:checkDebugAarMetadata` encontrou 10 bibliotecas Media3 1.11.1 exigindo `compileSdk >= 36` com o app ainda em API 35.
+- `compileSdk` atualizado para 36; Android Gradle Plugin atualizado de 8.9.2 para **8.10.1**, compatível com API 36 e Gradle 8.11.1 (JDK 17).
+- GitHub Actions agora instala `platforms;android-36`, preservando Build Tools 35.0.0 para validar assinatura e APK.
+- Pré-validação agora verifica API 36, AGP 8.10.1 e correspondência entre a configuração Gradle e o SDK instalado pelo workflow.
+- Mantidos `minSdk 29`, `targetSdk 34`, AndroidX WebKit 1.17.1, Media3 1.11.1, miniaturas, navegador, motor HTTP e todas as demais funções.
+- Build Android completo precisa ser reexecutado no GitHub Actions; a etapa de metadata não chegou a executar a compilação Java na tentativa anterior.
+
+## 0.1.0-alpha.29 (versionCode 29) - 2026-10-17
 
 - Central de downloads ganhou **miniaturas de vídeos e imagens concluídos**, geradas a partir do MediaStore sem internet.
 - Para vídeos locais, lê duração e resolução reais com MediaMetadataRetriever; menu **Detalhes da mídia** exibe os dados quando disponíveis.

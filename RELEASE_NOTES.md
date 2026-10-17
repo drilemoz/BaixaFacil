@@ -1,6 +1,18 @@
-# Baixa Fácil 0.1.0-alpha.28 (versionCode 28)
+# Baixa Fácil 0.1.0-alpha.29 (versionCode 29)
 
-- Central de downloads ganhou **miniaturas de vídeos e imagens concluídos**, geradas a partir do MediaStore sem internet.
-- Para vídeos locais, lê duração e resolução reais com MediaMetadataRetriever; menu **Detalhes da mídia** exibe os dados quando disponíveis.
-- Geração ocorre fora da interface, em fila de uma thread com cache LRU de até 4 MB; formatos sem prévia mantêm o ícone anterior.
-- Preservados Media3 e WebKit, evitando consumo extra em arquivos ainda baixando.
+## Correção do Gerar APK 4
+
+- Corrigida incompatibilidade de SDK que impedia a compilação com `androidx.media3` 1.11.1.
+- Android API de compilação atualizada para **36** e Android Gradle Plugin para **8.10.1**.
+- O GitHub Actions instala a plataforma Android 36 antes de executar a compilação.
+- Adicionadas verificações preventivas da compatibilidade entre Gradle, Media3 e SDK.
+
+## O que foi preservado
+
+- Todas as melhorias das alpha.26 a alpha.28: AndroidX WebKit, reprodução Media3 e miniaturas/metadados de mídia.
+- `minSdk 29` e `targetSdk 34` sem mudanças, mesmo identificador `br.com.baixafacil`.
+- Navegador, reconhecimento de vídeos, lista de downloads e motor de transferências anteriores.
+
+## Validação
+
+- Pré-validação e simulação de publicação em ambiente local; build Android completo pendente de execução no GitHub Actions.

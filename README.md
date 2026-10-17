@@ -1,4 +1,12 @@
-# Baixa Fácil 0.1.0-alpha.28
+# Baixa Fácil 0.1.0-alpha.29
+
+## Correção da compilação Media3 (alpha.29)
+
+- Corrigida a falha `:app:checkDebugAarMetadata` do workflow **Gerar APK 4**: dez módulos Media3 1.11.1 exigem **API 36** no `compileSdk`, enquanto a alpha.28 compilava com API 35.
+- Atualizado `compileSdk 36`, Android Gradle Plugin para **8.10.1**, e GitHub Actions para instalar `platforms;android-36` antes do build.
+- **Não** alterados `minSdk 29`, `targetSdk 34`, mecanismo de download, reprodução Media3, WebKit ou armazenamento; o aplicativo não perde compatibilidade intencionalmente com aparelhos Android antigos.
+- Adicionada verificação automática no preflight para impedir regressão na combinação Media3 / compileSdk / plugin / Android SDK.
+- Não é um APK pronto: o GitHub Actions deverá executar a compilação final com o SDK Android instalado.
 
 ## Novidades alpha.28
 
@@ -135,7 +143,7 @@ O aplicativo verifica as restrições no início, ao iniciar um item da fila e p
 
 ## Construção
 
-- Java nativo, JDK 17; minSdk 29, targetSdk 34, compileSdk 35; sem biblioteca extra de UI.
+- Java nativo, JDK 17; minSdk 29, targetSdk 34, compileSdk 36; sem biblioteca extra de UI.
 - `versionName 0.1.0-alpha.26`, `versionCode 26`.
 - `.github/workflows/android.yml` executa testes, compila APK, valida assinatura e pacote/versão e publica **somente o APK** em Releases. O script baixa o asset e compara SHA-256.
 - Para APK Release assinado, definir **todos** `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` e `KEY_PASSWORD`. Sem nenhum Secret, fallback Debug; com apenas alguns, o workflow interrompe para evitar assinatura inconsistente.

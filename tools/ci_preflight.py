@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.28"
-CODE = "28"
+VERSION = "0.1.0-alpha.29"
+CODE = "29"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -14,6 +14,15 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    # AAR metadata do Media3 1.11.1 exige android-36. Impede regressão para API 35.
+    "Media3 Android API 36 compileSdk": bool(re.search(r"(?m)^\s*compileSdk\s+36\s*$", app))
+        and all(x in app for x in ["media3-exoplayer:1.11.1", "media3-ui:1.11.1", "media3-exoplayer-hls:1.11.1", "media3-exoplayer-dash:1.11.1"]),
+    "AGP supports API 36 with existing Gradle": "version '8.10.1'" in read("build.gradle")
+        and "gradle-version: '8.11.1'" in workflow,
+    "CI installs compile SDK 36": "'platforms;android-36'" in workflow
+        and "'build-tools;35.0.0'" in workflow,
+    "Android install targets remain unchanged": bool(re.search(r"(?m)^\s*minSdk\s+29\s*$", app))
+        and bool(re.search(r"(?m)^\s*targetSdk\s+34\s*$", app)),
     "versionCode": bool(re.search(r"(?m)^\s*versionCode\s+" + CODE + r"\s*$", app)),
     "versionName": "versionName '" + VERSION + "'" in app,
     "workflow version": "version='" + VERSION + "'" in workflow,
@@ -21,7 +30,7 @@ checks = {
     "publication directly in Releases": "bash tools/publish_apk.sh" in workflow,
     "no ZIP Artifacts": "upload-artifact" not in workflow and "download-artifact" not in workflow,
     "unit test and Debug compile": ":app:testDebugUnitTest :app:assembleDebug" in workflow,
-    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='28'", "versionName='" + VERSION + "'"]),
+    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='29'", "versionName='" + VERSION + "'"]),
     "signature verification": "apksigner" in workflow,
     "code User-Agent version": "BaixaFacil/" + VERSION in service,
     "foreground notification initialization":
@@ -61,7 +70,7 @@ checks = {
             for x in ["isVideoCandidate", "isManifest", "allowedHttpUrl", "MAX_VIDEO_URLS"])
         and "class VideoLinksTest" in read("app/src/test/java/br/com/baixafacil/VideoLinksTest.java"),
     "documentation version code": "`versionCode`: `" + CODE + "`" in read("docs/VERSIONING.md")
-        and "Próxima versão sequencial: `0.1.0-alpha.29`" in read("docs/VERSIONING.md"),
+        and "Próxima versão sequencial: `0.1.0-alpha." + str(int(CODE) + 1) + "`" in read("docs/VERSIONING.md"),
     "login compatibility": "AuthNavigation.isGoogleOAuth" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         and "openInExternalBrowser" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         and "setAcceptThirdPartyCookies(web,appliedThirdPartyCookies)" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
