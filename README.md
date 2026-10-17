@@ -1,4 +1,13 @@
-# Baixa Fácil 0.1.0-alpha.24
+# Baixa Fácil 0.1.0-alpha.25
+
+
+## Compatibilidade de login (alpha.25)
+
+- A WebView aceita janelas de autenticação disparadas explicitamente pelo usuário, com painel temporário e opção de abrir no navegador externo. Popups automáticos continuam bloqueados.
+- `⋮ > Diagnóstico de login` mostra versão da WebView, opções de JavaScript/cookies/modo computador e erros de carregamento, sem copiar URL completa, senhas ou tokens; oferece atalho para atualizar WebView.
+- Cookies de terceiros continuam bloqueados por padrão, com opção explícita em Configurações. Cookies do Chrome não são importados.
+- URLs OAuth com códigos de autenticação e páginas de login não são gravadas no histórico. `about:blank`/`about:srcdoc` são autorizados apenas em subframes internos; `file:`/`content:` e conteúdo misto permanecem bloqueados.
+- O Google proíbe OAuth em WebView; login externo é a opção compatível. O Facebook pode exigir verificação adicional sem garantia de sucesso.
 
 
 ## Compatibilidade de login e autenticação (alpha.24)
@@ -108,7 +117,7 @@ O aplicativo verifica as restrições no início, ao iniciar um item da fila e p
 ## Construção
 
 - Java nativo, JDK 17; minSdk 29, targetSdk 34, compileSdk 35; sem biblioteca extra de UI.
-- `versionName 0.1.0-alpha.24`, `versionCode 24`.
+- `versionName 0.1.0-alpha.25`, `versionCode 25`.
 - `.github/workflows/android.yml` executa testes, compila APK, valida assinatura e pacote/versão e publica **somente o APK** em Releases. O script baixa o asset e compara SHA-256.
 - Para APK Release assinado, definir **todos** `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` e `KEY_PASSWORD`. Sem nenhum Secret, fallback Debug; com apenas alguns, o workflow interrompe para evitar assinatura inconsistente.
 - Os Secrets e o arquivo `.p12` privado não devem ser incluídos no projeto ou no repositório.

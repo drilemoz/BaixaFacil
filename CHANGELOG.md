@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-alpha.25 (versionCode 25) - 2026-10-17
+
+- Adicionado suporte **conservador a janelas secundárias** da WebView, somente quando disparadas por gesto do usuário, com janela de login separada, botão para abrir no navegador externo e liberação de recursos no fechamento.
+- A janela de login usa o mesmo armazenamento de sessão WebView, respeita a preferência explícita de cookies de terceiros e preserva bloqueios de arquivo local, conteúdo misto, JavaScript sem permissão e esquemas inseguros; Google OAuth segue sendo encaminhado para navegador externo.
+- Novo **Diagnóstico de login** no menu ⋮: informa versão do componente WebView, estado de JavaScript/cookies/modo computador e falhas da navegação principal, sem registrar cookies, senhas nem parâmetros sensíveis da URL.
+- Comando **Atualizar WebView** a partir do diagnóstico para procurar atualizações do componente de navegador do Android.
+- Tratamento mais claro dos erros HTTP e de rede em páginas principais e janelas de login, inclusive erros que antes eram substituídos por mensagem genérica de página pronta.
+- Histórico deixa de armazenar páginas de login e URLs com códigos/tokens OAuth; subframes `about:blank`/`about:srcdoc` são permitidos para compatibilidade sem liberar file:/content:.
+- Mantido o uso de navegador externo para Google OAuth, sem importar cookies/sessões de outros aplicativos; logins/captchas do Facebook continuam dependentes da validação do site.
+- Build Android completo e testes com serviços reais pendentes do GitHub Actions/aparelho.
+
 ## 0.1.0-alpha.24 (versionCode 24) - 2026-10-17
 
 - Analisadas falhas de login relatadas no Google (tela branca) e no Facebook (desafios de imagem). Confirmado bloqueio de OAuth do Google em WebViews; o app informa e oferece uso de navegador externo, sem burlar restrições.

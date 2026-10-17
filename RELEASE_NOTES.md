@@ -1,19 +1,20 @@
-# Baixa Fácil 0.1.0-alpha.24 (versionCode 24)
+# Baixa Fácil 0.1.0-alpha.25 (versionCode 25)
 
-## Compatibilidade com logins
+## Melhoria de compatibilidade de login
 
-- Tratamento explícito dos fluxos OAuth do Google, que são bloqueados dentro de WebViews por política do próprio Google.
-- Nova ação `⋮ > Abrir em navegador externo`, para abrir sites de autenticação em outro navegador instalado.
-- Nova opção `⋮ > Ajuda com login`, com explicações para Google, Facebook e sessões independentes.
-- Nova configuração **Compatibilidade de login**, permitindo cookies de terceiros somente quando a pessoa optar por ativá-los, com alerta de privacidade.
-- Indicação ao visitar páginas de verificação do Facebook. Detecção de vídeos suspensa nessas telas sensíveis de login/CAPTCHA. O suporte não é universal e CAPTCHA pode continuar rejeitando WebViews.
+- Janelas adicionais de autenticação abertas por toque passam a ter uma WebView secundária com os mesmos cookies da sessão interna (quando permitidos), botão de abrir no navegador externo e fechamento seguro.
+- Novo item **⋮ > Diagnóstico de login** com versão da WebView, configurações e erros HTTP/rede, sem coletar senhas ou tokens.
+- A partir do diagnóstico é possível abrir a atualização do componente WebView instalado.
+- Cookies já aceitos são sincronizados com o armazenamento da WebView ao pausar o navegador; URLs de login e tokens ficam fora do histórico recente.
+- `about:blank` e `about:srcdoc` em subframes temporários são aceitos; continua proibido acesso a `file:`, `content:`, esquemas inseguros e conteúdo misto.
 
-## Preservado
+## Limites
 
-- Navegador e downloads integrados, favoritos, detecção de vídeos diretos, filas HTTP/UIDT e retomada conservadora.
-- Bloqueios de esquemas não HTTP(S), conteúdo misto, acesso local e redirecionamentos inseguros.
+- A política do Google continua proibindo OAuth dentro de WebViews: usar navegador externo. Login externo não transfere automaticamente a sessão para o Baixa Fácil.
+- O Facebook pode rejeitar CAPTCHA ou desafios mesmo após estas melhorias; a validação real depende do serviço e da versão da WebView instalada.
+- Sem modificação no motor de download HTTP/UIDT, na fila ou nos dados dos downloads.
 
-## Pendente
+## Testes pendentes
 
-- Build Android completo no GitHub Actions.
-- Testar acesso a Google, Facebook e outros sites em aparelho; o login externo não autentica a WebView automaticamente.
+- Compilação Android completa pelo GitHub Actions.
+- Teste físico de login e abertura de janelas, tanto em tema claro quanto escuro.

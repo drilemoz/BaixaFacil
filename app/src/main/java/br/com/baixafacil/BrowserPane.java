@@ -10,6 +10,9 @@ import android.net.Uri;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Message;
+import android.content.pm.PackageInfo;
+import android.webkit.WebResourceResponse;
 import android.text.InputType;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -23,7 +26,6 @@ import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebStorage;
 import android.webkit.WebView;
@@ -61,6 +63,11 @@ final class BrowserPane {
     private boolean appliedDesktop;
     private int appliedTextZoom;
     private boolean appliedThirdPartyCookies;
+    private WebView loginPopup;
+    private AlertDialog loginPopupDialog;
+    private String lastNavigationProblem = "Nenhuma falha registrada nesta sessão.";
+    private int lastHttpStatus;
+    private boolean googleLoginDialogVisible;
     private TextView videosButton;
     private final LinkedHashMap<String,String> videoUrls = new LinkedHashMap<>();
     private int mediaElements;
@@ -199,7 +206,8 @@ final class BrowserPane {
         options.setAllowUniversalAccessFromFileURLs(false);
         options.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         options.setJavaScriptCanOpenWindowsAutomatically(false);
-        options.setSupportMultipleWindows(false);
+        // Habilita popups somente com gesto do usuário; o onCreateWindow controla a janela filha.
+        options.setSupportMultipleWindows(true);
         options.setSafeBrowsingEnabled(true);
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(web,appliedThirdPartyCookies);
@@ -215,6 +223,7 @@ final class BrowserPane {
                     return true;
                 }
                 if (target.equals(UrlTools.extract(target))) return false;
+                if (!request.isForMainFrame() && LoginWindowPolicy.isSafeInternalFrame(target)) return false;
                 if(request.isForMainFrame()) status.setText("Endereço bloqueado: apenas HTTP e HTTPS.");
                 return true;
             }
@@ -224,6 +233,7 @@ final class BrowserPane {
                     offerExternalGoogleLogin(url);
                     return;
                 }
+                lastHttpStatus=0;
                 scanGeneration++;
                 synchronized(videoUrls){ videoUrls.clear(); }
                 mediaElements=0;
@@ -255,7 +265,8 @@ final class BrowserPane {
                 }
                 if (findBar.getVisibility()==View.VISIBLE && findInput.length()>0)
                     web.findAllAsync(findInput.getText().toString());
-                status.setText(url!=null&&url.startsWith("http://") ? "Atenção: conexão HTTP sem criptografia."
+                status.setText(lastHttpStatus>=400 ? "Erro HTTP "+lastHttpStatus+". Consulte ⋮ > Diagnóstico de login."
+                    : url!=null&&url.startsWith("http://") ? "Atenção: conexão HTTP sem criptografia."
                     : AuthNavigation.isFacebookCheckpoint(url) ? "Verificação do Facebook: tente abrir no navegador externo pelo menu ⋮."
                     : "Página pronta. Toque num arquivo para baixar.");
                 // O Facebook e outros sites podem carregar o player depois do HTML.
@@ -266,10 +277,24 @@ final class BrowserPane {
                 },1300);
             }
             @Override public void onReceivedError(WebView w,WebResourceRequest request,WebResourceError error) {
-                if (request.isForMainFrame()) status.setText("Falha ao abrir página: "+error.getErrorCode());
+                if (request.isForMainFrame()) {
+                    lastNavigationProblem="Erro de rede da WebView: "+error.getErrorCode();
+                    status.setText("Falha ao abrir página ("+error.getErrorCode()+"). Consulte ⋮ > Diagnóstico de login.");
+                }
+            }
+            @Override public void onReceivedHttpError(WebView w,WebResourceRequest request,WebResourceResponse response) {
+                if (request.isForMainFrame()) {
+                    lastHttpStatus=response.getStatusCode();
+                    lastNavigationProblem="Resposta HTTP da página: "+response.getStatusCode();
+                    if (response.getStatusCode() >= 400)
+                        status.setText("Site retornou HTTP "+response.getStatusCode()+". Consulte ⋮ > Diagnóstico de login.");
+                }
             }
         });
         web.setWebChromeClient(new WebChromeClient(){
+            @Override public boolean onCreateWindow(WebView source, boolean isDialog, boolean isUserGesture, Message resultMsg) {
+                return createLoginWindow(isUserGesture,resultMsg);
+            }
             @Override public void onProgressChanged(WebView w,int progress) {
                 loading.setProgress(progress);
                 loading.setVisibility(progress>=100?View.INVISIBLE:View.VISIBLE);
@@ -332,7 +357,11 @@ final class BrowserPane {
     void reload(){web.reload();}
     void home(){navigate(BrowserPrefs.home(host));}
     boolean canGoBack(){return web.canGoBack();}
-    void pause(){web.onPause();}
+    void pause(){
+        web.onPause();
+        // Persiste cookies já aceitos após a navegação, sem armazená-los no histórico do app.
+        CookieManager.getInstance().flush();
+    }
     void resume(){
         applyPagePreferences(false);
         web.onResume();
@@ -364,7 +393,7 @@ final class BrowserPane {
         boolean valid=FavoriteRules.url(current)!=null;
         boolean saved=valid && BrowserPrefs.isFavorite(host,current);
         String bookmarkLabel=saved?"Remover página dos favoritos":"Salvar página nos favoritos";
-        String[] options={"Procurar vídeos nesta página","Favoritos",bookmarkLabel,"Localizar na página","Aumentar zoom","Diminuir zoom",desktop,"Abrir em navegador externo","Ajuda com login"};
+        String[] options={"Procurar vídeos nesta página","Favoritos",bookmarkLabel,"Localizar na página","Aumentar zoom","Diminuir zoom",desktop,"Abrir em navegador externo","Diagnóstico de login","Ajuda com login"};
         new AlertDialog.Builder(host).setTitle("Ferramentas do navegador")
             .setItems(options,(d,which)->{
                 switch(which){
@@ -388,24 +417,166 @@ final class BrowserPane {
                         Toast.makeText(host,BrowserPrefs.desktop(host)?"Modo computador solicitado":"Modo celular restaurado",Toast.LENGTH_SHORT).show();
                         break;
                     case 7: openInExternalBrowser(web.getUrl()); break;
-                    case 8: showLoginHelp(); break;
+                    case 8: showLoginDiagnosis(); break;
+                    case 9: showLoginHelp(); break;
                 }
             }).setNegativeButton("Fechar",null).show();
     }
 
+    /** Popups de autenticação somente após gesto humano, com WebView isolada e sem JS bridge. */
+    private boolean createLoginWindow(boolean userGesture, Message resultMsg) {
+        if (!LoginWindowPolicy.allowPopup(userGesture, loginPopup != null) || resultMsg == null
+                || !(resultMsg.obj instanceof WebView.WebViewTransport)) {
+            if (status != null) status.setText("Janela automática bloqueada. Use ⋮ > Diagnóstico de login.");
+            return false;
+        }
+        final WebView popup = new WebView(host);
+        loginPopup = popup;
+        WebSettings settings = popup.getSettings();
+        settings.setJavaScriptEnabled(BrowserPrefs.javascript(host));
+        settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
+        settings.setAllowFileAccessFromFileURLs(false);
+        settings.setAllowUniversalAccessFromFileURLs(false);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setSafeBrowsingEnabled(true);
+        settings.setJavaScriptCanOpenWindowsAutomatically(false);
+        settings.setSupportMultipleWindows(false);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(popup,BrowserPrefs.thirdPartyCookies(host));
+        popup.setWebViewClient(new WebViewClient(){
+            @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r) {
+                String url=r.getUrl().toString();
+                if(r.isForMainFrame() && AuthNavigation.isGoogleOAuth(url)){
+                    if(loginPopupDialog!=null)loginPopupDialog.dismiss();
+                    offerExternalGoogleLogin(url);
+                    return true;
+                }
+                return !LoginWindowPolicy.safeWebAddress(url);
+            }
+            @Override public void onPageStarted(WebView v,String url,android.graphics.Bitmap favicon){
+                if(AuthNavigation.isGoogleOAuth(url)){
+                    v.stopLoading();
+                    if(loginPopupDialog!=null)loginPopupDialog.dismiss();
+                    offerExternalGoogleLogin(url);
+                }
+            }
+            @Override public void onReceivedError(WebView v,WebResourceRequest r,WebResourceError error){
+                if(r.isForMainFrame()){
+                    lastNavigationProblem="Erro na janela de autenticação: "+error.getErrorCode();
+                    Toast.makeText(host,"A janela de login não carregou ("+error.getErrorCode()+")",Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+        popup.setWebChromeClient(new WebChromeClient(){
+            @Override public void onCloseWindow(WebView window){
+                if(loginPopupDialog!=null)loginPopupDialog.dismiss();
+            }
+        });
+        LinearLayout content = Ui.vertical(host);
+        content.setPadding(dp(10),dp(8),dp(10),dp(4));
+        TextView hint = Ui.text(host,"Janela do site • autenticação",14,colors.text,true);
+        content.addView(hint,Ui.lp(host,-1,40,0));
+        FrameLayout container = new FrameLayout(host);
+        int height = Math.max(dp(260),Math.min(dp(530),
+                (int)(host.getResources().getDisplayMetrics().heightPixels*0.60f)));
+        container.addView(popup,new FrameLayout.LayoutParams(-1,-1));
+        content.addView(container,new LinearLayout.LayoutParams(-1,height));
+        AlertDialog dialog = new AlertDialog.Builder(host)
+            .setView(content)
+            .setNegativeButton("Fechar",null)
+            .setNeutralButton("Abrir no navegador",(d,w)->{
+                String target=popup.getUrl();
+                if(!LoginWindowPolicy.safeWebAddress(target))target=web.getUrl();
+                openInExternalBrowser(target);
+            }).create();
+        loginPopupDialog = dialog;
+        dialog.setOnDismissListener(d->{
+            if (loginPopup==popup)loginPopup=null;
+            if (loginPopupDialog==dialog)loginPopupDialog=null;
+            ViewGroup parent=(ViewGroup)popup.getParent();
+            if(parent!=null)parent.removeView(popup);
+            popup.stopLoading();
+            popup.destroy();
+        });
+        try {
+            dialog.show();
+            WebView.WebViewTransport transport=(WebView.WebViewTransport)resultMsg.obj;
+            transport.setWebView(popup);
+            resultMsg.sendToTarget();
+            return true;
+        } catch(RuntimeException failure){
+            if(dialog.isShowing())dialog.dismiss();
+            else {
+                loginPopup=null;loginPopupDialog=null;
+                ViewGroup parent=(ViewGroup)popup.getParent();
+                if(parent!=null)parent.removeView(popup);
+                popup.destroy();
+            }
+            return false;
+        }
+    }
+
+    private void showLoginDiagnosis(){
+        PackageInfo current=WebView.getCurrentWebViewPackage();
+        String engine=current==null?"Não identificado":current.packageName+" (versão "+current.versionName+")";
+        String report="Baixa Fácil • diagnóstico de compatibilidade\n"
+            +"Motor WebView: "+engine+"\n"
+            +"Origem atual: "+LoginWindowPolicy.originForReport(web.getUrl())+"\n"
+            +"JavaScript: "+(BrowserPrefs.javascript(host)?"ativado":"desativado")+"\n"
+            +"Cookies de terceiros: "+(BrowserPrefs.thirdPartyCookies(host)?"permitidos":"bloqueados")+"\n"
+            +"Modo computador: "+(BrowserPrefs.desktop(host)?"ativado":"desativado")+"\n"
+            +"Janela de login: "+(loginPopup==null?"fechada":"aberta")+"\n"
+            +"Falha recente: "+lastNavigationProblem+"\n"
+            +"Dados sensíveis como cookies, senhas, caminhos e parâmetros de URLs não são incluídos.";
+        new AlertDialog.Builder(host).setTitle("Diagnóstico de login")
+            .setMessage(report)
+            .setPositiveButton("Copiar diagnóstico",(d,w)->copyLinkText("Diagnóstico",report))
+            .setNeutralButton("Atualizar WebView",(d,w)->openWebViewUpdate())
+            .setNegativeButton("Fechar",null).show();
+    }
+
+    private void copyLinkText(String label, String text){
+        ClipboardManager cb=(ClipboardManager)host.getSystemService(Activity.CLIPBOARD_SERVICE);
+        if(cb!=null)cb.setPrimaryClip(ClipData.newPlainText(label,text));
+        Toast.makeText(host,"Diagnóstico copiado sem dados de sessão",Toast.LENGTH_SHORT).show();
+    }
+
+    private void openWebViewUpdate(){
+        PackageInfo current=WebView.getCurrentWebViewPackage();
+        if(current==null || current.packageName==null){
+            Toast.makeText(host,"Componente WebView não identificado",Toast.LENGTH_LONG).show();return;
+        }
+        String appId=current.packageName;
+        try {
+            host.startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("market://details?id="+appId)));
+        } catch(ActivityNotFoundException | SecurityException ignored){
+            try {
+                host.startActivity(new Intent(Intent.ACTION_VIEW,
+                    Uri.parse("https://play.google.com/store/apps/details?id="+appId)));
+            } catch(ActivityNotFoundException | SecurityException error){
+                Toast.makeText(host,"Não foi possível abrir a atualização da WebView",Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
     private void offerExternalGoogleLogin(String url) {
-        new AlertDialog.Builder(host)
+        if(googleLoginDialogVisible) return;
+        googleLoginDialogVisible=true;
+        AlertDialog dialog=new AlertDialog.Builder(host)
             .setTitle("Login do Google no navegador")
             .setMessage("O Google não permite login OAuth dentro de uma WebView. Para proteger sua conta, abra a autenticação em um navegador compatível.\n\nA sessão do navegador externo é independente e não entra automaticamente no Baixa Fácil.")
             .setNegativeButton("Cancelar",null)
             .setPositiveButton("Abrir navegador",(d,w)->openInExternalBrowser(url))
-            .show();
+            .create();
+        dialog.setOnDismissListener(d->googleLoginDialogVisible=false);
+        dialog.show();
     }
 
     private void showLoginHelp() {
         new AlertDialog.Builder(host)
             .setTitle("Ajuda com login")
-            .setMessage("Google: logins OAuth não são permitidos dentro de WebViews. Abra no navegador externo.\n\nFacebook: desafios de verificação podem falhar na WebView. Você pode tentar ativar cookies de terceiros em Configurações > Compatibilidade de login, por sua conta e risco, ou abrir o site no navegador externo.\n\nO navegador externo não compartilha automaticamente cookies com o Baixa Fácil. Não é possível garantir que o login externo permita baixar mídias autenticadas no app.")
+            .setMessage("Google: logins OAuth não são permitidos dentro de WebViews. Abra no navegador externo.\n\nFacebook: agora janelas de login iniciadas por toque são suportadas. Se o desafio continuar, verifique se o JavaScript está ativo, teste desativar Modo computador, atualize o componente WebView ou escolha permitir cookies de terceiros em Configurações > Compatibilidade de login (menos privacidade).\n\nO navegador externo não compartilha automaticamente cookies com o Baixa Fácil. Não é possível garantir que o login externo permita baixar mídias autenticadas no app.")
             .setNegativeButton("Fechar",null)
             .setPositiveButton("Abrir navegador",(d,w)->openInExternalBrowser(web.getUrl()))
             .show();
@@ -542,7 +713,7 @@ final class BrowserPane {
         if(imm!=null)imm.hideSoftInputFromWindow(findInput.getWindowToken(),0);
     }
     void saveState(Bundle output){Bundle b=new Bundle();web.saveState(b);output.putBundle("BROWSER_WEB_STATE",b);}
-    void destroy(){ web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy(); }
+    void destroy(){ if(loginPopupDialog!=null)loginPopupDialog.dismiss();web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy(); }
     void clearLocalData(){closeFind();web.clearCache(true);web.clearHistory();navigate(BrowserPrefs.home(host));}
     private void copyAddress(){
         String url=address.getText().toString().trim();

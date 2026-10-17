@@ -57,12 +57,21 @@ public final class BrowserPrefs {
         String raw = prefs(c).getString(KEY_HISTORY, "");
         ArrayList<String> items = new ArrayList<>();
         if (raw != null) for (String item : raw.split("\n")) {
-            if (UrlTools.extract(item) != null && UrlTools.extract(item).equals(item) && !items.contains(item)) items.add(item);
+            if (UrlTools.extract(item) != null && UrlTools.extract(item).equals(item)
+                    && !AuthNavigation.isSensitiveLoginPage(item)
+                    && !LoginWindowPolicy.hasLoginParameters(item)
+                    && !items.contains(item)) items.add(item);
         }
+        // Limpa URLs sensíveis que tenham sido persistidas por versões anteriores.
+        String sanitized = String.join("\n", items);
+        if (raw != null && !raw.equals(sanitized))
+            prefs(c).edit().putString(KEY_HISTORY,sanitized).apply();
         return items;
     }
     public static void remember(Context c, String url) {
-        if (url == null || !url.equals(UrlTools.extract(url))) return;
+        if (url == null || !url.equals(UrlTools.extract(url))
+                || AuthNavigation.isSensitiveLoginPage(url)
+                || LoginWindowPolicy.hasLoginParameters(url)) return;
         List<String> items = history(c);
         items.remove(url);
         items.add(0,url);

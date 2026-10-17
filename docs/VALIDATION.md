@@ -1,20 +1,24 @@
-# Validação 0.1.0-alpha.24
+# Validação 0.1.0-alpha.25
 
-## Diagnóstico
+## Mudanças de compatibilidade
 
-- A alpha.23 usa WebView com cookies de terceiros bloqueados, janela múltipla desabilitada, JavaScript configurável e armazenamento DOM ativo.
-- O Google restringe fluxos OAuth em WebViews: a correção compatível é oferecer navegador externo, não simular outro user-agent.
-- Sites como Facebook podem exigir cookies de terceiros ou recursos de verificação que não funcionam em WebViews; o app não garante login.
+1. `WebChromeClient.onCreateWindow` cria WebView de popup isolada apenas com gesto explícito, impedindo janelas automáticas e popups aninhados.
+2. A WebView secundária preserva permissões e restrições de segurança da principal; cookies de terceiros só são permitidos por preferência explícita.
+3. URLs OAuth do Google são encaminhadas ao navegador externo, sem importar cookies ou imitar outro User-Agent.
+4. O menu de diagnóstico exibe versão da WebView e falhas HTTP/rede sem caminhos, senhas, cookies, query ou fragmento das URLs.
+5. Histórico descarta páginas sensíveis e query strings com códigos de login; subframes internos `about:blank`/`about:srcdoc` são suportados.
 
-## Mudanças
+## Testes locais previstos
 
-- Nova classe pura `AuthNavigation` identifica URLs OAuth do Google e checkpoints do Facebook usando esquema HTTPS, domínio e caminho verificados.
-- Interceptação de fluxo OAuth principal com informação e opção de navegador externo; menu `⋮` também permite abrir manualmente página atual no navegador escolhido e consultar ajuda de login.
-- Nova opção desativada por padrão para cookies de terceiros, ativada somente após decisão informada e reaplicada à WebView quando a preferência muda.
-- Detector de vídeo suspenso em telas sensíveis de login/CAPTCHA do Google/Facebook. Cookies de sessão externa não são importados; bloqueios de arquivos locais, conteúdo misto e downloads inválidos continuam.
+- `tools/ci_preflight.py`: versões, workflow, políticas e controles do navegador.
+- `tools/test_publish_mock.sh`: publicar/atualizar Release e detectar divergência SHA-256.
+- Compilar e executar testes Java/JVM de `LoginWindowPolicy` e `AuthNavigation`.
+- Parser Java para a árvore de fontes/testes.
+- XML/YAML e CRC do ZIP.
 
-## Verificação necessária
+## Pendências de integração no aparelho
 
-- Executar `python3 tools/ci_preflight.py`, `bash tools/test_publish_mock.sh` e os testes JVM.
-- Compilação Gradle/Android completa no GitHub Actions permanece pendente.
-- No aparelho: abrir URL OAuth, confirmar navegador externo e que o Baixa Fácil não se torna o navegador do próprio chooser; testar cookies padrão e opt-in com Facebook, e conferir o retorno ao aplicativo sem perda da página.
+- Testar fluxo de login normal e popup no Facebook, inclusive CAPTCHA; validação do site pode rejeitar WebView.
+- Testar Google OAuth para confirmar encaminhamento externo e ausência de compartilhamento indevido de cookies.
+- Testar abertura e fechamento repetidos de popup, mudança de tema e retomada das páginas.
+- Executar `:app:assembleDebug` no GitHub Actions. Não afirmar APK validado apenas com checagens locais.

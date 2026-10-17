@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.24"
-CODE = "24"
+VERSION = "0.1.0-alpha.25"
+CODE = "25"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -21,7 +21,7 @@ checks = {
     "publication directly in Releases": "bash tools/publish_apk.sh" in workflow,
     "no ZIP Artifacts": "upload-artifact" not in workflow and "download-artifact" not in workflow,
     "unit test and Debug compile": ":app:testDebugUnitTest :app:assembleDebug" in workflow,
-    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='24'", "versionName='" + VERSION + "'"]),
+    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='25'", "versionName='" + VERSION + "'"]),
     "signature verification": "apksigner" in workflow,
     "code User-Agent version": "BaixaFacil/" + VERSION in service,
     "foreground notification initialization":
@@ -61,13 +61,20 @@ checks = {
             for x in ["isVideoCandidate", "isManifest", "allowedHttpUrl", "MAX_VIDEO_URLS"])
         and "class VideoLinksTest" in read("app/src/test/java/br/com/baixafacil/VideoLinksTest.java"),
     "documentation version code": "`versionCode`: `" + CODE + "`" in read("docs/VERSIONING.md")
-        and "Próxima versão sequencial: `0.1.0-alpha.25`" in read("docs/VERSIONING.md"),
+        and "Próxima versão sequencial: `0.1.0-alpha.26`" in read("docs/VERSIONING.md"),
     "login compatibility": "AuthNavigation.isGoogleOAuth" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         and "openInExternalBrowser" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         and "setAcceptThirdPartyCookies(web,appliedThirdPartyCookies)" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         and "thirdPartyCookies" in read("app/src/main/java/br/com/baixafacil/BrowserPrefs.java")
         and "chooseCookieCompatibility" in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
         and "class AuthNavigationTest" in read("app/src/test/java/br/com/baixafacil/AuthNavigationTest.java"),
+    "login popup safely integrated": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        for x in ["setSupportMultipleWindows(true)", "onCreateWindow", "LoginWindowPolicy.allowPopup", "setAllowFileAccess(false)", "setAcceptThirdPartyCookies(popup", "loginPopupDialog.dismiss()", "showLoginDiagnosis", "onReceivedHttpError", "WebView.getCurrentWebViewPackage"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/LoginWindowPolicy.java")
+            for x in ["allowPopup", "safeWebAddress", "hasLoginParameters", "originForReport", "isSafeInternalFrame"])
+        and "class LoginWindowPolicyTest" in read("app/src/test/java/br/com/baixafacil/LoginWindowPolicyTest.java"),
+    "auth tokens excluded from history": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPrefs.java")
+        for x in ["AuthNavigation.isSensitiveLoginPage", "LoginWindowPolicy.hasLoginParameters"]),
     "documentation": all(VERSION in read(x) for x in ["README.md", "RELEASE_NOTES.md", "docs/VERSIONING.md", "docs/VALIDATION.md"]),
 }
 for label, valid in checks.items():

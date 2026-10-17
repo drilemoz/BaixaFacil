@@ -57,3 +57,7 @@
 
 - Alpha.24: autenticação Google OAuth em WebView não é suportada; não falsificar User-Agent, cookies ou redirecionamentos para contornar provedores de login. Oferecer navegador externo sem importar seus cookies ou prometer continuidade da sessão na WebView.
 - Cookies de terceiros desativados por padrão; somente optar por habilitar depois de aviso de privacidade. Bloqueios de conteúdo misto/acesso local e restrições de downloads permanecem obrigatórios.
+
+- Alpha.25: só criar WebView popup quando `WebChromeClient.onCreateWindow` receber gesto do usuário e não houver outra janela; liberar WebView ao fechar, sem pontes JavaScript e sem permitir esquemas locais ou conteúdo misto.
+- Google OAuth continua proibido em WebView; usar navegador externo. Cookies externos jamais são importados. Cookies de terceiros opcionais exigem escolha explícita do usuário.
+- Não registrar no histórico URLs de login nem parâmetros OAuth. Diagnósticos exibem somente origem (sem path/query), motor WebView, flags e códigos numéricos de erro; nunca cookies, tokens ou credenciais.

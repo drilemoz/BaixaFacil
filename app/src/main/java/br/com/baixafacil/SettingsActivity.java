@@ -104,8 +104,8 @@ public final class SettingsActivity extends Activity {
         section("Aplicativo");
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
-        option("Sobre","Baixa Fácil 0.1.0-alpha.24","webdown",()->new AlertDialog.Builder(this)
-            .setTitle("Baixa Fácil").setMessage("Versão 0.1.0-alpha.24\nNavegação e downloads integrados.\nO aplicativo não intercepta downloads internos de outros apps.")
+        option("Sobre","Baixa Fácil 0.1.0-alpha.25","webdown",()->new AlertDialog.Builder(this)
+            .setTitle("Baixa Fácil").setMessage("Versão 0.1.0-alpha.25\nNavegação e downloads integrados.\nO aplicativo não intercepta downloads internos de outros apps.")
             .setPositiveButton("Fechar",null).show());
     }
     private void chooseCookieCompatibility(){
