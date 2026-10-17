@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.37"
-CODE = "37"
+VERSION = "0.1.0-alpha.38"
+CODE = "38"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -14,6 +14,11 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "WebStorage raw Map callback compiles safely": "WebStorageOrigins.checked(origins,WebStorage.Origin.class)" in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
+        and "for(Map.Entry<String,WebStorage.Origin> e:origins.entrySet())" not in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
+        and all(s in read("app/src/main/java/br/com/baixafacil/WebStorageOrigins.java")
+            for s in ["Map<?,?> raw", "valueType.isInstance", "instanceof String", "getRawQuery()==null", "getRawFragment()==null"])
+        and "acceptsRawMapFromAndroidCallbackWithoutGenericCast" in read("app/src/test/java/br/com/baixafacil/WebStorageOriginsTest.java"),
     "browser memory policy and lifecycle": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         for x in ["pauseTimers()", "resumeTimers()", "cancelMediaScan()", "onMemoryPressure(int level)", "showPerformanceDiagnosis", "BrowserMemoryReport.capture", "BrowserPerformancePolicy.scheduleDelay"])
         and all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
@@ -59,7 +64,7 @@ checks = {
         and all(x in read("app/src/main/java/br/com/baixafacil/SessionPrefs.java") for x in ["shouldClearAtStart", "clearForNewSession", "deleteAllData", "removeAllCookies"]),
     "address suggestions": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["ListPopupWindow", "updateAddressSuggestions", "BrowserSuggestions.suggest", "dismissAddressSuggestions"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserSuggestions.java") for x in ["LoginWindowPolicy.hasLoginParameters", "AuthNavigation.isSensitiveLoginPage", "LIMIT=5"]),
-    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='37'", "versionName='" + VERSION + "'"]),
+    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='38'", "versionName='" + VERSION + "'"]),
     "signature verification": "apksigner" in workflow,
     "code User-Agent version": "BaixaFacil/" + VERSION in service,
     "foreground notification initialization":

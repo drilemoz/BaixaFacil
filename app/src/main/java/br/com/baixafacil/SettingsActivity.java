@@ -132,8 +132,8 @@ public final class SettingsActivity extends Activity {
         section("Aplicativo");
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
-        option("Sobre","Baixa Fácil 0.1.0-alpha.37","webdown",()->{
-            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.37\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
+        option("Sobre","Baixa Fácil 0.1.0-alpha.38","webdown",()->{
+            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.38\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
         });
     }
     private void renderSessionSettings(){
@@ -159,14 +159,11 @@ public final class SettingsActivity extends Activity {
     }
     private void showSiteStorage(){
         WebStorage.getInstance().getOrigins(origins->runOnUiThread(()->{
-            List<Map.Entry<String,WebStorage.Origin>> items=new ArrayList<>();
-            if(origins!=null)for(Map.Entry<String,WebStorage.Origin> e:origins.entrySet()){
-                try {
-                    URI u=new URI(e.getKey());
-                    if(("https".equalsIgnoreCase(u.getScheme())||"http".equalsIgnoreCase(u.getScheme()))
-                        && u.getHost()!=null&&u.getUserInfo()==null)items.add(e);
-                }catch(Exception ignored){}
-            }
+            // A API WebStorage.getOrigins usa Map sem genéricos no callback.
+            // Nunca iterar o mapa bruto como Map.Entry<String, Origin> diretamente:
+            // o javac Android o expõe como Object e a compilação falha.
+            List<Map.Entry<String,WebStorage.Origin>> items=
+                WebStorageOrigins.checked(origins,WebStorage.Origin.class);
             items.sort(Comparator.comparing(e->e.getKey().toLowerCase(Locale.ROOT)));
             List<AppMenus.Entry> actions=AppMenus.entries();
             for(int i=0;i<Math.min(35,items.size());i++){

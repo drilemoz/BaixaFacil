@@ -1,13 +1,13 @@
-# Baixa Fácil 0.1.0-alpha.37 (versionCode 37)
+# Baixa Fácil 0.1.0-alpha.38 (versionCode 38)
 
-## Desempenho e estabilidade
+## Correção do erro de compilação
 
-- Pause/resume correto do navegador: interrompe tarefas automáticas e temporizadores JavaScript no background, retomando ao abrir a aba novamente.
-- Limite de frequência das varreduras automáticas de vídeos. Menos trabalho em feeds rápidos e sites pesados.
-- Quando o Android indica pressão de memória, o navegador suspende tarefas opcionais e descarta previews temporárias, sem apagar cookies, downloads nem histórico.
-- Diagnóstico de memória sob demanda, com RAM disponível do Android, memória Java do aplicativo, PSS somente do processo Baixa Fácil, estado da WebView e atalho para navegador externo.
+- Corrigido o erro de compilação da alpha.37 encontrado no workflow **Gerar APK 10**, em `SettingsActivity.java:163`, na função **Cookies e sessões > Sites com dados locais**.
+- O Android fornece mapa sem genéricos via `WebStorage.getOrigins`; o app agora valida chaves e valores antes de montar uma lista tipada, evitando `Object cannot be converted to Entry<String,Origin>`.
+- Mantidos histórico, favoritos, downloads, configurações e otimizações da WebView. Não foi alterada a política de cookies; exclusão por origem segue restrita ao WebStorage.
 
-## Restrições e validação
+## Validação
 
-- Não há encerramento automático da WebView, limpeza automática de cache ou promessa de memória livre exata do renderizador.
-- Build Android completo no GitHub Actions e teste de desempenho no aparelho continuam pendentes.
+- Testes JVM de regressão e verificação preventiva do preflight, incluindo contrato do callback com mapa bruto.
+- Simulação de publicação e integridade do ZIP.
+- **Pendente:** repetir `:app:testDebugUnitTest :app:assembleDebug` no GitHub Actions; este arquivo é o código-fonte, não o APK.

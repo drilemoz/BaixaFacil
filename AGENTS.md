@@ -92,3 +92,5 @@
 
 - Alpha.37: só suspender timers com a WebView fora da vista e sempre retomá-los ao retornar, sem interromper serviços de download. O perfil ChatGPT permanece ativado por padrão; não limpar dados/cache por conta própria.
 - Alpha.37: varreduras de vídeo são opcionais e canceladas ao sair da aba, entrar em modo leve ou detectar pressão de memória. Não consultar memória em loop ou na renderização; diagnóstico de PSS é apenas do processo do app (não mede o renderer WebView separado) e deve ficar fora da thread de interface.
+
+- Alpha.38: `WebStorage.getOrigins` é callback de `Map` bruto no Android. Nunca iterar `origins.entrySet()` diretamente como `Map.Entry<String,WebStorage.Origin>`. Usar adaptador `WebStorageOrigins.checked` com verificação de tipos de cada entrada e apenas origens HTTP(S), com testes JVM de regressão. Apagar WebStorage por origem não remove cookies da origem.

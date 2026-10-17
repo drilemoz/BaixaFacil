@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.38 (versionCode 38) - 2026-10-17
+
+- Corrigido erro real do workflow **Gerar APK 10**, em `SettingsActivity.java:163`: `incompatible types: Object cannot be converted to Entry<String,Origin>` durante `:app:compileDebugJavaWithJavac`.
+- A API `WebStorage.getOrigins` expõe um `Map` bruto no callback. Agora o app converte com `WebStorageOrigins.checked`, validando entradas, tipos e URLs antes de listar origens HTTP(S) e mantendo a exclusão apenas dos dados de WebStorage da origem.
+- Acrescentados cinco testes JVM de regressão, inclusive compilação com mapa bruto, sem assumir o tipo genérico da API do Android. O preflight verifica a correção para evitar retorno ao `for` incompatível.
+- Versionamento 38 sincronizado em Gradle, About, User-Agent, workflow de APK, mock de publicação, docs e notas.
+- Todos os demais recursos da alpha.37 preservados. Build Android completo precisa ser reexecutado no GitHub Actions.
+
 ## 0.1.0-alpha.37 (versionCode 37) - 2026-10-17
 
 - Ciclo de vida da WebView: ao alternar para Downloads ou sair do app, cancelam-se as varreduras agendadas e são suspensos os timers JavaScript; ao voltar ao navegador, timers e processamento são restaurados, mantendo a sessão.

@@ -1,4 +1,11 @@
-# Validação 0.1.0-alpha.37
+# Validação 0.1.0-alpha.38
+
+## Correção de compilação Gerar APK 10
+
+- Antes: `SettingsActivity.java:163` tentava iterar `WebStorage.getOrigins` (Map bruto) diretamente como `Map.Entry<String,WebStorage.Origin>`, falhando em `:app:compileDebugJavaWithJavac`.
+- Agora: `WebStorageOrigins.checked` valida tipos de chave/valor e origem HTTP(S), retornando lista tipada.
+- Executar `WebStorageOriginsTest` (5 casos) e contrato Java com callback raw `Map`, além de `python3 tools/ci_preflight.py` e `bash tools/test_publish_mock.sh`.
+- Build Android final e testes de UI pendentes de GitHub Actions.
 
 ## Cenários funcionais no Android real
 

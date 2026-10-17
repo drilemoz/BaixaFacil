@@ -1,4 +1,12 @@
-# Baixa Fácil 0.1.0-alpha.37
+# Baixa Fácil 0.1.0-alpha.38
+
+## Correção de compilação do gerenciamento de sessões (alpha.38)
+
+- Resolvido erro de compilação `:app:compileDebugJavaWithJavac` do workflow **Gerar APK 10** (SettingsActivity.java:163). A API Android `WebStorage.getOrigins` entrega um `Map` sem genéricos e não pode ser iterada diretamente como `Map.Entry<String,WebStorage.Origin>`.
+- Adicionado `WebStorageOrigins.checked`: adapta entradas do callback com validação de chave, tipo e origem HTTP(S) antes de apresentar ou excluir dados locais.
+- O gerenciador por origem continua apagando apenas WebStorage da origem escolhida; **cookies não são apagados individualmente**.
+- Adicionados testes JVM para mapa bruto, tipos inválidos, URLs indevidas e entradas nulas, além de verificação preventiva na CI.
+- O build Android completo ainda precisa ser repetido no GitHub Actions com a versão corrigida.
 
 ## Estabilidade e memória do navegador (alpha.37)
 
