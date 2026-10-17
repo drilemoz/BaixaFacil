@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.1.0-alpha.32 (versionCode 32) - 2026-10-17
+
+- Lista de vídeos agora agrupa URLs repetidas do **mesmo caminho de mídia** em um único resultado, inclusive quando tokens de acesso temporários da URL mudam; a fonte mais recente é mantida apenas na sessão, nunca em histórico/diagnóstico.
+- Fontes de qualidade 240p–2160p identificadas explicitamente no caminho são organizadas no mesmo item quando compartilham a mesma identidade do vídeo; o menu permite escolher a fonte antes de reproduzir ou baixar.
+- Corrigido contador **Vídeos (N)** para refletir resultados agrupados, não requisições individuais. Resultados de vídeos diferentes continuam separados, mesmo no mesmo CDN; parâmetros de identidade (id, video_id etc.) também impedem fusões indevidas.
+- Seleção preserva limites: download apenas de arquivos diretos, HLS/DASH somente reprodução online, formatos não verificados sem download, sem DRM ou cookies externos.
+- Menus continuam usando AppMenus e as preferências de vídeos criadas na alpha.31, sem novas permissões nem operações em segundo plano.
+- Incluídos 7 novos testes JVM de agrupamento/privacidade, totalizando 11 testes no VideoMenuModelTest. Preflight, documentação, release e versionCode atualizados.
+
+## 0.1.0-alpha.31 (versionCode 31) - 2026-10-17
+
+- Padronizados os menus de navegação, downloads, favoritos, diagnóstico e vídeo com componente Java nativo `AppMenus`: cartões arredondados, ícones vetoriais, descrições curtas, seções, ações e rolagem limitada, compatível com os temas claro/AMOLED e fechamento de teclado.
+- Menu ⋮ do navegador reorganizado em 5 grupos: Vídeos e mídia, Favoritos, Página, Proteção e Login/diagnóstico. Submenus substituem a lista longa antiga.
+- Nova página dedicada **Configurações > Vídeos e mídia**, incluindo opções persistentes de varredura automática, exibição de arquivos diretos e transmissões HLS/DASH.
+- A lista Vídeos agora categoriza arquivos com download possível, playlists apenas para reprodução e fontes de formato não confirmado. Omite scripts/recursos desconhecidos, destaca formato e qualidade do caminho quando disponíveis e não exibe parâmetros de URLs assinadas.
+- Menus de favoritos no navegador e nas configurações, formulário Adicionar/Editar, histórico, aparência, filtro e organização de downloads adotam o mesmo padrão. Confirmações de exclusão ainda exigem ação explícita.
+- Segurança preservada: arquivos diretos usam downloads existentes; HLS/DASH somente reprodução Media3, sem DRM, sem transferência de cookies do navegador, sem alterar os filtros de anúncio.
+
+## 0.1.0-alpha.30 (versionCode 30) - 2026-10-17
+
+- Bloqueador de anúncios integrado à WebView, com interceptação limitada a requisições HTTP(S) GET de subrecursos; nunca bloqueia documentos principais ou POST.
+- Motor local com níveis Desligado/Leve/Forte (padrão)/Extremo e lista local de domínios publicitários/trackers.
+- Atualização manual e assíncrona de EasyList e EasyPrivacy por HTTPS, interpretando exclusivamente regras simples de domínio; cache privado, limites de tamanho e preservação do cache anterior em falhas.
+- Exceções persistentes por site, contador de requisições bloqueadas nesta sessão, modo de ocultação cosmética CSS local e controles no menu ⋮ e Configurações.
+- Tratamento conservador de logins/CAPTCHA, reprodução de vídeo, URLs sem HTTP(S) e downloads do motor próprio. Sem VPN/root e sem coleta de URL de navegação.
+- Testes de filtragem pura e pré-validação acrescentados; compilação Android final permanece pendente do GitHub Actions.
+
 ## 0.1.0-alpha.29 (versionCode 29) - 2026-10-17
 
 - **Correção do workflow Gerar APK 4:** `:app:checkDebugAarMetadata` encontrou 10 bibliotecas Media3 1.11.1 exigindo `compileSdk >= 36` com o app ainda em API 35.
@@ -9,7 +36,7 @@
 - Mantidos `minSdk 29`, `targetSdk 34`, AndroidX WebKit 1.17.1, Media3 1.11.1, miniaturas, navegador, motor HTTP e todas as demais funções.
 - Build Android completo precisa ser reexecutado no GitHub Actions; a etapa de metadata não chegou a executar a compilação Java na tentativa anterior.
 
-## 0.1.0-alpha.29 (versionCode 29) - 2026-10-17
+## 0.1.0-alpha.28 (versionCode 28) - 2026-10-17
 
 - Central de downloads ganhou **miniaturas de vídeos e imagens concluídos**, geradas a partir do MediaStore sem internet.
 - Para vídeos locais, lê duração e resolução reais com MediaMetadataRetriever; menu **Detalhes da mídia** exibe os dados quando disponíveis.

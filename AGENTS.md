@@ -69,3 +69,12 @@
 - Alpha.28: - Central de downloads ganhou **miniaturas de vídeos e imagens concluídos**, geradas a partir do MediaStore sem internet. - Para vídeos locais, lê duração e resolução reais com MediaMetadataRetriever; menu **Detalhes da mídia** exibe os dados quando disponíveis. - Geração ocorre fora da interface, em fila de uma thread com cache LRU de até 4 MB; formatos sem prévia mantêm o ícone anterior. - Preservados Media3 e WebKit, evitando consumo extra em arquivos ainda baixando.
 
 - Alpha.29: Media3 1.11.1 exige Android compileSdk >=36. Usar `compileSdk 36` com Android Gradle Plugin 8.10.1 e Gradle 8.11.1/JDK 17; workflow deve instalar `platforms;android-36`. Preservar minSdk29/targetSdk34, Build Tools 35.0.0 e checagem automática do preflight; nunca baixar ou omitir Media3 para mascarar erro AAR metadata.
+
+- Alpha.30: o bloqueador jamais intercepta requisições da página principal, POST, cookies ou downloads do motor HTTP. Atualizações de listas ocorrem só a pedido do usuário por HTTPS, com limite e cache privado. Apenas regras simples de domínio são suportadas, nunca alegar compatibilidade completa com EasyList/uBlock.
+- Sites de login/CAPTCHA e vídeo sensíveis precisam de exceções. Modo Forte como padrão, Extremo opt-in, permissão por site para desativar. Contadores são locais por sessão; não registrar URLs, tokens ou históricos.
+
+- Alpha.31: diálogos de ferramentas, favoritos, histórico, organização, diagnóstico e preferências usam `AppMenus` com tema dinâmico, ícones e rolagem. Confirmar exclusões com uma ação explícita. Ao abrir o menu, ocultar o IME de pesquisa, evitando teclado atrás de popups.
+- Alpha.31: configurações de vídeo (`VideoPrefs`) são independentes, locais e não guardam URLs; a tela de vídeos organiza por tipo. Somente arquivos HTTP(S) diretos com extensão reconhecida recebem ação de download, playlists HLS/DASH apenas reprodução, fontes não verificadas sem download. Nunca mostrar query de URL assinada na lista ou transferir cookies para o Media3.
+
+- Alpha.32: agrupar mídias apenas por identidade conservadora de caminho e tipo, com tratamento de parâmetros de identidade (`id`, `video_id`, `media_id` etc.). Nunca agrupar apenas por domínio e nunca expor query/tokens no menu. Qualidade deduzida pelo caminho é estimativa, não metadado verificado.
+- Alpha.32: se há várias variantes, exigir escolha explícita da fonte no menu; manter download só de vídeos diretos reconhecidos, HLS/DASH apenas reprodução e formatos não verificados sem botão de download.

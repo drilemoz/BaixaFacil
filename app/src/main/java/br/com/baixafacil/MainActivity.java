@@ -360,6 +360,11 @@ public class MainActivity extends Activity {
         updateBottomBar();
     }
     public void openSettings(){startActivityForResult(new Intent(this,SettingsActivity.class),1001);}
+    public void openVideoSettings(){
+        Intent intent=new Intent(this,SettingsActivity.class);
+        intent.putExtra(SettingsActivity.EXTRA_OPEN_VIDEOS,true);
+        startActivityForResult(intent,1001);
+    }
     public void openFavoriteSettings(){
         Intent intent=new Intent(this,SettingsActivity.class);
         intent.putExtra(SettingsActivity.EXTRA_OPEN_FAVORITES,true);
@@ -438,34 +443,37 @@ public class MainActivity extends Activity {
     }
 
     private void showOrganizeMenu() {
-        new AlertDialog.Builder(this).setTitle("Organizar downloads")
-            .setItems(new String[]{"Visualização: " + (compactDownloads?"Compacta":"Detalhada"),
-                "Mostrar/ocultar filtros de status", "Tipo: " + typeFilter,
-                "Ordenação: " + new String[]{"Recentes", "Antigos", "Nome A–Z", "Maiores", "Menores"}[sortMode]},
-                (dialog, which) -> {
-                    if(which==0){
-                        compactDownloads=!compactDownloads;
-                        getSharedPreferences("download_view",MODE_PRIVATE).edit().putBoolean("compact",compactDownloads).apply();
-                        adapter.notifyDataSetChanged();
-                    }
-                    else if(which==1) filterRow.setVisibility(filterRow.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE);
-                    else if(which==2) chooseFileType();
-                    else chooseSortMode();
-                }).setNegativeButton("Fechar",null).show();
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Visualização: "+(compactDownloads?"Compacta":"Detalhada"),
+            "Alternar entre cartões compactos e expandidos","folder",()->{
+                compactDownloads=!compactDownloads;
+                getSharedPreferences("download_view",MODE_PRIVATE).edit().putBoolean("compact",compactDownloads).apply();
+                adapter.notifyDataSetChanged();
+            }));
+        rows.add(AppMenus.Entry.item("Filtros de status", "Mostrar ou ocultar as opções Todos/Em fila/Concluídos","filter",()->
+            filterRow.setVisibility(filterRow.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE)));
+        rows.add(AppMenus.Entry.item("Tipo: "+typeFilter,"Filtrar arquivos pela extensão","file",this::chooseFileType));
+        rows.add(AppMenus.Entry.item("Ordenação","Recentes, antigos, nome ou tamanho","menu",this::chooseSortMode));
+        AppMenus.show(this,"Organizar downloads","Personalize a lista sem alterar os arquivos.",rows);
     }
     private void chooseFileType() {
         final String[] types={"Todos","Aplicativos","Vídeos","Áudios","Imagens","Documentos","Compactados","Outros"};
-        int selected=0;
-        for(int i=0;i<types.length;i++) if(types[i].equals(typeFilter)) selected=i;
-        new AlertDialog.Builder(this).setTitle("Tipo de arquivo (pela extensão)")
-            .setSingleChoiceItems(types,selected,(d,which)->{typeFilter=types[which];d.dismiss();refresh();})
-            .setNegativeButton("Cancelar",null).show();
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        for(String type:types){
+            rows.add(AppMenus.Entry.item(type+(type.equals(typeFilter)?" • atual":""),
+                "Filtrar a lista de downloads","file",()->{typeFilter=type;refresh();}));
+        }
+        AppMenus.show(this,"Tipos de arquivo","Filtragem estimada pela extensão do nome.",rows);
     }
     private void chooseSortMode() {
         final String[] modes={"Mais recentes", "Mais antigos", "Nome A–Z", "Maiores primeiro", "Menores primeiro"};
-        new AlertDialog.Builder(this).setTitle("Ordenar downloads")
-            .setSingleChoiceItems(modes,sortMode,(d,which)->{sortMode=which;d.dismiss();refresh();})
-            .setNegativeButton("Cancelar",null).show();
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        for(int i=0;i<modes.length;i++){
+            final int mode=i;
+            rows.add(AppMenus.Entry.item(modes[i]+(mode==sortMode?" • atual":""),
+                "Organizar a lista de downloads","menu",()->{sortMode=mode;refresh();}));
+        }
+        AppMenus.show(this,"Ordenar downloads","Escolha a sequência da lista.",rows);
     }
 
     private void beginDownload() {

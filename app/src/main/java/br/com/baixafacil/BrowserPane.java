@@ -74,6 +74,7 @@ final class BrowserPane {
     private int mediaElements;
     private int unsupportedMedia;
     private int scanGeneration;
+    private final AdBlockController adBlock;
 
     // Executado somente quando a pessoa pede a busca ou após uma página terminar.
     // Não injeta bridge JS nem lê cookies, tokens de sessão ou dados de outros frames.
@@ -96,6 +97,7 @@ final class BrowserPane {
     BrowserPane(MainActivity host, Ui.Palette colors, Bundle saved) {
         this.host = host;
         this.colors = colors;
+        adBlock = new AdBlockController(host);
         view = Ui.vertical(host);
         view.setPadding(dp(12),dp(4),dp(12),dp(4));
         view.setBackgroundColor(colors.background);
@@ -230,6 +232,7 @@ final class BrowserPane {
                 return true;
             }
             @Override public void onPageStarted(WebView w,String url,android.graphics.Bitmap icon) {
+                adBlock.setPage(url);
                 if (AuthNavigation.isGoogleOAuth(url)) {
                     w.stopLoading();
                     offerExternalGoogleLogin(url);
@@ -243,14 +246,20 @@ final class BrowserPane {
                 updateVideosButton();
             }
             @Override public WebResourceResponse shouldInterceptRequest(WebView w,WebResourceRequest request) {
-                // Apenas observa endereços de arquivos de vídeo diretos. Não intercepta corpo/resposta.
+                // Não bloqueia documento principal, POST ou esquemas internos; evita quebrar login.
+                if (!request.isForMainFrame() && "GET".equalsIgnoreCase(request.getMethod())
+                        && adBlock.shouldBlock(request.getUrl().toString())) {
+                    return new WebResourceResponse("text/plain", "UTF-8",
+                            new java.io.ByteArrayInputStream(new byte[0]));
+                }
+                // Observação de vídeo ocorre apenas quando não foi bloqueado pelo filtro.
                 if (!request.isForMainFrame() && "GET".equalsIgnoreCase(request.getMethod())) {
                     String candidate=request.getUrl().toString();
-                    if(VideoLinks.isDirectFile(candidate) || MediaSourcePolicy.isPlaylist(candidate)) {
+                    if(MediaSourcePolicy.isDirect(candidate) || MediaSourcePolicy.isPlaylist(candidate)) {
                         boolean added=false;
                         synchronized(videoUrls) {
                             if(!videoUrls.containsKey(candidate) && videoUrls.size()<VideoLinks.MAX_VIDEO_URLS) {
-                                videoUrls.put(candidate,MediaSourcePolicy.isPlaylist(candidate)?"Streaming HLS/DASH":"Recurso da página");
+                                videoUrls.put(candidate,MediaSourcePolicy.isPlaylist(candidate)?"stream":"direct");
                                 added=true;
                             }
                         }
@@ -260,6 +269,7 @@ final class BrowserPane {
                 return null;
             }
             @Override public void onPageFinished(WebView w,String url) {
+                applyCosmeticFilters(url);
                 if (url!=null && url.equals(UrlTools.extract(url))) {
                     address.setText(url);
                     showSecurity(url);
@@ -274,7 +284,7 @@ final class BrowserPane {
                 // O Facebook e outros sites podem carregar o player depois do HTML.
                 final int generation=scanGeneration;
                 host.getWindow().getDecorView().postDelayed(()->{
-                    if(generation==scanGeneration && !AuthNavigation.isSensitiveLoginPage(web.getUrl()))
+                    if(generation==scanGeneration && VideoPrefs.autoScan(host) && !AuthNavigation.isSensitiveLoginPage(web.getUrl()))
                         scanPageVideos(false);
                 },1300);
             }
@@ -378,7 +388,9 @@ final class BrowserPane {
         CookieManager.getInstance().flush();
     }
     void resume(){
+        adBlock.loadPreferences();
         applyPagePreferences(false);
+        updateVideosButton();
         web.onResume();
     }
     private void applyPagePreferences(boolean forceReload){
@@ -402,40 +414,97 @@ final class BrowserPane {
         }
         if(forceReload && web.getUrl()!=null)web.reload();
     }
+    private static final String AD_CSS =
+        "ins.adsbygoogle,[id^='div-gpt-ad'],[id^='google_ads_'],[data-ad-slot],"
+        +"[data-google-query-id],.advertisement,.advertising-banner,.sponsored-banner,"
+        +".ad-container[data-ad],.ad-banner[data-ad],.adsbox[data-ad]"
+        +"{display:none!important;visibility:hidden!important;}";
+    private void applyCosmeticFilters(String url){
+        if(web==null || !BrowserPrefs.javascript(host)||!adBlock.shouldHideCosmetic(url))return;
+        // CSS estático local: não lê formulário, cookies, DOM pessoal nem elementos de login.
+        String script="(function(){try{var id='bf-ad-css';if(document.getElementById(id))return;"
+            +"var s=document.createElement('style');s.id=id;s.textContent=\""+AD_CSS+"\";"
+            +"(document.head||document.documentElement).appendChild(s);}catch(e){}})();";
+        web.evaluateJavascript(script,null);
+    }
+    private void showAdBlockMenu(){
+        int mode=adBlock.mode();
+        String[] names={"Desligado","Leve","Forte","Extremo"};
+        String page=web==null?null:web.getUrl();
+        String summary="Proteção: "+names[mode]+" • "+adBlock.ruleCount()+" regras locais\n"
+            +"Bloqueios nesta sessão: "+AdBlockController.sessionBlocked()+"\n"
+            +"Neste site: "+(adBlock.isException(page)?"desativado":"ativo");
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Abrir configurações","Intensidade, listas e rastreadores","settings",host::openSettings));
+        rows.add(AppMenus.Entry.item(adBlock.isException(page)?"Ativar neste site":"Desativar neste site",
+            "Alterar apenas o domínio aberto","shield",()->{
+                if(AdBlockRules.host(page)==null)return;
+                adBlock.setException(page,!adBlock.isException(page));web.reload();
+            }));
+        AppMenus.show(host,"Bloqueador de anúncios",summary,rows);
+    }
     private void showPageTools(){
-        String desktop=BrowserPrefs.desktop(host)?"Desativar modo computador":"Ativar modo computador";
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Vídeos e mídia","Vídeos encontrados, reprodução e opções","play",this::showVideoTools));
+        rows.add(AppMenus.Entry.item("Favoritos","Abrir ou salvar sites","bookmark",this::showFavoriteTools));
+        rows.add(AppMenus.Entry.item("Ferramentas da página","Localizar, zoom e modo computador","search",this::showDisplayTools));
+        rows.add(AppMenus.Entry.item("Proteção e privacidade","Bloqueador e exceções do site","shield",this::showProtectionTools));
+        rows.add(AppMenus.Entry.item("Login e diagnóstico","Compatibilidade, erros e ajuda","lock",this::showLoginTools));
+        AppMenus.show(host,"Ferramentas do navegador","Escolha uma área para configurar ou utilizar.",rows);
+    }
+    private void showVideoTools(){
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Vídeos encontrados","Abrir a lista organizada por formato","play",this::showDetectedVideos));
+        rows.add(AppMenus.Entry.item("Procurar nesta página","Atualizar a detecção de vídeos","search",()->scanPageVideos(true)));
+        rows.add(AppMenus.Entry.item("Configurações de vídeos","Detecção, streaming e arquivos diretos","settings",host::openVideoSettings));
+        AppMenus.show(host,"Vídeos e mídia","Somente conteúdos disponíveis na página; sem contornar DRM ou login.",rows);
+    }
+    private void showFavoriteTools(){
         String current=web.getUrl();
         boolean valid=FavoriteRules.url(current)!=null;
         boolean saved=valid && BrowserPrefs.isFavorite(host,current);
-        String bookmarkLabel=saved?"Remover página dos favoritos":"Salvar página nos favoritos";
-        String[] options={"Procurar vídeos nesta página","Favoritos",bookmarkLabel,"Localizar na página","Aumentar zoom","Diminuir zoom",desktop,"Abrir em navegador externo","Diagnóstico de login","Ajuda com login"};
-        new AlertDialog.Builder(host).setTitle("Ferramentas do navegador")
-            .setItems(options,(d,which)->{
-                switch(which){
-                    case 0:scanPageVideos(true);break;
-                    case 1:showFavorites();break;
-                    case 2:
-                        if(!valid){Toast.makeText(host,"Esta página não tem endereço HTTP/HTTPS válido",Toast.LENGTH_LONG).show();break;}
-                        if(saved){
-                            BrowserPrefs.removeFavorite(host,current);
-                            Toast.makeText(host,"Página removida dos favoritos",Toast.LENGTH_SHORT).show();
-                        }else if(BrowserPrefs.addFavorite(host,current,web.getTitle())){
-                            Toast.makeText(host,"Página salva nos favoritos",Toast.LENGTH_SHORT).show();
-                        }else Toast.makeText(host,"Favoritos cheios ou URL inválida",Toast.LENGTH_LONG).show();
-                        break;
-                    case 3:openFind();break;
-                    case 4:if(!web.zoomIn())Toast.makeText(host,"Zoom máximo atingido",Toast.LENGTH_SHORT).show();break;
-                    case 5:if(!web.zoomOut())Toast.makeText(host,"Zoom mínimo atingido",Toast.LENGTH_SHORT).show();break;
-                    case 6:
-                        BrowserPrefs.setDesktop(host,!BrowserPrefs.desktop(host));
-                        applyPagePreferences(false);
-                        Toast.makeText(host,BrowserPrefs.desktop(host)?"Modo computador solicitado":"Modo celular restaurado",Toast.LENGTH_SHORT).show();
-                        break;
-                    case 7: openInExternalBrowser(web.getUrl()); break;
-                    case 8: showLoginDiagnosis(); break;
-                    case 9: showLoginHelp(); break;
-                }
-            }).setNegativeButton("Fechar",null).show();
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Ver favoritos","Sites salvos no Baixa Fácil","bookmark",this::showFavorites));
+        rows.add(AppMenus.Entry.item("Gerenciar favoritos","Adicionar, editar ou excluir sites","settings",host::openFavoriteSettings));
+        rows.add(AppMenus.Entry.item(saved?"Remover página":"Salvar esta página",
+            saved?"Retirar da lista de favoritos":"Guardar este endereço nos favoritos","bookmark",()->{
+                if(!valid){Toast.makeText(host,"Esta página não pode ser salva como favorito",Toast.LENGTH_LONG).show();return;}
+                if(saved){BrowserPrefs.removeFavorite(host,current);Toast.makeText(host,"Favorito removido",Toast.LENGTH_SHORT).show();}
+                else if(BrowserPrefs.addFavorite(host,current,web.getTitle())) Toast.makeText(host,"Página salva",Toast.LENGTH_SHORT).show();
+                else Toast.makeText(host,"Favoritos cheios ou endereço inválido",Toast.LENGTH_LONG).show();
+            }));
+        AppMenus.show(host,"Favoritos","Acesso rápido aos sites que você salvou.",rows);
+    }
+    private void showDisplayTools(){
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Localizar na página","Buscar palavras e navegar entre resultados","search",this::openFind));
+        rows.add(AppMenus.Entry.item("Aumentar zoom","Ampliar o conteúdo da página","search",()->{if(!web.zoomIn())Toast.makeText(host,"Zoom máximo",Toast.LENGTH_SHORT).show();}));
+        rows.add(AppMenus.Entry.item("Diminuir zoom","Reduzir o conteúdo da página","search",()->{if(!web.zoomOut())Toast.makeText(host,"Zoom mínimo",Toast.LENGTH_SHORT).show();}));
+        rows.add(AppMenus.Entry.item(BrowserPrefs.desktop(host)?"Desativar modo computador":"Ativar modo computador",
+            "Alternar visualização desktop e celular","globe",()->{
+                BrowserPrefs.setDesktop(host,!BrowserPrefs.desktop(host));applyPagePreferences(false);
+                Toast.makeText(host,"Visualização atualizada",Toast.LENGTH_SHORT).show();
+            }));
+        rows.add(AppMenus.Entry.item("Abrir em outro navegador","Compartilhar a página com o navegador externo","forward",()->openInExternalBrowser(web.getUrl())));
+        AppMenus.show(host,"Ferramentas da página","Ajustes de visualização e pesquisa.",rows);
+    }
+    private void showProtectionTools(){
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Bloqueador de anúncios","Nível e contador de requisições bloqueadas","shield",this::showAdBlockMenu));
+        boolean exception=adBlock.isException(web.getUrl());
+        rows.add(AppMenus.Entry.item(exception?"Ativar neste site":"Desativar neste site",
+            exception?"Restaurar o bloqueio neste domínio":"Criar exceção apenas para este domínio","shield",()->{
+                if(AdBlockRules.host(web.getUrl())==null){Toast.makeText(host,"Abra um site HTTPS",Toast.LENGTH_SHORT).show();return;}
+                adBlock.setException(web.getUrl(),!exception);web.reload();
+            }));
+        AppMenus.show(host,"Proteção e privacidade","Exceções não alteram outros sites.",rows);
+    }
+    private void showLoginTools(){
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Diagnóstico do navegador","WebView, cookies e erros sem dados sensíveis","alert",this::showLoginDiagnosis));
+        rows.add(AppMenus.Entry.item("Ajuda com login","Google, Facebook e verificações","lock",this::showLoginHelp));
+        rows.add(AppMenus.Entry.item("Abrir em navegador externo","Para sites que exigem autenticação externa","globe",()->openInExternalBrowser(web.getUrl())));
+        AppMenus.show(host,"Login e diagnóstico","Ferramentas de compatibilidade e segurança.",rows);
     }
 
     /** Popups de autenticação somente após gesto humano, com WebView isolada e sem JS bridge. */
@@ -549,11 +618,10 @@ final class BrowserPane {
             +"Janela de login: "+(loginPopup==null?"fechada":"aberta")+"\n"
             +"Falha recente: "+lastNavigationProblem+"\n"
             +"Dados sensíveis como cookies, senhas, caminhos e parâmetros de URLs não são incluídos.";
-        new AlertDialog.Builder(host).setTitle("Diagnóstico de login")
-            .setMessage(report)
-            .setPositiveButton("Copiar diagnóstico",(d,w)->copyLinkText("Diagnóstico",report))
-            .setNeutralButton("Atualizar WebView",(d,w)->openWebViewUpdate())
-            .setNegativeButton("Fechar",null).show();
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Copiar diagnóstico","Sem cookies ou parâmetros de URL","copy",()->copyLinkText("Diagnóstico",report)));
+        rows.add(AppMenus.Entry.item("Atualizar WebView","Procurar a versão mais recente no sistema","reload",this::openWebViewUpdate));
+        AppMenus.info(host,"Diagnóstico do navegador",report,rows);
     }
 
     private void copyLinkText(String label, String text){
@@ -594,12 +662,13 @@ final class BrowserPane {
     }
 
     private void showLoginHelp() {
-        new AlertDialog.Builder(host)
-            .setTitle("Ajuda com login")
-            .setMessage("Google: logins OAuth não são permitidos dentro de WebViews. Abra no navegador externo.\n\nFacebook: agora janelas de login iniciadas por toque são suportadas. Se o desafio continuar, verifique se o JavaScript está ativo, teste desativar Modo computador, atualize o componente WebView ou escolha permitir cookies de terceiros em Configurações > Compatibilidade de login (menos privacidade).\n\nO navegador externo não compartilha automaticamente cookies com o Baixa Fácil. Não é possível garantir que o login externo permita baixar mídias autenticadas no app.")
-            .setNegativeButton("Fechar",null)
-            .setPositiveButton("Abrir navegador",(d,w)->openInExternalBrowser(web.getUrl()))
-            .show();
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Abrir navegador externo","Usar um navegador compatível para o login","globe",()->openInExternalBrowser(web.getUrl())));
+        rows.add(AppMenus.Entry.item("Ver diagnóstico","WebView, cookies e falhas recentes","alert",this::showLoginDiagnosis));
+        AppMenus.info(host,"Ajuda com login",
+            "Google: login OAuth não é compatível com WebView. Use o navegador externo.\n\n"
+            + "Facebook: mantenha JavaScript ligado, desative o modo computador e tente a opção de cookies de terceiros somente se necessário (menos privacidade).\n\n"
+            + "A sessão externa não é importada. Nenhuma alteração garante que todos os sites aceitem login na WebView.",rows);
     }
 
     private void openInExternalBrowser(String url) {
@@ -624,7 +693,7 @@ final class BrowserPane {
     private void updateVideosButton() {
         if(videosButton==null)return;
         int count;
-        synchronized(videoUrls){count=videoUrls.size();}
+        synchronized(videoUrls){count=VideoMenuModel.display(videoUrls,VideoPrefs.showStreams(host),VideoPrefs.showSources(host)).size();}
         videosButton.setText(count>0?"Vídeos ("+count+")":"Vídeos");
     }
 
@@ -664,70 +733,93 @@ final class BrowserPane {
         if(!VideoLinks.isVideoCandidate(url,kind,mime) && !MediaSourcePolicy.isPlaylist(url))return;
         synchronized(videoUrls){
             if(!videoUrls.containsKey(url) && videoUrls.size()<VideoLinks.MAX_VIDEO_URLS)
-                videoUrls.put(url,MediaSourcePolicy.isPlaylist(url)?"Streaming HLS/DASH":VideoLinks.label(url));
+                videoUrls.put(url,MediaSourcePolicy.isPlaylist(url)?"stream":(MediaSourcePolicy.isDirect(url)?"direct":("video".equals(kind)||"source".equals(kind)?"video":"unverified")));
         }
     }
 
     private void showDetectedVideos() {
-        ArrayList<String> urls;
-        ArrayList<String> titles;
-        synchronized(videoUrls) {
-            urls=new ArrayList<>(videoUrls.keySet());
-            titles=new ArrayList<>(videoUrls.values());
+        List<VideoMenuModel.Video> videos;
+        synchronized(videoUrls){
+            videos=VideoMenuModel.display(videoUrls,VideoPrefs.showStreams(host),VideoPrefs.showSources(host));
         }
-        if(urls.isEmpty()) {
-            String reason=(mediaElements>0 || unsupportedMedia>0)
-                ? "Foi encontrado um player, mas nenhum endereço de vídeo direto compatível. Muitos vídeos do Facebook usam blob:, sessões restritas ou proteção; o app não contorna essas tecnologias. Para playlists HLS/DASH públicas, procure a opção Reproduzir.\n\nSe houver um link direto de vídeo, tente abrir o vídeo e procurar novamente."
-                : "Nenhum vídeo direto identificado. Em páginas com conteúdo carregado ao rolar, abra ou reproduza o vídeo e toque em Vídeos novamente.";
-            new AlertDialog.Builder(host).setTitle("Vídeos na página")
-                .setMessage(reason).setPositiveButton("Entendi",null).show();
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        if(videos.isEmpty()){
+            String message=(mediaElements>0 || unsupportedMedia>0)
+                ? "Há um player na página, mas não foi encontrado um arquivo direto ou playlist pública compatível. Algumas páginas usam blob:, segmentos protegidos ou sessões restritas."
+                : "Nenhum vídeo compatível identificado. Abra ou reproduza o vídeo da página e faça uma nova busca.";
+            rows.add(AppMenus.Entry.item("Procurar novamente","Verificar a página atual","search",()->scanPageVideos(true)));
+            rows.add(AppMenus.Entry.item("Configurações de vídeos","Ajustar os tipos exibidos","settings",host::openVideoSettings));
+            AppMenus.info(host,"Vídeos na página",message,rows);
             return;
         }
-        CharSequence[] items=new CharSequence[urls.size()];
-        for(int i=0;i<urls.size();i++){
-            String domain="";
-            try{domain=new URI(urls.get(i)).getHost();}catch(Exception ignored){}
-            items[i]=(i+1)+". "+titles.get(i)+"\n"+domain;
+        boolean addedDirect=false,addedStreaming=false,addedUnverified=false;
+        int shown=0;
+        for(VideoMenuModel.Video video:videos){
+            boolean streaming=video.kind==MediaSourcePolicy.Kind.HLS||video.kind==MediaSourcePolicy.Kind.DASH;
+            if(streaming && !addedStreaming){rows.add(AppMenus.Entry.section("TRANSMISSÕES • SOMENTE ONLINE"));addedStreaming=true;}
+            if(!streaming && video.kind==MediaSourcePolicy.Kind.DIRECT && !addedDirect){rows.add(AppMenus.Entry.section("ARQUIVOS • DOWNLOAD DISPONÍVEL"));addedDirect=true;}
+            if(video.kind==MediaSourcePolicy.Kind.UNSUPPORTED && !addedUnverified){rows.add(AppMenus.Entry.section("FONTES NÃO VERIFICADAS"));addedUnverified=true;}
+            final int number=++shown;
+            String title=video.sources.size()>1?video.title+" • "+video.sources.size()+" opções":video.title;
+            rows.add(AppMenus.Entry.item(title,video.detail,streaming?"globe":"play",()->showVideoActions(video,number)));
         }
-        new AlertDialog.Builder(host).setTitle("Vídeos encontrados ("+urls.size()+")")
-            .setItems(items,(dialog,index)->{
-                String url=urls.get(index);
-                boolean streaming=MediaSourcePolicy.isPlaylist(url);
-                String[] actions=streaming?new String[]{"Reproduzir", "Copiar link"}
-                                          :new String[]{"Reproduzir", "Baixar arquivo", "Copiar link"};
-                new AlertDialog.Builder(host).setTitle("Vídeo "+(index+1))
-                    .setMessage(streaming?
-                        "Playlist HLS/DASH. Reproduz online quando autorizada, mas não baixa o conjunto de segmentos nem contorna DRM.":
-                        "Vídeo direto. O download exige que o servidor entregue o arquivo e autorize o acesso.")
-                    .setItems(actions,(d,choice)->{
-                        String action=actions[choice];
-                        if("Reproduzir".equals(action)) {
-                            android.content.Intent play=new android.content.Intent(host,MediaPlayerActivity.class);
-                            play.putExtra(MediaPlayerActivity.EXTRA_MEDIA_URL,url);
-                            host.startActivity(play);
-                        } else if("Baixar arquivo".equals(action)) offerDownload(url,web.getSettings().getUserAgentString(),-1);
-                        else copyLink(url);
-                    })
-                    .setNegativeButton("Voltar",(d,w)->showDetectedVideos())
-                    .show();
-            }).setNegativeButton("Fechar",null).show();
+        rows.add(AppMenus.Entry.section("OPÇÕES"));
+        rows.add(AppMenus.Entry.item("Pesquisar novamente","Atualizar os vídeos encontrados","reload",()->scanPageVideos(true)));
+        rows.add(AppMenus.Entry.item("Configurações de vídeos","Detecção automática e formatos","settings",host::openVideoSettings));
+        AppMenus.show(host,"Vídeos encontrados ("+videos.size()+")",
+            "Fontes do mesmo vídeo são agrupadas quando o endereço permite identificá-las. Qualidade estimada pelo link.",rows);
+    }
+    private void showVideoActions(VideoMenuModel.Video video,int number){
+        if(video.sources.size()==1){
+            showSourceActions(video,video.sources.get(0),number);
+            return;
+        }
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.section("FONTES E QUALIDADES"));
+        for(VideoMenuModel.Source source:video.sources){
+            rows.add(AppMenus.Entry.item(source.label,source.hint,"play",()->showSourceActions(video,source,number)));
+        }
+        rows.add(AppMenus.Entry.item("Voltar à lista","Ver os outros vídeos encontrados","back",this::showDetectedVideos));
+        AppMenus.show(host,"Vídeo "+number,"Escolha uma fonte. As qualidades são estimadas pelo endereço e podem diferir do vídeo real.",rows);
+    }
+    private void showSourceActions(VideoMenuModel.Video video,VideoMenuModel.Source source,int number){
+        boolean streaming=video.kind==MediaSourcePolicy.Kind.HLS||video.kind==MediaSourcePolicy.Kind.DASH;
+        boolean direct=video.kind==MediaSourcePolicy.Kind.DIRECT;
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Reproduzir","Abrir esta fonte no Media3","play",()->{
+            Intent play=new Intent(host,MediaPlayerActivity.class);
+            play.putExtra(MediaPlayerActivity.EXTRA_MEDIA_URL,source.url);
+            host.startActivity(play);
+        }));
+        if(direct)rows.add(AppMenus.Entry.item("Baixar arquivo","Salvar esta fonte pelo gerenciador","download",()->offerDownload(source.url,web.getSettings().getUserAgentString(),-1)));
+        rows.add(AppMenus.Entry.item("Copiar endereço","Copiar somente o link da fonte selecionada","copy",()->copyLink(source.url)));
+        rows.add(AppMenus.Entry.item(video.sources.size()>1?"Escolher outra qualidade":"Voltar à lista",
+            "Ver as outras fontes encontradas","back",()->{
+                if(video.sources.size()>1)showVideoActions(video,number);
+                else showDetectedVideos();
+            }));
+        String hint=streaming?"HLS/DASH: reprodução online, sem download segmentado nem acesso a DRM."
+            :direct?"Arquivo direto: o download depende da autorização do servidor."
+            :"Formato não confirmado: o reprodutor pode não abrir. Download indisponível.";
+        AppMenus.show(host,source.label,hint+"\n"+video.domain,rows);
     }
 
     private void showFavorites(){
         List<BrowserPrefs.Favorite> favorites=BrowserPrefs.favorites(host);
+        List<AppMenus.Entry> rows=AppMenus.entries();
         if(favorites.isEmpty()){
-            new AlertDialog.Builder(host).setTitle("Favoritos")
-                .setMessage("Nenhum site salvo. Abra uma página e use ⋮ > Salvar página nos favoritos.")
-                .setNeutralButton("Gerenciar",(d,w)->host.openFavoriteSettings())
-                .setPositiveButton("Fechar",null).show();
+            rows.add(AppMenus.Entry.item("Adicionar favorito","Salvar um endereço manualmente","bookmark",host::openFavoriteSettings));
+            AppMenus.info(host,"Favoritos","Nenhum site salvo. Abra uma página e selecione Salvar esta página, ou adicione pelo gerenciador.",rows);
             return;
         }
-        String[] names=new String[favorites.size()];
-        for(int i=0;i<favorites.size();i++) names[i]=favorites.get(i).title+"\n"+favorites.get(i).url;
-        new AlertDialog.Builder(host).setTitle("Favoritos ("+favorites.size()+")")
-            .setItems(names,(d,w)->navigate(favorites.get(w).url))
-            .setNeutralButton("Gerenciar",(d,w)->host.openFavoriteSettings())
-            .setNegativeButton("Fechar",null).show();
+        for(BrowserPrefs.Favorite site:favorites){
+            String domain="Site salvo";
+            try{domain=new URI(site.url).getHost();}catch(Exception ignored){}
+            rows.add(AppMenus.Entry.item(site.title,domain,"bookmark",()->navigate(site.url)));
+        }
+        rows.add(AppMenus.Entry.section("GERENCIAMENTO"));
+        rows.add(AppMenus.Entry.item("Adicionar ou editar","Organizar os favoritos salvos","settings",host::openFavoriteSettings));
+        AppMenus.show(host,"Favoritos ("+favorites.size()+")","Toque em um site para abrir.",rows);
     }
     private void openFind(){
         findBar.setVisibility(View.VISIBLE);
@@ -755,39 +847,33 @@ final class BrowserPane {
     }
     private void showHistory() {
         List<String> items=BrowserPrefs.history(host);
-        if(items.isEmpty()){Toast.makeText(host,"Histórico vazio",Toast.LENGTH_SHORT).show();return;}
-        new AlertDialog.Builder(host).setTitle("Histórico recente")
-            .setItems(items.toArray(new CharSequence[0]),(d,which)->navigate(items.get(which)))
-            .setNegativeButton("Fechar",null).show();
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        for(String url:items){
+            String domain=Uri.parse(url).getHost();
+            rows.add(AppMenus.Entry.item(domain==null?"Site":"Abrir "+domain,"Página visitada","globe",()->navigate(url)));
+        }
+        AppMenus.show(host,"Histórico recente",items.isEmpty()?"Nenhuma página recente.":"Toque para abrir a página.",rows);
     }
     private void showLinkMenu(String url) {
         boolean supported = url.equals(UrlTools.extract(url));
-        String[] actions = supported
-                ? new String[]{"Abrir link", "Copiar link", "Baixar link", "Compartilhar link", "Salvar nos favoritos"}
-                : new String[]{"Copiar endereço", "Formato não compatível para download"};
-        new AlertDialog.Builder(host).setTitle("Ações do link")
-                .setItems(actions,(dialog, which)->{
-                    if (!supported) {
-                        if (which == 0) copyLink(url);
-                        else Toast.makeText(host,"Download próprio aceita apenas HTTP/HTTPS",Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    switch (which) {
-                        case 0: navigate(url); break;
-                        case 1: copyLink(url); break;
-                        case 2: offerDownload(url,web.getSettings().getUserAgentString(),-1); break;
-                        case 3:
-                            Intent share=new Intent(Intent.ACTION_SEND);
-                            share.setType("text/plain");share.putExtra(Intent.EXTRA_TEXT,url);
-                            host.startActivity(Intent.createChooser(share,"Compartilhar link"));
-                            break;
-                        case 4:
-                            if(BrowserPrefs.addFavorite(host,url,null))
-                                Toast.makeText(host,"Link salvo nos favoritos",Toast.LENGTH_SHORT).show();
-                            else Toast.makeText(host,"Favoritos cheios ou URL inválida",Toast.LENGTH_LONG).show();
-                            break;
-                    }
-                }).setNegativeButton("Fechar",null).show();
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        if(supported){
+            rows.add(AppMenus.Entry.item("Abrir link","Navegar nesta janela","globe",()->navigate(url)));
+            rows.add(AppMenus.Entry.item("Copiar link","Copiar o endereço completo","copy",()->copyLink(url)));
+            rows.add(AppMenus.Entry.item("Baixar arquivo","Tentar transferir pelo gerenciador","download",()->offerDownload(url,web.getSettings().getUserAgentString(),-1)));
+            rows.add(AppMenus.Entry.item("Compartilhar link","Enviar para outro aplicativo","link",()->{
+                Intent share=new Intent(Intent.ACTION_SEND);
+                share.setType("text/plain");share.putExtra(Intent.EXTRA_TEXT,url);
+                host.startActivity(Intent.createChooser(share,"Compartilhar link"));
+            }));
+            rows.add(AppMenus.Entry.item("Salvar nos favoritos","Guardar endereço deste link","bookmark",()->{
+                if(BrowserPrefs.addFavorite(host,url,null))Toast.makeText(host,"Link salvo nos favoritos",Toast.LENGTH_SHORT).show();
+                else Toast.makeText(host,"Favoritos cheios ou URL inválida",Toast.LENGTH_LONG).show();
+            }));
+        }else{
+            rows.add(AppMenus.Entry.item("Copiar endereço","Formato não compatível para download","copy",()->copyLink(url)));
+        }
+        AppMenus.show(host,"Ações do link",supported?"Escolha o que fazer com este endereço.":"Só é possível baixar URLs HTTP/HTTPS.",rows);
     }
     private void copyLink(String url) {
         ClipboardManager clipboard=(ClipboardManager)host.getSystemService(Activity.CLIPBOARD_SERVICE);

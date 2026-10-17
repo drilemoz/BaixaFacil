@@ -1,4 +1,30 @@
-# Baixa Fácil 0.1.0-alpha.29
+# Baixa Fácil 0.1.0-alpha.32
+
+## Lista de vídeos agrupada (alpha.32)
+
+- Requisições diferentes para um mesmo arquivo ou playlist são agrupadas quando o caminho permite identificação segura da mídia.
+- Caminhos com `360p`, `720p` ou `1080p` equivalentes podem exibir um só vídeo com várias fontes; abra o item e escolha a fonte antes de reproduzir ou baixar.
+- O botão **Vídeos (N)** contabiliza vídeos agrupados, não todas as requisições capturadas.
+- Vídeos diferentes no mesmo servidor não são agrupados indiscriminadamente. Tokens, assinaturas e queries não aparecem nos rótulos.
+- O aplicativo não garante que a qualidade indicada pelo nome da URL corresponda à resolução real. Streaming HLS/DASH continua apenas para reprodução.
+
+## Interface organizada e vídeos (alpha.31)
+
+- Ferramentas do navegador agrupadas por função, com **menus de cartões**, ícones, subtítulos e rolagem compacta no estilo do app.
+- Nova página **Configurações > Vídeos e mídia**: detecção automática, arquivos diretos e playlists HLS/DASH, cada opção independente.
+- Lista de vídeos com **seções por formato**: arquivos baixáveis, transmissões somente online e fontes não confirmadas, com ações correspondentes. Nenhum endereço completo com token é mostrado na lista.
+- Favoritos, diagnóstico, histórico, organização e seleção de opções foram modernizados. O formulário de favoritos agora tem visual próprio e não fecha quando o endereço é inválido.
+- As configurações não mudam o motor HTTP, o login OAuth, cookies nem as regras do bloqueador. O Media3 continua sendo o reprodutor de mídia compatível.
+
+## Bloqueador de anúncios alpha.30
+
+- Proteção ativada por padrão no modo **Forte** e desligável em Configurações > Bloqueio de anúncios. Modos **Leve / Forte / Extremo**, rastreadores e ocultação CSS configuráveis.
+- WebView bloqueia apenas **requisições GET HTTP(S) de subrecursos** para domínios publicitários conhecidos. Não intercepta frames principais, POST, respostas criptografadas ou requisições do motor de download, não usa VPN/root nem coleta URLs de navegação.
+- Lista offline de sementes locais e atualização opcional **manual** de EasyList + EasyPrivacy por HTTPS. Só aceita filtros simples `||dominio^` e hosts, mais exceções `@@||dominio^`; **não é um motor ABP/uBlock completo** (regras cosméticas, regex, modificadores complexos e regras de vídeo não são importadas).
+- Em ⋮ > Bloqueador de anúncios, veja o contador da sessão e escolha **Desativar proteção neste site** se uma página falhar. Exceções salvas localmente.
+- Ocultação CSS usa apenas seletores estáticos seguros e depende de JavaScript ativo; não lê formulário, credenciais, cookies nem altera configurações de segurança.
+- Tela de login e CAPTCHA identificável não é filtrada; domínios essenciais de autenticação e vídeo são liberados para reduzir falsos positivos. Não há garantia de remoção de anúncios do YouTube ou Facebook.
+
 
 ## Correção da compilação Media3 (alpha.29)
 

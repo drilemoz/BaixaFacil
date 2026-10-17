@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.29"
-CODE = "29"
+VERSION = "0.1.0-alpha.32"
+CODE = "32"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -14,6 +14,17 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "styled native menus": all(x in read("app/src/main/java/br/com/baixafacil/AppMenus.java") for x in ["class AppMenus", "static AlertDialog show", "static Entry section", "InputMethodManager"]),
+    "dedicated video preferences": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["Vídeos e mídia", "renderVideoSettings", "VideoPrefs.autoScan", "VideoPrefs.showStreams", "VideoPrefs.showSources"]),
+    "accurate video list": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["VideoMenuModel.display", "showVideoActions", "TRANSMISSÕES", "ARQUIVOS"]),
+    "video grouped sources and safe selection": all(x in read("app/src/main/java/br/com/baixafacil/VideoMenuModel.java")
+        for x in ["static final class Source", "final List<Source> sources", "String id=key(uri,kind,path)", "sourceList.sort", "getRawQuery", "video_id"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        for x in ["video.sources.size()>1", "showSourceActions", "Escolher outra qualidade", "source.url"])
+        and all(x in read("app/src/test/java/br/com/baixafacil/VideoMenuModelTest.java")
+        for x in ["collapsesReissuedTokensForSameManifest", "groupsRenditionsOfSameStreamAndOrdersHighestFirst", "doesNotMergeDifferentVideosFromSameCdn", "doesNotCollapseDifferentQueryIdentities"]),
+    "video sources policy tests": "class VideoMenuModelTest" in read("app/src/test/java/br/com/baixafacil/VideoMenuModelTest.java"),
+
     # AAR metadata do Media3 1.11.1 exige android-36. Impede regressão para API 35.
     "Media3 Android API 36 compileSdk": bool(re.search(r"(?m)^\s*compileSdk\s+36\s*$", app))
         and all(x in app for x in ["media3-exoplayer:1.11.1", "media3-ui:1.11.1", "media3-exoplayer-hls:1.11.1", "media3-exoplayer-dash:1.11.1"]),
@@ -30,7 +41,7 @@ checks = {
     "publication directly in Releases": "bash tools/publish_apk.sh" in workflow,
     "no ZIP Artifacts": "upload-artifact" not in workflow and "download-artifact" not in workflow,
     "unit test and Debug compile": ":app:testDebugUnitTest :app:assembleDebug" in workflow,
-    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='29'", "versionName='" + VERSION + "'"]),
+    "APK version validation": all(x in workflow for x in ["aapt", "versionCode='32'", "versionName='" + VERSION + "'"]),
     "signature verification": "apksigner" in workflow,
     "code User-Agent version": "BaixaFacil/" + VERSION in service,
     "foreground notification initialization":
@@ -57,7 +68,7 @@ checks = {
     "favorites storage and controls": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPrefs.java")
         for x in ["KEY_FAVORITES", "addFavorite", "editFavorite", "removeFavorite", "isFavorite"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-            for x in ["showFavorites", "Salvar página nos favoritos", "Salvar nos favoritos", "openFavoriteSettings"])
+            for x in ["showFavorites", "showFavoriteTools", "Salvar esta página", "openFavoriteSettings"])
         and all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
             for x in ["manageFavorites", "editFavorite", "confirmRemoveFavorite", "EXTRA_OPEN_FAVORITES"]),
     "Java engine restriction variable collision": service.count("String restriction=DownloadRestrictions.blocked(context);") == 1
@@ -98,6 +109,15 @@ checks = {
         for x in ["MediaMetadataRetriever", "getScaledFrameAtTime", "loadThumbnail", "Executors.newSingleThreadExecutor", "LruCache", '"content"'])
         and "mediaPreviewLoader.load" in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
         and "MediaPreviewFormatTest" in read("app/src/test/java/br/com/baixafacil/MediaPreviewFormatTest.java"),
+    "adblock core and source limits": all(x in read("app/src/main/java/br/com/baixafacil/AdBlockRules.java")
+        for x in ["shouldBlock", "MAX_RULES", "getRawUserInfo", "isTracker", "loginUrl"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/AdBlockController.java")
+        for x in ["adblock_seed.txt", "easylist.txt", "easyprivacy.txt", "setException", "updateNow", "setMode"])
+        and "class AdBlockRulesTest" in read("app/src/test/java/br/com/baixafacil/AdBlockRulesTest.java"),
+    "adblock only web subresources": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        for x in ["!request.isForMainFrame()", '"GET".equalsIgnoreCase(request.getMethod())', "adBlock.shouldBlock", "applyCosmeticFilters", "showAdBlockMenu"]),
+    "adblock settings and per-site controls": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
+        for x in ["chooseAdBlockMode", "updateAdLists", "Bloquear rastreadores", "Ocultar anúncios na página"]),
     "documentation": all(VERSION in read(x) for x in ["README.md", "RELEASE_NOTES.md", "docs/VERSIONING.md", "docs/VALIDATION.md"]),
 }
 for label, valid in checks.items():

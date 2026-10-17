@@ -357,7 +357,7 @@ final class DownloadEngine {
             candidate.setRequestProperty("Accept", "*/*");
             candidate.setRequestProperty("Accept-Encoding", "identity");
             candidate.setRequestProperty("User-Agent", userAgent == null
-                    ? "BaixaFacil/0.1.0-alpha.29 Android" : userAgent);
+                    ? "BaixaFacil/0.1.0-alpha.32 Android" : userAgent);
             boolean sameOrigin = TransferHttp.sameOrigin(address, current.toString());
             if (sameOrigin && cookie != null) candidate.setRequestProperty("Cookie", cookie);
             if (sameOrigin && referer != null && TransferHttp.sameOrigin(current.toString(), referer)) {
