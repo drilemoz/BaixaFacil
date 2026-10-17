@@ -18,6 +18,7 @@ public final class BrowserPrefs {
     private static final String KEY_HOME = "home_url";
     private static final String KEY_SEARCH = "search_engine";
     private static final String KEY_JS = "javascript_enabled";
+    private static final String KEY_THIRD_PARTY_COOKIES = "third_party_cookies_opt_in";
     private static final String KEY_CLEAR = "clear_requested";
     private static final String KEY_DESKTOP = "desktop_mode";
     private static final String KEY_TEXT_ZOOM = "text_zoom";
@@ -30,6 +31,8 @@ public final class BrowserPrefs {
     public static String searchEngine(Context c) { return prefs(c).getString(KEY_SEARCH, "Google"); }
     public static boolean javascript(Context c) { return prefs(c).getBoolean(KEY_JS, true); }
     public static void setJavascript(Context c, boolean enabled) { prefs(c).edit().putBoolean(KEY_JS, enabled).apply(); }
+    public static boolean thirdPartyCookies(Context c) { return prefs(c).getBoolean(KEY_THIRD_PARTY_COOKIES, false); }
+    public static void setThirdPartyCookies(Context c, boolean enabled) { prefs(c).edit().putBoolean(KEY_THIRD_PARTY_COOKIES, enabled).apply(); }
     public static boolean desktop(Context c) { return prefs(c).getBoolean(KEY_DESKTOP, false); }
     public static void setDesktop(Context c, boolean enabled) { prefs(c).edit().putBoolean(KEY_DESKTOP, enabled).apply(); }
     public static int textZoom(Context c) {

@@ -54,3 +54,6 @@
 
 - Alpha.23: detectar candidatos de vídeo apenas por URLs HTTP/HTTPS diretas. `blob:`, DRM, HLS/DASH e playlists segmentadas não devem ser oferecidos como vídeos baixáveis completos. Não prometer download universal do Facebook.
 - `WebViewClient.shouldInterceptRequest` deve apenas observar URLs diretas e sempre retornar `null`, sem ler o corpo, alterar cookies ou interceptar resposta. Os links observados permanecem apenas em memória da página.
+
+- Alpha.24: autenticação Google OAuth em WebView não é suportada; não falsificar User-Agent, cookies ou redirecionamentos para contornar provedores de login. Oferecer navegador externo sem importar seus cookies ou prometer continuidade da sessão na WebView.
+- Cookies de terceiros desativados por padrão; somente optar por habilitar depois de aviso de privacidade. Bloqueios de conteúdo misto/acesso local e restrições de downloads permanecem obrigatórios.

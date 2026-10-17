@@ -65,6 +65,7 @@ public final class SettingsActivity extends Activity {
         option("Favoritos","Sites salvos: "+BrowserPrefs.favorites(this).size(),"bookmark",this::manageFavorites);
         option("Histórico de navegação","Ver os últimos endereços visitados","menu",this::showHistory);
         option("Limpar dados do navegador","Cookies, cache e histórico locais","trash",this::confirmClear);
+        option("Compatibilidade de login", "Cookies de terceiros: " + (BrowserPrefs.thirdPartyCookies(this) ? "ativados (menos privacidade)" : "bloqueados (padrão)"), "lock", this::chooseCookieCompatibility);
 
         section("Downloads • rede e bateria");
         downloadSwitch("Somente Wi-Fi",
@@ -96,17 +97,34 @@ public final class SettingsActivity extends Activity {
         });
         js.addView(toggle,new LinearLayout.LayoutParams(dp(52),dp(50)));
         list.addView(js,Ui.lp(this,-1,-2,7));
-        TextView info=Ui.text(this,"Segurança fixa: arquivos locais, conteúdo misto e cookies de terceiros bloqueados. Downloads apenas HTTP/HTTPS.",12,palette.muted,false);
+        TextView info=Ui.text(this,"Segurança fixa: arquivos locais e conteúdo misto bloqueados. Cookies de terceiros são opcionais e desligados por padrão. O login OAuth do Google exige navegador compatível.",12,palette.muted,false);
         info.setPadding(dp(8),dp(11),dp(8),dp(8));
         list.addView(info);
 
         section("Aplicativo");
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
-        option("Sobre","Baixa Fácil 0.1.0-alpha.23","webdown",()->new AlertDialog.Builder(this)
-            .setTitle("Baixa Fácil").setMessage("Versão 0.1.0-alpha.23\nNavegação e downloads integrados.\nO aplicativo não intercepta downloads internos de outros apps.")
+        option("Sobre","Baixa Fácil 0.1.0-alpha.24","webdown",()->new AlertDialog.Builder(this)
+            .setTitle("Baixa Fácil").setMessage("Versão 0.1.0-alpha.24\nNavegação e downloads integrados.\nO aplicativo não intercepta downloads internos de outros apps.")
             .setPositiveButton("Fechar",null).show());
     }
+    private void chooseCookieCompatibility(){
+        new AlertDialog.Builder(this)
+            .setTitle("Compatibilidade de login")
+            .setMessage("Alguns sites usam cookies de terceiros no login ou verificação de segurança. Ativá-los pode ajudar, mas permite rastreamento entre sites e não garante login no Facebook.\n\nO Google não permite OAuth em WebViews; use um navegador externo para esse login. Cookies externos não serão importados para o Baixa Fácil.")
+            .setNegativeButton("Cancelar",null)
+            .setNeutralButton("Bloquear",(d,w)->{
+                BrowserPrefs.setThirdPartyCookies(this,false);
+                render();
+                Toast.makeText(this,"Cookies de terceiros bloqueados",Toast.LENGTH_SHORT).show();
+            })
+            .setPositiveButton("Ativar por escolha",(d,w)->{
+                BrowserPrefs.setThirdPartyCookies(this,true);
+                render();
+                Toast.makeText(this,"Ativado. Volte ao navegador para recarregar a página.",Toast.LENGTH_LONG).show();
+            }).show();
+    }
+
     private interface SwitchSaver { void save(android.content.Context context, boolean checked); }
     private void downloadSwitch(String title, String detail, boolean checked, SwitchSaver save){
         LinearLayout line=Ui.horizontal(this);

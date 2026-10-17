@@ -1,5 +1,14 @@
-# Baixa Fácil 0.1.0-alpha.23
+# Baixa Fácil 0.1.0-alpha.24
 
+
+## Compatibilidade de login e autenticação (alpha.24)
+
+- O Google bloqueia fluxos OAuth em WebViews. Quando um endereço oficial OAuth é aberto na página principal, o Baixa Fácil informa a limitação e oferece a opção **Abrir navegador**. Não altera o User-Agent para mascarar a WebView nem tenta contornar as regras do Google.
+- Em **⋮ > Abrir em navegador externo**, é possível continuar a navegação no navegador compatível instalado, inclusive para desafios do Facebook. **⋮ > Ajuda com login** explica as diferenças de sessão.
+- **Configurações > Compatibilidade de login** oferece uma opção **manual e desativada por padrão** para permitir cookies de terceiros. Isso pode ajudar certos logins e desafios, mas reduz a privacidade e não garante autenticação bem-sucedida.
+- Ao alterar essa preferência, o navegador incorpora a nova configuração quando retomado e recarrega a página, sem destruir a WebView.
+- **Importante:** sessões, cookies e downloads autenticados do navegador externo **não** são transferidos automaticamente para a WebView do app. O login externo pode ser útil para navegar no site, mas não autentica necessariamente downloads internos.
+- O detector de vídeo não é executado nas telas sensíveis de login e CAPTCHA do Google/Facebook. A WebView continua bloqueando acesso a arquivos locais e conteúdo misto.
 
 ## Detecção de vídeos em páginas (alpha.23)
 
@@ -99,7 +108,7 @@ O aplicativo verifica as restrições no início, ao iniciar um item da fila e p
 ## Construção
 
 - Java nativo, JDK 17; minSdk 29, targetSdk 34, compileSdk 35; sem biblioteca extra de UI.
-- `versionName 0.1.0-alpha.23`, `versionCode 23`.
+- `versionName 0.1.0-alpha.24`, `versionCode 24`.
 - `.github/workflows/android.yml` executa testes, compila APK, valida assinatura e pacote/versão e publica **somente o APK** em Releases. O script baixa o asset e compara SHA-256.
 - Para APK Release assinado, definir **todos** `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` e `KEY_PASSWORD`. Sem nenhum Secret, fallback Debug; com apenas alguns, o workflow interrompe para evitar assinatura inconsistente.
 - Os Secrets e o arquivo `.p12` privado não devem ser incluídos no projeto ou no repositório.

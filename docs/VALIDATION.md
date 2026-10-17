@@ -1,24 +1,20 @@
-# Validação 0.1.0-alpha.23
+# Validação 0.1.0-alpha.24
 
-## Implementação
+## Diagnóstico
 
-- Nova classe `VideoLinks.java` para URLs HTTP/HTTPS diretas e identificação conservadora de HLS/DASH/segmentos.
-- `BrowserPane`: inspeção HTML5 com `WebView.evaluateJavascript` e callback JSON. Não utiliza `addJavascriptInterface` nem cookies durante a detecção.
-- `WebViewClient.shouldInterceptRequest` observa URLs reconhecidas sem interceptar o corpo, sempre retornando `null`.
-- Botão Vídeos e lista de candidatos com Baixar e Copiar link.
-- Limite de 24 URLs em memória por página e comprimento máximo de 4096 caracteres.
+- A alpha.23 usa WebView com cookies de terceiros bloqueados, janela múltipla desabilitada, JavaScript configurável e armazenamento DOM ativo.
+- O Google restringe fluxos OAuth em WebViews: a correção compatível é oferecer navegador externo, não simular outro user-agent.
+- Sites como Facebook podem exigir cookies de terceiros ou recursos de verificação que não funcionam em WebViews; o app não garante login.
 
-## Verificações locais
+## Mudanças
 
-- 40 testes Java/JVM aprovados, incluindo 3 de `VideoLinks`.
-- JavaScript executado em Node.js com DOM simulado: vídeo MP4, link WebM e vídeo `blob:`.
-- Análise sintática de 35 fontes Java aprovada com `JavacTask.parse`.
-- Pré-validação GitHub Actions e simulação de publicação SHA-256 aprovadas.
+- Nova classe pura `AuthNavigation` identifica URLs OAuth do Google e checkpoints do Facebook usando esquema HTTPS, domínio e caminho verificados.
+- Interceptação de fluxo OAuth principal com informação e opção de navegador externo; menu `⋮` também permite abrir manualmente página atual no navegador escolhido e consultar ajuda de login.
+- Nova opção desativada por padrão para cookies de terceiros, ativada somente após decisão informada e reaplicada à WebView quando a preferência muda.
+- Detector de vídeo suspenso em telas sensíveis de login/CAPTCHA do Google/Facebook. Cookies de sessão externa não são importados; bloqueios de arquivos locais, conteúdo misto e downloads inválidos continuam.
 
-## Pendências
+## Verificação necessária
 
-1. Executar `:app:testDebugUnitTest` e `:app:assembleDebug` no GitHub Actions.
-2. Testar no Android detecção e download de um MP4 direto.
-3. Testar vídeos do Facebook, especialmente carregamento dinâmico, blob/streaming e falta de URL direta.
-4. Verificar o botão Vídeos em temas claro e AMOLED, e a troca Navegador/Downloads.
-5. Confirmar que conteúdo de streaming ou páginas HTML não é falsamente apresentado como vídeo concluído.
+- Executar `python3 tools/ci_preflight.py`, `bash tools/test_publish_mock.sh` e os testes JVM.
+- Compilação Gradle/Android completa no GitHub Actions permanece pendente.
+- No aparelho: abrir URL OAuth, confirmar navegador externo e que o Baixa Fácil não se torna o navegador do próprio chooser; testar cookies padrão e opt-in com Facebook, e conferir o retorno ao aplicativo sem perda da página.

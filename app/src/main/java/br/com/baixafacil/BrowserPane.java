@@ -4,6 +4,9 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
+import android.net.Uri;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -57,6 +60,7 @@ final class BrowserPane {
     private String standardUserAgent;
     private boolean appliedDesktop;
     private int appliedTextZoom;
+    private boolean appliedThirdPartyCookies;
     private TextView videosButton;
     private final LinkedHashMap<String,String> videoUrls = new LinkedHashMap<>();
     private int mediaElements;
@@ -179,6 +183,7 @@ final class BrowserPane {
         standardUserAgent=options.getUserAgentString();
         appliedDesktop=BrowserPrefs.desktop(host);
         appliedTextZoom=BrowserPrefs.textZoom(host);
+        appliedThirdPartyCookies=BrowserPrefs.thirdPartyCookies(host);
         options.setSupportZoom(true);
         options.setBuiltInZoomControls(true);
         options.setDisplayZoomControls(false);
@@ -197,7 +202,7 @@ final class BrowserPane {
         options.setSupportMultipleWindows(false);
         options.setSafeBrowsingEnabled(true);
         CookieManager.getInstance().setAcceptCookie(true);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(web,false);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(web,appliedThirdPartyCookies);
         web.setFindListener((active,total,finished)->{
             if(finished && findCount!=null && findBar.getVisibility()==View.VISIBLE)
                 findCount.setText(total==0?"0/0":(active+1)+"/"+total);
@@ -205,11 +210,20 @@ final class BrowserPane {
         web.setWebViewClient(new WebViewClient() {
             @Override public boolean shouldOverrideUrlLoading(WebView w,WebResourceRequest request) {
                 String target=request.getUrl().toString();
+                if (request.isForMainFrame() && AuthNavigation.isGoogleOAuth(target)) {
+                    offerExternalGoogleLogin(target);
+                    return true;
+                }
                 if (target.equals(UrlTools.extract(target))) return false;
-                status.setText("Endereço bloqueado: apenas HTTP e HTTPS.");
+                if(request.isForMainFrame()) status.setText("Endereço bloqueado: apenas HTTP e HTTPS.");
                 return true;
             }
             @Override public void onPageStarted(WebView w,String url,android.graphics.Bitmap icon) {
+                if (AuthNavigation.isGoogleOAuth(url)) {
+                    w.stopLoading();
+                    offerExternalGoogleLogin(url);
+                    return;
+                }
                 scanGeneration++;
                 synchronized(videoUrls){ videoUrls.clear(); }
                 mediaElements=0;
@@ -241,11 +255,14 @@ final class BrowserPane {
                 }
                 if (findBar.getVisibility()==View.VISIBLE && findInput.length()>0)
                     web.findAllAsync(findInput.getText().toString());
-                status.setText(url!=null&&url.startsWith("http://") ? "Atenção: conexão HTTP sem criptografia." : "Página pronta. Toque num arquivo para baixar.");
+                status.setText(url!=null&&url.startsWith("http://") ? "Atenção: conexão HTTP sem criptografia."
+                    : AuthNavigation.isFacebookCheckpoint(url) ? "Verificação do Facebook: tente abrir no navegador externo pelo menu ⋮."
+                    : "Página pronta. Toque num arquivo para baixar.");
                 // O Facebook e outros sites podem carregar o player depois do HTML.
                 final int generation=scanGeneration;
                 host.getWindow().getDecorView().postDelayed(()->{
-                    if(generation==scanGeneration)scanPageVideos(false);
+                    if(generation==scanGeneration && !AuthNavigation.isSensitiveLoginPage(web.getUrl()))
+                        scanPageVideos(false);
                 },1300);
             }
             @Override public void onReceivedError(WebView w,WebResourceRequest request,WebResourceError error) {
@@ -325,6 +342,12 @@ final class BrowserPane {
         settings.setJavaScriptEnabled(BrowserPrefs.javascript(host));
         int zoom=BrowserPrefs.textZoom(host);
         if(appliedTextZoom!=zoom){settings.setTextZoom(zoom);appliedTextZoom=zoom;}
+        boolean thirdParty=BrowserPrefs.thirdPartyCookies(host);
+        if(thirdParty!=appliedThirdPartyCookies){
+            appliedThirdPartyCookies=thirdParty;
+            CookieManager.getInstance().setAcceptThirdPartyCookies(web,thirdParty);
+            forceReload=true;
+        }
         boolean desktop=BrowserPrefs.desktop(host);
         if(desktop!=appliedDesktop){
             appliedDesktop=desktop;
@@ -341,7 +364,7 @@ final class BrowserPane {
         boolean valid=FavoriteRules.url(current)!=null;
         boolean saved=valid && BrowserPrefs.isFavorite(host,current);
         String bookmarkLabel=saved?"Remover página dos favoritos":"Salvar página nos favoritos";
-        String[] options={"Procurar vídeos nesta página","Favoritos",bookmarkLabel,"Localizar na página","Aumentar zoom","Diminuir zoom",desktop};
+        String[] options={"Procurar vídeos nesta página","Favoritos",bookmarkLabel,"Localizar na página","Aumentar zoom","Diminuir zoom",desktop,"Abrir em navegador externo","Ajuda com login"};
         new AlertDialog.Builder(host).setTitle("Ferramentas do navegador")
             .setItems(options,(d,which)->{
                 switch(which){
@@ -364,8 +387,47 @@ final class BrowserPane {
                         applyPagePreferences(false);
                         Toast.makeText(host,BrowserPrefs.desktop(host)?"Modo computador solicitado":"Modo celular restaurado",Toast.LENGTH_SHORT).show();
                         break;
+                    case 7: openInExternalBrowser(web.getUrl()); break;
+                    case 8: showLoginHelp(); break;
                 }
             }).setNegativeButton("Fechar",null).show();
+    }
+
+    private void offerExternalGoogleLogin(String url) {
+        new AlertDialog.Builder(host)
+            .setTitle("Login do Google no navegador")
+            .setMessage("O Google não permite login OAuth dentro de uma WebView. Para proteger sua conta, abra a autenticação em um navegador compatível.\n\nA sessão do navegador externo é independente e não entra automaticamente no Baixa Fácil.")
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Abrir navegador",(d,w)->openInExternalBrowser(url))
+            .show();
+    }
+
+    private void showLoginHelp() {
+        new AlertDialog.Builder(host)
+            .setTitle("Ajuda com login")
+            .setMessage("Google: logins OAuth não são permitidos dentro de WebViews. Abra no navegador externo.\n\nFacebook: desafios de verificação podem falhar na WebView. Você pode tentar ativar cookies de terceiros em Configurações > Compatibilidade de login, por sua conta e risco, ou abrir o site no navegador externo.\n\nO navegador externo não compartilha automaticamente cookies com o Baixa Fácil. Não é possível garantir que o login externo permita baixar mídias autenticadas no app.")
+            .setNegativeButton("Fechar",null)
+            .setPositiveButton("Abrir navegador",(d,w)->openInExternalBrowser(web.getUrl()))
+            .show();
+    }
+
+    private void openInExternalBrowser(String url) {
+        if(url==null || !url.equals(UrlTools.extract(url))){
+            Toast.makeText(host,"Nenhum endereço web válido para abrir",Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent open=new Intent(Intent.ACTION_VIEW,Uri.parse(url));
+        open.addCategory(Intent.CATEGORY_BROWSABLE);
+        try {
+            Intent chooser=Intent.createChooser(open,"Escolha um navegador");
+            // Impede que a própria Activity de Baixa Fácil reapareça como destino do login.
+            chooser.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS,new android.os.Parcelable[]{
+                new ComponentName(host,MainActivity.class)
+            });
+            host.startActivity(chooser);
+        } catch (ActivityNotFoundException | SecurityException ex) {
+            Toast.makeText(host,"Instale um navegador compatível (Chrome ou Firefox) para entrar no site",Toast.LENGTH_LONG).show();
+        }
     }
 
     private void updateVideosButton() {
@@ -377,6 +439,10 @@ final class BrowserPane {
 
     private void scanPageVideos(boolean showResult) {
         String page=web.getUrl();
+        if (AuthNavigation.isSensitiveLoginPage(page)) {
+            if (showResult) Toast.makeText(host,"Busca de vídeos indisponível durante login ou verificação de conta",Toast.LENGTH_LONG).show();
+            return;
+        }
         if(!VideoLinks.allowedHttpUrl(page)) {
             if(showResult)Toast.makeText(host,"Abra uma página HTTP/HTTPS para procurar vídeos",Toast.LENGTH_LONG).show();
             return;

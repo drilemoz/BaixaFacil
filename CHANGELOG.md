@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-alpha.24 (versionCode 24) - 2026-10-17
+
+- Analisadas falhas de login relatadas no Google (tela branca) e no Facebook (desafios de imagem). Confirmado bloqueio de OAuth do Google em WebViews; o app informa e oferece uso de navegador externo, sem burlar restrições.
+- Adicionados **Abrir em navegador externo** e **Ajuda com login** no menu de ferramentas `⋮` do navegador.
+- Fluxos OAuth oficiais `accounts.google.com/o/oauth2/` são reconhecidos por host HTTPS exato, sem encaminhar credenciais, e recebem explicação e opção de navegador externo.
+- Em Configurações, nova preferência opt-in **Compatibilidade de login** para cookies de terceiros, inicialmente desativada e com aviso claro do impacto na privacidade.
+- Detecção de páginas de verificação do Facebook para orientar quando o fluxo exigir um navegador completo. Detector de vídeos não é executado em telas sensíveis de login/verificação; cookies externos não são importados à WebView.
+- Mantidos os bloqueios contra conteúdo misto, acesso a arquivos locais, downloads inválidos e o motor HTTP/UIDT.
+- Acrescentados testes para classificação de domínios de autenticação e verificações preventivas do workflow.
+- Build Android completo e testes de login reais no aparelho ainda pendentes.
+
 ## 0.1.0-alpha.23 (versionCode 23) - 2026-10-17
 
 - Navegador agora identifica fontes de vídeo direto em elementos HTML5 `video/source`, links e URLs MP4/WebM reconhecíveis nas requisições da WebView.
