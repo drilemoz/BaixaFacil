@@ -86,6 +86,7 @@ final class BrowserPane {
     private TextView videosButton;
     private final LinkedHashMap<String,String> videoUrls = new LinkedHashMap<>();
     private final LinkedHashMap<String,PreviewMeta> videoPreviewMeta = new LinkedHashMap<>();
+    private PreviewMeta pageVideoPreview;
     private int mediaElements;
     private int unsupportedMedia;
     private int scanGeneration;
@@ -103,7 +104,7 @@ final class BrowserPane {
     private static final String VIDEO_SCAN_JS =
         "(function(){" +
         "try {" +
-        "var out={media:[],players:0,unsupported:0};" +
+        "var out={media:[],players:0,unsupported:0,pagePreview:null};" +
         "var attemptedFrames=0;" +
         "function safeText(x){return typeof x==='string'?x.replace(/\\s+/g,' ').trim().slice(0,105):'';}" +
         "function bounds(el){" +
@@ -149,6 +150,11 @@ final class BrowserPane {
         "var players=document.querySelectorAll('video');out.players=players.length;" +
         "for(var i=0;i<players.length&&i<25;i++){" +
         "var v=players[i];" +
+        "var vr=bounds(v);if(vr.visible){" +
+        "var active=!v.paused&&!v.ended&&v.readyState>=2;" +
+        "if(!out.pagePreview||active&&!out.pagePreview.playing){" +
+        "out.pagePreview={title:titleFor(v),playing:active,visible:true,x:vr.x,y:vr.y,w:vr.w,h:vr.h,frame:frameFor(v,vr)};" +
+        "}}" +
         "put(v.currentSrc||v.src,'video',v.getAttribute('type'),v);" +
         "var src=v.querySelectorAll('source');" +
         "for(var j=0;j<src.length&&j<5;j++)put(src[j].src,'source',src[j].type,v);" +
@@ -361,6 +367,7 @@ final class BrowserPane {
                 synchronized(videoPreviewMeta){ videoPreviewMeta.clear(); }
                 mediaElements=0;
                 unsupportedMedia=0;
+                pageVideoPreview=null;
                 updateVideosButton();
             }
             @Override public WebResourceResponse shouldInterceptRequest(WebView w,WebResourceRequest request) {
@@ -1012,7 +1019,7 @@ final class BrowserPane {
         if(videosButton==null)return;
         int count;
         synchronized(videoUrls){count=VideoMenuModel.display(videoUrls,VideoPrefs.showStreams(host),VideoPrefs.showSources(host)).size();}
-        videosButton.setText(count>0?"Vídeos ("+count+")":"Vídeos");
+        videosButton.setText(count>0?"Fontes ("+count+")":"Vídeos");
         videosButton.setVisibility(count>0?View.VISIBLE:View.GONE);
     }
 
@@ -1036,6 +1043,12 @@ final class BrowserPane {
                 JSONObject result=new JSONObject(decoded.toString());
                 mediaElements=result.optInt("players",0);
                 unsupportedMedia=result.optInt("unsupported",0);
+                JSONObject pagePreview=result.optJSONObject("pagePreview");
+                pageVideoPreview=pagePreview==null?null:new PreviewMeta(pagePreview.optString("title"),
+                    pagePreview.optInt("x"),pagePreview.optInt("y"),
+                    pagePreview.optInt("w"),pagePreview.optInt("h"),
+                    pagePreview.optBoolean("playing"),pagePreview.optBoolean("visible"),
+                    pagePreview.optString("frame"));
                 JSONArray found=result.optJSONArray("media");
                 if(found!=null)for(int i=0;i<found.length();i++) {
                     JSONObject obj=found.optJSONObject(i);
@@ -1106,10 +1119,26 @@ final class BrowserPane {
         LinearLayout root=Ui.vertical(host);
         root.setPadding(dp(18),dp(19),dp(18),dp(12));
         root.setBackground(Ui.shape(host,p.surface,24));
-        TextView heading=Ui.text(host,"Vídeos encontrados ("+videos.size()+")",19,p.text,true);
+        TextView heading=Ui.text(host,"Fontes de vídeo ("+videos.size()+")",19,p.text,true);
         root.addView(heading,new LinearLayout.LayoutParams(-1,-2));
-        TextView subtitle=Ui.text(host,"Miniaturas usam a área visível da página quando possível. Fontes do mesmo vídeo permanecem agrupadas.",12,p.muted,false);
+        TextView subtitle=Ui.text(host,"Uma página pode fornecer várias qualidades do mesmo vídeo. Miniaturas individuais só aparecem quando a fonte foi identificada com segurança.",12,p.muted,false);
         root.addView(subtitle,Ui.lp(host,-1,-2,6));
+        // Prévia opcional da página, sem atribuí-la indevidamente a uma URL de CDN.
+        PreviewMeta pageMeta=pageVideoPreview;
+        Bitmap cover=pageMeta==null?null:decodeVideoFrame(pageMeta.frame);
+        if(cover==null && pageMeta!=null && snapshot!=null)cover=cropVisiblePreview(snapshot,pageMeta);
+        if(cover!=null){
+            LinearLayout previewHeader=Ui.horizontal(host);
+            previewHeader.setGravity(Gravity.CENTER_VERTICAL);
+            ImageView image=new ImageView(host);
+            image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            image.setImageBitmap(cover);
+            previewHeader.addView(image,new LinearLayout.LayoutParams(dp(100),dp(66)));
+            TextView text=Ui.text(host,"Prévia do player visível na página. A correspondência com as fontes abaixo não foi confirmada.",12,p.muted,false);
+            LinearLayout.LayoutParams txtParams=new LinearLayout.LayoutParams(0,-2,1);txtParams.leftMargin=dp(12);
+            previewHeader.addView(text,txtParams);
+            root.addView(previewHeader,Ui.lp(host,-1,-2,10));
+        }
         ScrollView scroll=new ScrollView(host){
             @Override protected void onMeasure(int w,int h){
                 int limit=host.getResources().getDisplayMetrics().heightPixels*62/100;
@@ -1125,7 +1154,7 @@ final class BrowserPane {
         for(VideoMenuModel.Video video:videos){
             boolean streaming=video.kind==MediaSourcePolicy.Kind.HLS||video.kind==MediaSourcePolicy.Kind.DASH;
             if(streaming && !addedStreaming){
-                TextView section=Ui.text(host,"TRANSMISSÕES • SOMENTE ONLINE",12,p.muted,true);
+                TextView section=Ui.text(host,"HLS/DASH • DOWNLOAD CONFORME SUPORTE",12,p.muted,true);
                 section.setPadding(d*8,d*12,0,d*3); list.addView(section); addedStreaming=true;
             }
             if(!streaming && video.kind==MediaSourcePolicy.Kind.DIRECT && !addedDirect){
@@ -1203,7 +1232,21 @@ final class BrowserPane {
         labels.addView(sub,Ui.lp(host,-1,-2,2));
         LinearLayout.LayoutParams labelP=new LinearLayout.LayoutParams(0,-2,1); labelP.leftMargin=dp(11);
         row.addView(labels,labelP);
-        row.addView(Ui.icon(host,"forward",p.muted,18),new LinearLayout.LayoutParams(dp(20),dp(20)));
+        if(video.kind==MediaSourcePolicy.Kind.DIRECT || video.kind==MediaSourcePolicy.Kind.HLS){
+            TextView download=Ui.pill(host,"Baixar",p.teal,p.surface);
+            download.setContentDescription("Baixar "+(video.kind==MediaSourcePolicy.Kind.HLS?"HLS compatível":"vídeo"));
+            download.setOnClickListener(v->{
+                dialog.dismiss();
+                if(video.sources.size()>1)showVideoActions(video,number);
+                else if(video.kind==MediaSourcePolicy.Kind.HLS)
+                    offerHlsDownload(video.sources.get(0).url,web.getSettings().getUserAgentString());
+                else offerDownload(video.sources.get(0).url,web.getSettings().getUserAgentString(),-1);
+            });
+            LinearLayout.LayoutParams buttonP=new LinearLayout.LayoutParams(-2,dp(44));buttonP.leftMargin=dp(5);
+            row.addView(download,buttonP);
+        }else{
+            row.addView(Ui.icon(host,"forward",p.muted,18),new LinearLayout.LayoutParams(dp(20),dp(20)));
+        }
         row.setOnClickListener(v->{dialog.dismiss();showVideoActions(video,number);});
         return row;
     }
@@ -1284,7 +1327,7 @@ final class BrowserPane {
             rows.add(AppMenus.Entry.item(source.label,source.hint,"play",()->showSourceActions(video,source,number)));
         }
         rows.add(AppMenus.Entry.item("Voltar à lista","Ver os outros vídeos encontrados","back",this::showDetectedVideos));
-        AppMenus.show(host,"Vídeo "+number,"Escolha uma fonte. As qualidades são estimadas pelo endereço e podem diferir do vídeo real.",rows);
+        AppMenus.show(host,"Fontes "+number,"Escolha a fonte. As qualidades são estimadas pelo endereço e podem diferir do vídeo real.",rows);
     }
     private void showSourceActions(VideoMenuModel.Video video,VideoMenuModel.Source source,int number){
         boolean streaming=video.kind==MediaSourcePolicy.Kind.HLS||video.kind==MediaSourcePolicy.Kind.DASH;
@@ -1296,13 +1339,16 @@ final class BrowserPane {
             host.startActivity(play);
         }));
         if(direct)rows.add(AppMenus.Entry.item("Baixar arquivo","Salvar esta fonte pelo gerenciador","download",()->offerDownload(source.url,web.getSettings().getUserAgentString(),-1)));
+        if(video.kind==MediaSourcePolicy.Kind.HLS)rows.add(AppMenus.Entry.item("Baixar HLS (TS)",
+            "Somente vídeos finalizados sem DRM, em segmentos MPEG-TS","download",
+            ()->offerHlsDownload(source.url,web.getSettings().getUserAgentString())));
         rows.add(AppMenus.Entry.item("Copiar endereço","Copiar somente o link da fonte selecionada","copy",()->copyLink(source.url)));
         rows.add(AppMenus.Entry.item(video.sources.size()>1?"Escolher outra qualidade":"Voltar à lista",
             "Ver as outras fontes encontradas","back",()->{
                 if(video.sources.size()>1)showVideoActions(video,number);
                 else showDetectedVideos();
             }));
-        String hint=streaming?"HLS/DASH: reprodução online, sem download segmentado nem acesso a DRM."
+        String hint=streaming?"HLS: tentativa de baixar vídeo finalizado em TS; outros formatos, transmissões ao vivo e DRM não são suportados. DASH: reprodução online."
             :direct?"Arquivo direto: o download depende da autorização do servidor."
             :"Formato não confirmado: o reprodutor pode não abrir. Download indisponível.";
         AppMenus.show(host,source.label,hint+"\n"+video.domain,rows);
@@ -1383,6 +1429,21 @@ final class BrowserPane {
         ClipboardManager clipboard=(ClipboardManager)host.getSystemService(Activity.CLIPBOARD_SERVICE);
         if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText("Link",url));
         Toast.makeText(host,"Link copiado",Toast.LENGTH_SHORT).show();
+    }
+
+    private void offerHlsDownload(String url,String agent){
+        if(MediaSourcePolicy.classify(url)!=MediaSourcePolicy.Kind.HLS){
+            DownloadDialogs.info(host,"HLS não compatível","A URL selecionada não é uma playlist HLS válida.");
+            return;
+        }
+        String domain;
+        try{domain=new URI(url).getHost();}catch(Exception e){domain="servidor";}
+        DownloadDialogs.confirm(host,"Baixar vídeo HLS?",
+            "O Baixa Fácil tentará reunir os segmentos em um arquivo MPEG-TS (.ts). Este recurso é experimental e só aceita vídeos finalizados, sem DRM, com segmentos TS convencionais.",
+            "Origem",domain,"Formato","HLS VOD sem proteção",
+            "Destino","Download/ pública (.ts)",
+            "Vídeos ao vivo, criptografados, fMP4 ou que exigem sessão de outro domínio serão recusados. Ao retomar, a transferência HLS reinicia do começo.",
+            url.startsWith("http://"),()->startDownload(url,agent));
     }
 
     private void offerDownload(String url,String agent,long length) {

@@ -12,6 +12,9 @@ import android.provider.MediaStore;
 import android.webkit.MimeTypeMap;
 import org.json.JSONObject;
 import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.BufferedInputStream;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -110,7 +113,9 @@ final class DownloadEngine {
             DownloadStore.setMeta(context, id, null, null, attempt, "");
             DownloadStore.update(context, id, "Conectando", null, -1, -2, null, "");
             try {
-                transferOnce(id, address, cookie, userAgent, referer);
+                if(MediaSourcePolicy.classify(address)==MediaSourcePolicy.Kind.HLS)
+                    transferHlsVod(id, address, cookie, userAgent, referer);
+                else transferOnce(id, address, cookie, userAgent, referer);
                 return;
             } catch (Exception ex) {
                 if (stopRequested(id)) return;
@@ -338,6 +343,128 @@ final class DownloadEngine {
         }
     }
 
+    /** HLS VOD MPEG-TS básico: não lê chaves, não processa DRM e não converte para MP4.
+     * Segmentos são sempre reiniciados do início após interrupção, nunca anexados a uma playlist renovada.
+     */
+    private void transferHlsVod(String id,String address,String cookie,String userAgent,String referer) throws Exception {
+        HlsVodPlaylist playlist=loadHlsPlaylist(id,address,address,cookie,userAgent,referer);
+        if(playlist.variantUrl!=null){
+            playlist=loadHlsPlaylist(id,address,playlist.variantUrl,cookie,userAgent,referer);
+            if(playlist.variantUrl!=null)throw new TransferDiagnostics.Failure("HLS", "Playlist HLS aninhada não suportada.", false);
+        }
+        // Não usar último componente da URL: ele pode carregar tokens assinados.
+        String name="Video-HLS-"+System.currentTimeMillis()+".ts";
+        JSONObject previous=DownloadStore.get(context,id);
+        if(previous!=null && previous.optString("name").endsWith(".ts"))name=previous.optString("name");
+        final Uri destination=ensureDestination(id,name,"video/mp2t");
+        long downloaded=0;
+        long lastUi=0;
+        DownloadStore.setMeta(context,id,"","",-1,"");
+        DownloadStore.update(context,id,"Baixando",name,0,-1,destination.toString(),"");
+        progress(notification(name,"Baixando HLS (0/"+playlist.segments.size()+" segmentos)",true,0,-1,false));
+        // Arquivos .ts são uma concatenação de pacotes TS; fMP4, criptografia, chaves,
+        // áudio externo, byte ranges e playlists ao vivo são rejeitados pelo parser.
+        try(ParcelFileDescriptor pfd=context.getContentResolver().openFileDescriptor(destination,"rw")) {
+            if(pfd==null)throw new IOException("Arquivo HLS inacessível.");
+            FileOutputStream output=new FileOutputStream(pfd.getFileDescriptor());
+            FileChannel channel=output.getChannel();
+            channel.truncate(0);
+            channel.position(0);
+            for(int segment=0;segment<playlist.segments.size();segment++) {
+                checkStop(id);
+                String segUrl=playlist.segments.get(segment);
+                HttpURLConnection connection=null;
+                try {
+                    // Cabeçalhos de sessão somente para a mesma origem do manifesto inicial.
+                    String scopedCookie=TransferHttp.sameOrigin(address,segUrl)?cookie:null;
+                    String scopedReferer=TransferHttp.sameOrigin(address,segUrl)?referer:null;
+                    connection=openHttpConnection(id,segUrl,0,null,scopedCookie,userAgent,scopedReferer);
+                    if(connection.getResponseCode()!=200)
+                        throw new TransferDiagnostics.Failure("HLS_HTTP", "Segmento indisponível: HTTP "+connection.getResponseCode(),false);
+                    long length=connection.getContentLengthLong();
+                    if(length>64L*1024*1024)
+                        throw new TransferDiagnostics.Failure("HLS_LIMITE", "Segmento maior que 64 MB.",false);
+                    byte[] buffer=new byte[64*1024];
+                    try(BufferedInputStream input=new BufferedInputStream(connection.getInputStream())) {
+                        int head=0;
+                        while(head<376){
+                            int n=input.read(buffer,head,376-head);
+                            if(n<0)break;
+                            head+=n;
+                        }
+                        if(head<376 || (buffer[0]&0xff)!=0x47 || (buffer[188]&0xff)!=0x47)
+                            throw new TransferDiagnostics.Failure("HLS_FORMATO", "Segmento não é MPEG-TS completo.",false);
+                        output.write(buffer,0,head);
+                        downloaded+=head;
+                        long segmentBytes=head;
+                        int n;
+                        while((n=input.read(buffer))!=-1) {
+                            checkStop(id);
+                            segmentBytes+=n;
+                            if(segmentBytes>64L*1024*1024||downloaded+n>4L*1024*1024*1024)
+                                throw new TransferDiagnostics.Failure("HLS_LIMITE", "Limite seguro de tamanho HLS excedido.",false);
+                            output.write(buffer,0,n);
+                            downloaded+=n;
+                            long now=System.currentTimeMillis();
+                            if(now-lastUi>=1000){
+                                DownloadStore.update(context,id,"Baixando",null,downloaded,-1,null,null);
+                                progress(notification(name,"HLS "+(segment+1)+"/"+playlist.segments.size(),true,downloaded,-1,false));
+                                lastUi=now;
+                            }
+                        }
+                        if(length>=0 && length!=segmentBytes)
+                            throw new TransferDiagnostics.Failure("HLS_INCOMPLETO", "Segmento HLS incompleto.",true);
+                    }
+                } finally {
+                    if(connection!=null)connection.disconnect();
+                    currentConnection=null;
+                }
+            }
+            output.flush();
+            channel.force(false);
+        } catch(Exception failed) {
+            DownloadStore.update(context,id,null,null,downloaded,-1,null,null);
+            throw failed;
+        }
+        checkStop(id);
+        ContentValues complete=new ContentValues();
+        complete.put(MediaStore.MediaColumns.IS_PENDING,0);
+        if(context.getContentResolver().update(destination,complete,null,null)!=1)
+            throw new TransferDiagnostics.Failure("ARMAZENAMENTO","Não foi possível publicar HLS na pasta Download/.",false);
+        DownloadStore.update(context,id,"Concluído",name,downloaded,downloaded,destination.toString(),"");
+        notifications.notify(notificationId(id),notification("Download HLS concluído",name,false,downloaded,downloaded,true));
+    }
+
+    private HlsVodPlaylist loadHlsPlaylist(String id,String initial,String url,String cookie,String agent,String referer) throws Exception {
+        HttpURLConnection connection=null;
+        try {
+            String scopedCookie=TransferHttp.sameOrigin(initial,url)?cookie:null;
+            String scopedReferer=TransferHttp.sameOrigin(initial,url)?referer:null;
+            connection=openHttpConnection(id,url,0,null,scopedCookie,agent,scopedReferer);
+            if(connection.getResponseCode()!=200)
+                throw new TransferDiagnostics.Failure("HLS_HTTP","Playlist indisponível: HTTP "+connection.getResponseCode(),false);
+            if(connection.getContentLengthLong()>HlsVodPlaylist.MAX_PLAYLIST_CHARS)
+                throw new TransferDiagnostics.Failure("HLS_LIMITE","Playlist muito grande.",false);
+            ByteArrayOutputStream bytes=new ByteArrayOutputStream();
+            try(InputStream input=connection.getInputStream()){
+                byte[] buffer=new byte[4096];int n;
+                while((n=input.read(buffer))!=-1){
+                    checkStop(id);
+                    if(bytes.size()+n>HlsVodPlaylist.MAX_PLAYLIST_CHARS)
+                        throw new TransferDiagnostics.Failure("HLS_LIMITE","Playlist excedeu o limite.",false);
+                    bytes.write(buffer,0,n);
+                }
+            }
+            try {return HlsVodPlaylist.parse(url,new String(bytes.toByteArray(),StandardCharsets.UTF_8));}
+            catch(IllegalArgumentException unsupported){
+                throw new TransferDiagnostics.Failure("HLS_NAO_SUPORTADO",unsupported.getMessage(),false);
+            }
+        } finally {
+            if(connection!=null)connection.disconnect();
+            currentConnection=null;
+        }
+    }
+
     private HttpURLConnection openHttpConnection(String id, String address, long offset, String validator,
                                                   String cookie, String userAgent, String referer) throws IOException {
         if (!TransferHttp.isWebUrl(address)) {
@@ -357,7 +484,7 @@ final class DownloadEngine {
             candidate.setRequestProperty("Accept", "*/*");
             candidate.setRequestProperty("Accept-Encoding", "identity");
             candidate.setRequestProperty("User-Agent", userAgent == null
-                    ? "BaixaFacil/0.1.0-alpha.44 Android" : userAgent);
+                    ? "BaixaFacil/0.1.0-alpha.45 Android" : userAgent);
             boolean sameOrigin = TransferHttp.sameOrigin(address, current.toString());
             if (sameOrigin && cookie != null) candidate.setRequestProperty("Cookie", cookie);
             if (sameOrigin && referer != null && TransferHttp.sameOrigin(current.toString(), referer)) {

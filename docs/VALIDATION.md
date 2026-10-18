@@ -1,3 +1,24 @@
+# Validação 0.1.0-alpha.45
+
+## Problema reproduzido na captura
+
+- Em alguns sites há várias URLs HLS, mas a WebView só observa requisições de rede e não pode afirmar que representam vídeos distintos. A UI anterior mostrava "Vídeos encontrados (4)".
+- Requisições HLS não possuem uma relação obrigatória com elementos DOM, portanto não é seguro inserir uma thumbnail qualquer em cada CDN. Agora a imagem opcional do player é separada e identificada como **prévia da página**.
+- A alpha.44 não baixava playlists, apenas executava mídia HLS via Media3. A alpha.45 oferece download limitado para HLS VOD com segmentos MPEG-TS não criptografados. Outras playlists falham explicitamente e não viram arquivos falsamente concluídos.
+
+## Testes de segurança e integridade
+
+- HlsVodPlaylistTest: playlist TS finalizada, master e maior variante, rejeição de live, DRM, fMP4, outros formatos, downgrade HTTPS, playlist incompleta.
+- VideoMenuModelTest: agrupamento de qualidades por identidade, mas sem mesclar vídeos de caminhos distintos nem mostrar tokens na tela.
+- Java syntax e Java puro; `python3 tools/ci_preflight.py`; `bash tools/test_publish_mock.sh`; validação do arquivo ZIP.
+
+## Limitações
+
+- `.ts` não é `.mp4` e nem todos os reprodutores suportam contêiner MPEG-TS. A alpha.45 não remuxa codecs nem executa FFmpeg.
+- Playlists HLS criptografadas, ao vivo, fMP4 ou com áudio externo são recusadas. URL com sessão expirada e bloqueio de servidor pode falhar.
+- Reiniciar download HLS interrompido descarta bytes parciais antigos e transfere tudo novamente, preservando as regras de cancelamento do motor existente.
+- Necessários GitHub Actions e teste físico, especialmente downloads grandes, rede instável, pausa/cancelamento e tamanho de arquivo.
+
 # Validação 0.1.0-alpha.44
 
 ## Bug corrigido

@@ -109,3 +109,6 @@
 
 - Alpha.44: jamais bloquear **Home** ou **Voltar** por `downloadsVisible`; ambos devem permitir sair de Downloads para a WebView sem recarregar/destruir página. O botão Home na WebView abre a página inicial configurada. A aba Downloads permanece alternável, seleção múltipla é encerrada primeiro pelo Voltar do Android e navegação WebView mantém histórico/timers/cookies.
 - As decisões da barra inferior e Voltar do sistema ficam em `MainNavigationPolicy` (Java puro) com testes JVM; manter os rótulos de abas acessíveis e o atalho de retorno do cabeçalho para evitar regressão.
+
+- Alpha.45: usar **fontes de vídeo** e não número de vídeos quando URLs HLS não são agrupáveis. Não associar thumb de CDN à página sem prova; prévia do player DOM deve ser marcada como **prévia da página**.
+- Alpha.45: HLS experimental somente VOD `#EXT-X-ENDLIST`, segmentos MPEG-TS sem proteção, sem `EXT-X-KEY`, DRM, byte-range, mapa fMP4 ou audio separado. Conferir sincronismo TS, limite de segmentos/tamanho, transporte HTTPS sem downgrade e cookies somente mesma origem. O destino é `.ts`, nunca `.mp4`; download interrompido reinicia do começo em retomada. Nunca publicar MediaStore parcial como concluído.

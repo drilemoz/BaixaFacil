@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.45 (versionCode 45) - 2026-10-18
+
+- Corrigida a indicação de **vídeos** para **fontes de vídeo**, sem agrupar CDN/qualidades sem evidência de identidade. Botão **Baixar** disponível nas fontes diretas e playlists HLS, com escolha explícita da qualidade.
+- Download experimental de HLS VOD MPEG-TS não criptografado para `.ts`, com parser defensivo, seleção de variante, validação básica de MPEG-TS, limites e integração ao motor/fila/MediaStore. Rejeita DRM, lives, fMP4, byte-ranges, áudio externo e formatos incompatíveis.
+- Nova prévia **do player da página** quando visível, sem vinculação falsa a URLs observadas pela rede. Atualizados testes JVM, informações de segurança, CI, versão e notas. Build Android ainda não executado localmente.
+
 ## 0.1.0-alpha.44 (versionCode 44) - 2026-10-17
 
 - Corrigido defeito na navegação da tela Downloads: Home e Voltar da barra inferior não faziam nada porque `if(downloadsVisible)return;` bloqueava todas as ações exceto alternar a última aba.

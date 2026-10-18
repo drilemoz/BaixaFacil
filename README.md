@@ -1,4 +1,14 @@
-# Baixa Fácil 0.1.0-alpha.44
+# Baixa Fácil 0.1.0-alpha.45
+
+## Detecção e download de vídeos (alpha.45)
+
+- A lista mostra **fontes de vídeo**, não afirma que cada URL HLS representa um vídeo diferente. Mantém agrupamento conservador por identidade verificável, sem juntar filmes só porque pertencem ao mesmo CDN.
+- Cada arquivo direto MP4/WebM e playlist HLS recebe botão **Baixar** visível. Quando há mais de uma qualidade, a escolha ocorre antes da confirmação.
+- Para playlists HLS, o motor agora tenta transferir **VOD MPEG-TS sem criptografia**, em segundo plano, pela fila habitual, salvando `.ts` no MediaStore. Se a URL for master, seleciona a variante com maior banda declarada. Não converte para MP4 nem promete o download de toda fonte HLS.
+- O parser rejeita transmissões ao vivo sem `ENDLIST`, DRM/chaves, `EXT-X-MAP`/fMP4, byte-range, discontinuidades, áudio externo e segmentos que não sejam MPEG-TS; verifica assinatura TS e limite de bytes antes de publicar o arquivo. Falhas deixam diagnóstico na fila.
+- Se a página expõe um único player visível, a tela pode mostrar **prévia do player na própria página**, mas não a associa a uma URL de CDN não comprovada. Sem frame legível, permanece apenas o ícone neutro.
+- A captura depende das restrições da WebView, origem do vídeo e permissões. Não tenta contornar DRM ou coletar credenciais do navegador externo. Retomar HLS começa do zero para evitar juntar segmentos de playlists alteradas.
+- **Pendente:** compilação Android completa e testes com playlists HLS reais (incluindo condições de rede, cancelamento, atualização de fontes e espaço em disco).
 
 ## Navegação corrigida entre Downloads e Home (alpha.44)
 

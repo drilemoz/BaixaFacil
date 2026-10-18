@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.44"
-CODE = "44"
+VERSION = "0.1.0-alpha.45"
+CODE = "45"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -68,7 +68,7 @@ checks = {
         and "class BrowserLoadPolicyTest" in read("app/src/test/java/br/com/baixafacil/BrowserLoadPolicyTest.java"),
     "styled native menus": all(x in read("app/src/main/java/br/com/baixafacil/AppMenus.java") for x in ["class AppMenus", "static AlertDialog show", "static Entry section", "InputMethodManager"]),
     "dedicated video preferences": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["Vídeos e mídia", "renderVideoSettings", "VideoPrefs.autoScan", "VideoPrefs.showStreams", "VideoPrefs.showSources"]),
-    "accurate video list": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["VideoMenuModel.display", "showVideoActions", "TRANSMISSÕES", "ARQUIVOS"]),
+    "accurate video list": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["VideoMenuModel.display", "showVideoActions", "HLS/DASH", "ARQUIVOS"]),
     "video grouped sources and safe selection": all(x in read("app/src/main/java/br/com/baixafacil/VideoMenuModel.java")
         for x in ["static final class Source", "final List<Source> sources", "String id=key(uri,kind,path)", "sourceList.sort", "getRawQuery", "video_id"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
@@ -154,10 +154,14 @@ checks = {
         and "class DownloadDialogs" in read("app/src/main/java/br/com/baixafacil/DownloadDialogs.java")
         and 'android:name=".BaixaFacilApp"' in read("app/src/main/AndroidManifest.xml"),
     "video direct-source detection": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        for x in ["VIDEO_SCAN_JS", "shouldInterceptRequest", "scanPageVideos", "showDetectedVideos", "Vídeos (", "VideoLinks.isVideoCandidate"])
+        for x in ["VIDEO_SCAN_JS", "shouldInterceptRequest", "scanPageVideos", "showDetectedVideos", "Fontes (", "VideoLinks.isVideoCandidate"])
         and all(x in read("app/src/main/java/br/com/baixafacil/VideoLinks.java")
             for x in ["isVideoCandidate", "isManifest", "allowedHttpUrl", "MAX_VIDEO_URLS"])
         and "class VideoLinksTest" in read("app/src/test/java/br/com/baixafacil/VideoLinksTest.java"),
+    "alpha45 HLS VOD conservative support": all(x in read("app/src/main/java/br/com/baixafacil/HlsVodPlaylist.java") for x in ["#EXT-X-ENDLIST", "#EXT-X-KEY:", "#EXT-X-MAP:", "#EXT-X-BYTERANGE:", "MAX_SEGMENTS", "Segmento inválido"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/DownloadEngine.java") for x in ["transferHlsVod", "video/mp2t", "channel.truncate(0)", "IS_PENDING", "HLS_NAO_SUPORTADO"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["offerHlsDownload", "Fontes de vídeo", "Prévia do player", 'Ui.pill(host,"Baixar"'])
+        and "class HlsVodPlaylistTest" in read("app/src/test/java/br/com/baixafacil/HlsVodPlaylistTest.java"),
     "documentation version code": "`versionCode`: `" + CODE + "`" in read("docs/VERSIONING.md")
         and "Próxima versão sequencial: `0.1.0-alpha." + str(int(CODE) + 1) + "`" in read("docs/VERSIONING.md"),
     "login compatibility": "AuthNavigation.isGoogleOAuth" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
