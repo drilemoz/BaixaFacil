@@ -106,3 +106,6 @@
 
 - Alpha.43: filtros do histórico por tamanho e host são apenas de apresentação. Total conhecido prevalece; bytes recebidos só servem de tamanho final quando o status é Concluído. Não inferir tamanho total de download parcial, nem consultar rede para filtrar.
 - Alpha.43: extrair somente host HTTP(S) da URL local e nunca incluir path/query/token no texto de filtro, no diagnóstico ou em requisições. Filtros se combinam com status, pesquisa e tipo; trocar filtros encerra seleção múltipla e "Selecionar visíveis" deve operar exclusivamente na lista filtrada.
+
+- Alpha.44: jamais bloquear **Home** ou **Voltar** por `downloadsVisible`; ambos devem permitir sair de Downloads para a WebView sem recarregar/destruir página. O botão Home na WebView abre a página inicial configurada. A aba Downloads permanece alternável, seleção múltipla é encerrada primeiro pelo Voltar do Android e navegação WebView mantém histórico/timers/cookies.
+- As decisões da barra inferior e Voltar do sistema ficam em `MainNavigationPolicy` (Java puro) com testes JVM; manter os rótulos de abas acessíveis e o atalho de retorno do cabeçalho para evitar regressão.

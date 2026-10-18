@@ -1,15 +1,16 @@
-# Baixa Fácil 0.1.0-alpha.43 (versionCode 43)
+# Baixa Fácil 0.1.0-alpha.44 (versionCode 44)
 
-## Novidades
+## Correção da navegação Downloads ↔ navegador
 
-- Filtros de downloads por **tamanho** e **site de origem** combinados com pesquisa, estado e tipo.
-- Tamanhos: todos, desconhecido, menos de 10 MB, 10 a 100 MB, 100 MB ou mais. Sem extrapolar bytes parciais como tamanho do arquivo.
-- Lista local dos principais domínios do histórico, mostrando somente o host, nunca a URL completa ou seus tokens.
-- Faixa de filtros ativos e botão **Limpar filtros**, com aviso específico quando nenhum download atende à seleção.
-- Seleção múltipla respeita a lista filtrada; alterar filtros cancela seleções anteriores para proteger arquivos ocultos.
+- Corrigido o botão **Home/Início** da barra inferior, que antes ignorava toques enquanto Downloads estava aberta.
+- Agora, em Downloads, **Navegador** (ícone de casa), **Voltar** e o botão **Downloads** devolvem o usuário ao navegador sem recarregar a página nem encerrar transferências.
+- Dentro do navegador, o botão **Início** continua abrindo a página inicial configurada e as setas continuam controlando o histórico.
+- Ícones inferiores receberam rótulos visíveis, estado selecionado e desabilitação explícita de ações inválidas na tela Downloads.
+- Acrescentado botão **Voltar ao navegador** no cabeçalho da central de downloads. Ao sair da lista, o teclado de pesquisa é recolhido sem apagar o texto ou o histórico.
+- A tecla Voltar do Android respeita a seleção múltipla: primeiro fecha a seleção e, depois, retorna ao navegador.
 
 ## Segurança e validação
 
-- Não modifica arquivos, histórico nem fila ao aplicar filtros.
-- 10 testes JVM de domínio/tamanho e verificação de consistência estrutural, preflight e simulação de publicação.
-- **Pendente:** compilação `:app:testDebugUnitTest :app:assembleDebug` no GitHub Actions e teste visual Android real. Este ZIP contém o código-fonte, não um APK.
+- Nova política Java pura `MainNavigationPolicy`, com testes JVM de regressão dos comandos Home, Voltar, alternância de abas e seleção múltipla.
+- Mantidos WebView, Custom Tabs, cookies, downloads e arquivos sem alteração no motor HTTP.
+- **Pendente:** compilação `:app:testDebugUnitTest :app:assembleDebug` no GitHub Actions e teste visual no Android real. Este ZIP contém código-fonte, não APK.

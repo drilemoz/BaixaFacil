@@ -202,6 +202,11 @@ public class MainActivity extends Activity {
         idParams.leftMargin=dp(12); appHead.addView(brand,idParams);
         appHead.addView(iconButton("settings","Configurações",this::openSettings),new LinearLayout.LayoutParams(dp(44),dp(44)));
         header.addView(appHead,Ui.lp(this,-1,46,0));
+        // Saída evidente também no topo; a barra inferior continua sempre disponível.
+        LinearLayout backToBrowser=Ui.action(this,"Voltar ao navegador","home",colors.teal,colors.soft,15);
+        backToBrowser.setContentDescription("Sair dos downloads e voltar ao navegador");
+        backToBrowser.setOnClickListener(v->showBrowser());
+        header.addView(backToBrowser,Ui.lp(this,-1,48,10));
 
         LinearLayout panel = Ui.vertical(this);
         panel.setPadding(dp(14),dp(14),dp(14),dp(14));
@@ -359,36 +364,56 @@ public class MainActivity extends Activity {
         LinearLayout bar=Ui.horizontal(this);
         bar.setPadding(dp(6),0,dp(6),dp(4));
         bar.setBackground(Ui.shape(this,colors.surface,20));
-        String[] icons={"back","forward","reload","home","webdown"};
-        String[] names={"Página anterior","Próxima página","Recarregar","Página inicial","Alternar downloads"};
         bottomButtons = new android.widget.FrameLayout[5];
-        for (int i=0;i<icons.length;i++) {
+        for (int i=0;i<bottomButtons.length;i++) {
             final int action=i;
             android.widget.FrameLayout button=new android.widget.FrameLayout(this);
-            button.setContentDescription(names[i]);button.setClickable(true);button.setFocusable(true);
-            button.setMinimumHeight(dp(52));
+            button.setClickable(true);button.setFocusable(true);
+            button.setMinimumHeight(dp(56));
             bottomButtons[i]=button;
-            bar.addView(button,new LinearLayout.LayoutParams(0,dp(52),1));
-            button.setOnClickListener(v->{
-                if(action==4){if(downloadsVisible)showBrowser();else showDownloads();return;}
-                if(downloadsVisible)return;
-                if(action==0)browserPane.goBack();
-                else if(action==1)browserPane.goForward();
-                else if(action==2)browserPane.reload();
-                else if(action==3)browserPane.home();
-            });
+            bar.addView(button,new LinearLayout.LayoutParams(0,dp(56),1));
+            button.setOnClickListener(v->executeNavigation(
+                MainNavigationPolicy.bottomAction(downloadsVisible,action)));
         }
-        root.addView(bar,Ui.lp(this,-1,56,0));
+        root.addView(bar,Ui.lp(this,-1,60,0));
         updateBottomBar();
     }
+    private void executeNavigation(MainNavigationPolicy.Command command){
+        if(command==null)return;
+        switch(command){
+            case SHOW_BROWSER: showBrowser();break;
+            case SHOW_DOWNLOADS: showDownloads();break;
+            case GO_BACK: if(browserPane!=null)browserPane.goBack();break;
+            case GO_FORWARD: if(browserPane!=null)browserPane.goForward();break;
+            case RELOAD_PAGE: if(browserPane!=null)browserPane.reload();break;
+            case LOAD_HOME: if(browserPane!=null)browserPane.home();break;
+            case CLOSE_SELECTION: endDownloadSelection();break;
+            case EXIT_APP: finish();break;
+            case NONE: break;
+        }
+    }
     private void updateBottomBar(){
-        if (bottomButtons==null)return;
-        String[] icons={"back","forward","reload","home","webdown"};
+        if(bottomButtons==null)return;
+        String[] icons={"back","forward","reload","home",downloadsVisible?"globe":"webdown"};
+        String[] labels={downloadsVisible?"Voltar":"Anterior","Avançar","Atualizar",downloadsVisible?"Navegador":"Início",downloadsVisible?"Downloads":"Downloads"};
         for(int i=0;i<bottomButtons.length;i++){
-            android.widget.FrameLayout b=bottomButtons[i];b.removeAllViews();
-            int color=downloadsVisible&&i!=4 ? colors.muted : (i==4&&downloadsVisible?colors.teal:colors.text);
-            b.addView(Ui.icon(this,icons[i],color,24),new android.widget.FrameLayout.LayoutParams(dp(25),dp(25),Gravity.CENTER));
-            if(i==4){b.setBackground(Ui.shape(this,downloadsVisible?colors.soft:colors.surface,18));}
+            android.widget.FrameLayout b=bottomButtons[i];
+            b.removeAllViews();
+            boolean enabled=MainNavigationPolicy.bottomAction(downloadsVisible,i)!=MainNavigationPolicy.Command.NONE;
+            boolean selected=(downloadsVisible && i==4)||(!downloadsVisible && i==3);
+            int color=enabled?(selected?colors.teal:colors.text):colors.muted;
+            LinearLayout content=Ui.vertical(this);
+            content.setGravity(Gravity.CENTER);
+            content.addView(Ui.icon(this,icons[i],color,22),new LinearLayout.LayoutParams(dp(24),dp(24)));
+            TextView label=Ui.text(this,labels[i],10,color,selected);
+            label.setGravity(Gravity.CENTER);
+            content.addView(label,Ui.lp(this,-1,18,2));
+            b.addView(content,new android.widget.FrameLayout.LayoutParams(-1,-1));
+            b.setContentDescription(downloadsVisible && (i==0||i==3)?"Voltar dos downloads para o navegador":labels[i]);
+            b.setEnabled(enabled);
+            b.setAlpha(enabled?1f:0.48f);
+            b.setSelected(selected);
+            b.setBackground(Ui.shape(this,selected?colors.soft:colors.surface,16));
         }
     }
     public void showDownloads() {
@@ -404,6 +429,14 @@ public class MainActivity extends Activity {
     private void showBrowser() {
         if(downloadsList==null||browserPane==null)return;
         endDownloadSelection();
+        // Fecha teclado da busca, que às vezes ocupa a barra inferior ao alternar.
+        android.view.View focused=getCurrentFocus();
+        if(downloadsVisible && focused!=null){
+            android.view.inputmethod.InputMethodManager keyboard=
+                (android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+            if(keyboard!=null)keyboard.hideSoftInputFromWindow(focused.getWindowToken(),0);
+            focused.clearFocus();
+        }
         downloadsVisible=false;
         downloadsList.setVisibility(View.GONE);
         browserPane.view.setVisibility(View.VISIBLE);
@@ -436,10 +469,8 @@ public class MainActivity extends Activity {
         if(browserPane!=null)browserPane.saveState(out);
     }
     private void handleBack(){
-        if(downloadsVisible && selectingDownloads){endDownloadSelection();return;}
-        if(downloadsVisible){showBrowser();return;}
-        if(browserPane!=null&&browserPane.canGoBack()){browserPane.goBack();return;}
-        finish();
+        executeNavigation(MainNavigationPolicy.systemBack(
+            downloadsVisible,selectingDownloads,browserPane!=null&&browserPane.canGoBack()));
     }
     @SuppressWarnings("deprecation")
     @Override public void onBackPressed(){handleBack();}

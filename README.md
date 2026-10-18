@@ -1,4 +1,12 @@
-# Baixa Fácil 0.1.0-alpha.43
+# Baixa Fácil 0.1.0-alpha.44
+
+## Navegação corrigida entre Downloads e Home (alpha.44)
+
+- Ao abrir **Meus downloads**, **Home/Navegador** e **Voltar** na barra inferior agora retornam ao navegador sem recarregar a página. O botão **Downloads** continua alternando as telas.
+- O cabeçalho da lista passou a apresentar **Voltar ao navegador**. A barra inferior possui rótulos e marcação de aba atual.
+- Quando o navegador está na tela, **Início** mantém a ação tradicional de abrir a página inicial configurada; as setas continuam navegando no histórico.
+- Voltar do Android sai primeiro da seleção múltipla antes de retornar ao navegador. Teclado de pesquisa é recolhido ao alternar.
+- Testes JVM cobrem o roteamento dos controles; build Android e validação em dispositivo permanecem pendentes.
 
 ## Filtros inteligentes da central de downloads (alpha.43)
 

@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.43"
-CODE = "43"
+VERSION = "0.1.0-alpha.44"
+CODE = "44"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -14,6 +14,14 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "alpha44 Downloads-Home navigation regression": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        for x in ["MainNavigationPolicy.bottomAction(downloadsVisible,action)",
+                  "MainNavigationPolicy.systemBack(", "Voltar ao navegador", "executeNavigation(",
+                  "case SHOW_BROWSER: showBrowser();", "case LOAD_HOME: if(browserPane!=null)browserPane.home();"])
+        and "if(downloadsVisible)return;" not in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        and all(x in read("app/src/main/java/br/com/baixafacil/MainNavigationPolicy.java")
+                for x in ["if(index==BACK || index==HOME) return Command.SHOW_BROWSER", "downloadsVisible ? Command.SHOW_BROWSER : Command.SHOW_DOWNLOADS", "Command.CLOSE_SELECTION"])
+        and "class MainNavigationPolicyTest" in read("app/src/test/java/br/com/baixafacil/MainNavigationPolicyTest.java"),
     "alpha43 local download filters": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
         for x in ["chooseSizeFilter", "chooseOriginFilter", "clearDownloadFilters", "updateActiveFilterBar", "DownloadListFilters.matchesSize", "DownloadListFilters.matchesOrigin", "selectVisibleDownloads", "endDownloadSelection();"])
         and all(x in read("app/src/main/java/br/com/baixafacil/DownloadListFilters.java")

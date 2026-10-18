@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.44 (versionCode 44) - 2026-10-17
+
+- Corrigido defeito na navegação da tela Downloads: Home e Voltar da barra inferior não faziam nada porque `if(downloadsVisible)return;` bloqueava todas as ações exceto alternar a última aba.
+- Introduzido `MainNavigationPolicy` com roteamento explícito dos controles inferiores e do Voltar do Android, garantindo retorno ao navegador sem recarregar a WebView, preservando seleção múltipla e comportamento da Home em navegação.
+- Rodapé passou a mostrar rótulos de ações e ícones visíveis/selecionados; página Downloads ganhou botão **Voltar ao navegador** no topo.
+- Teclado de pesquisa é recolhido ao voltar à navegação. Mantidos motor HTTP, cookies, fluxo de autenticação, histórico, preferências e downloads.
+- Incrementados versionName 0.1.0-alpha.44 e versionCode 44 em Gradle, workflow, app, documentação, publisher mock e pré-validação. Build Android e teste real de interface ainda pendentes.
+
 ## 0.1.0-alpha.43 (versionCode 43) - 2026-10-17
 
 - Adicionados **filtros combináveis por tamanho e site de origem** em Meus downloads > Filtrar e ordenar, além dos filtros anteriores por estado, tipo e pesquisa.

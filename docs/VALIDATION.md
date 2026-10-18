@@ -1,30 +1,27 @@
-# Validação 0.1.0-alpha.43
+# Validação 0.1.0-alpha.44
 
-## Escopo
+## Bug corrigido
 
-- Novo `DownloadListFilters.java` para tamanho e site (host HTTP(S) somente, sem credenciais, query ou fragmento).
-- `MainActivity`: menu com filtros por tamanho e site, barra de filtros ativos, limpar filtros e estado vazio específico.
-- `DownloadAdapter.reload`: critérios combinados com pesquisa, tipo e status; nunca alterar transferências ou arquivos.
-- A ação `Selecionar visíveis` usa `adapter.getCount`/`adapter.getItem` já filtrados; mudança de qualquer filtro elimina seleção múltipla anterior.
+- Alpha.43: `MainActivity.createBottomBar` usava `if(downloadsVisible)return;` para qualquer botão que não fosse o quinto. Assim, Home e Voltar ficavam sem ação na tela Downloads, criando a impressão de navegação bloqueada.
+- Alpha.44: `MainNavigationPolicy.bottomAction` define ação explícita para cada botão. Home e Voltar em Downloads retornam ao navegador **sem chamar** `browserPane.home()` ou recriar a WebView; no navegador, Home ainda abre a página inicial.
+- A seta Voltar do Android é roteada por `MainNavigationPolicy.systemBack`, preservando a prioridade de encerrar seleção múltipla.
+- Rótulos no rodapé e botão **Voltar ao navegador** no cabeçalho facilitam a saída da tela sem depender de gestos.
 
-## Testes locais
+## Verificações
 
-- `DownloadListFiltersTest`: 10 casos JVM cobrindo limites, tamanho desconhecido, bytes parciais versus concluídos, classificação de hosts, URLs com credenciais e ordenação por contagem.
-- `python3 tools/ci_preflight.py`
-- `bash tools/test_publish_mock.sh`
-- Parser sintático de todas as fontes Java, XML/YAML e verificação CRC do ZIP.
+- `MainNavigationPolicyTest`: testes JVM de comandos do rodapé e botão Voltar em cenários com Downloads, navegador e seleção.
+- `python3 tools/ci_preflight.py` e `bash tools/test_publish_mock.sh`.
+- Parse Java dos arquivos, validação de XML/YAML e integridade CRC do pacote ZIP.
 
-## Cenários para testar no aparelho
+## Testar no Android real
 
-- Aplicar sucessivamente Tipo + Tamanho + Site; confirmar que somente arquivos com todas as condições aparecem.
-- Testar exatamente 10 MiB e 100 MiB; verificar o filtro "Desconhecido" quando o servidor não forneceu total.
-- Validar estado vazio, barra de filtros ativos e botão Limpar.
-- Selecionar múltiplos arquivos e tocar Selecionar visíveis; alterar o filtro e confirmar que a seleção anterior desaparece.
-- Verificar que o menu de sites mostra somente domínio, sem parâmetros de autenticação.
-- Executar `:app:testDebugUnitTest` e `:app:assembleDebug` no GitHub Actions; testar visualmente na tela Android.
+1. Abra um site no navegador, vá para Downloads e pressione **Navegador**. Verifique que retorna ao mesmo site, sem reiniciar o carregamento.
+2. Repita com a seta **Voltar**, com o botão **Downloads** e com a tecla Voltar do sistema.
+3. Em Downloads, abra seleção múltipla, pressione Voltar: deve sair da seleção; pressione novamente: deve voltar ao navegador.
+4. No navegador, pressione **Início** e confirme que carrega a página inicial das Configurações.
+5. Abra a busca na lista com teclado visível, depois volte ao navegador. O teclado não deve cobrir a tela nem perder cookies/histórico.
+6. Testar após girar tela/recriar Activity e depois de deixar downloads longos executando.
 
-## Limitações
+## Limites
 
-- Filtro por tamanho usa metadados do histórico; não verifica tamanho físico de arquivos por MediaStore nem faz HEAD adicional.
-- Hosts ficam limitados aos 30 mais frequentes para manter o diálogo compacto. Pesquisa local pode encontrar registros de outros sites.
-- Compilação completa Android não executada no ambiente local por ausência do Android SDK/Gradle.
+- Não foi executada compilação Android completa nem teste físico no ambiente local. Reexecutar workflow do GitHub Actions e validar comportamento no aparelho.
