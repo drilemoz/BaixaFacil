@@ -1,4 +1,23 @@
-# Baixa Fácil 0.1.0-alpha.41
+# Baixa Fácil 0.1.0-alpha.43
+
+## Filtros inteligentes da central de downloads (alpha.43)
+
+- Em **Meus downloads > Filtrar e ordenar**, escolha tamanho (**Todos**, **Desconhecido**, **Menos de 10 MB**, **10 a 100 MB** ou **100 MB ou mais**) e **Site de origem**. Eles funcionam ao mesmo tempo que status, tipo e busca textual.
+- Uma faixa compacta mostra os filtros extras ativos; o botão **Limpar** restaura filtros/status e pesquisa, sem apagar históricos ou arquivos. Quando não há resultados, aparece uma mensagem indicando filtros ativos.
+- O filtro por site usa somente o host do histórico do Baixa Fácil, sem contatos de rede; URLs com parâmetros ou credenciais não são expostas. Lista os 30 hosts com mais registros, com opção para origens não identificadas.
+- Tamanhos desconhecidos permanecem desconhecidos durante downloads parciais. Apenas o arquivo concluído pode usar a quantidade final de bytes baixados quando o total não foi informado pelo servidor.
+- A seleção múltipla e a ação **Selecionar visíveis** respeitam os filtros atuais. Trocar um filtro encerra seleção prévia por segurança.
+- **A compilação Android e os testes de interface no dispositivo continuam pendentes do GitHub Actions.**
+
+## Seleção múltipla de downloads (alpha.42)
+
+- A tela **Meus downloads** recebeu um botão **Selecionar arquivos**. Também é possível manter pressionado um cartão concluído para iniciar a seleção.
+- A barra de seleção apresenta **Selecionar visíveis** (respeita os filtros ativos), **Enviar**, **Remover da lista**, **Apagar arquivos** e **Sair**. Itens marcados são destacados e possuem indicador visual.
+- Compartilhamento de até **25 arquivos** por vez com o seletor Android `ACTION_SEND_MULTIPLE`, URIs públicas do MediaStore e permissão temporária de leitura; sem copiar arquivos ou expor cookies/URLs.
+- **Remover da lista** preserva arquivos físicos. **Apagar arquivos** pede confirmação e apaga apenas arquivos concluídos no MediaStore; falhas mantêm os respectivos registros para tentativa posterior. O trabalho é feito fora da interface.
+- Itens em andamento, pausados, interrompidos, na fila ou com fragmentos recuperáveis ficam fora da seleção. A seleção é temporária e não sobrevive ao fechamento da tela.
+- Build Android completo e testes no celular ainda necessários.
+
 
 ## Navegação compatível e limpeza de downloads (alpha.41)
 

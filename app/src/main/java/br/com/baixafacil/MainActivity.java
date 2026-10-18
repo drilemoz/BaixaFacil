@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.widget.ImageView;
+import android.widget.HorizontalScrollView;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -64,9 +65,21 @@ public class MainActivity extends Activity {
     private TextView recoverQueueAction;
     private String listFilter = "Todos";
     private final java.util.Set<String> expandedDownloads = new java.util.HashSet<>();
+    private final java.util.Set<String> selectedDownloadIds = new java.util.LinkedHashSet<>();
+    private boolean selectingDownloads;
+    private LinearLayout selectionBar;
+    private TextView selectionCounter;
+
     // Compacto é padrão; a visualização detalhada expande as informações de cada item.
     private boolean compactDownloads = true;
     private String typeFilter = "Todos";
+    private int sizeFilter = DownloadListFilters.ALL_SIZES;
+    // null = todos, "" = origens sem host válido; nunca persistir URL ou tokens.
+    private String originFilter = null;
+    private LinearLayout activeFilterBar;
+    private TextView activeFilterSummary;
+    private TextView emptyTitle;
+    private TextView emptySub;
     private int sortMode = 0; // 0 recentes, 1 antigos, 2 nome, 3 maiores, 4 menores
 
 
@@ -243,9 +256,29 @@ public class MainActivity extends Activity {
             if(show) {searchInput.requestFocus(); ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(searchInput,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);}
             else {searchInput.setText("");((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(searchInput.getWindowToken(),0);}
         }),new LinearLayout.LayoutParams(dp(44),dp(48)));
+        section.addView(iconButton("check","Selecionar arquivos",this::startDownloadSelection),new LinearLayout.LayoutParams(dp(44),dp(48)));
         section.addView(iconButton("filter","Filtrar e ordenar downloads",this::showOrganizeMenu),new LinearLayout.LayoutParams(dp(44),dp(48)));
         section.addView(iconButton("trash","Limpar downloads",this::showCleanDownloadsOptions),new LinearLayout.LayoutParams(dp(44),dp(48)));
         header.addView(section,Ui.lp(this,-1,52,12));
+
+        // Barra contextual visível somente na seleção múltipla; rolagem horizontal em telas pequenas.
+        selectionBar=Ui.vertical(this);
+        selectionBar.setPadding(dp(10),dp(10),dp(10),dp(10));
+        selectionBar.setBackground(Ui.shape(this,colors.surface,16));
+        selectionCounter=Ui.text(this,"0 arquivos selecionados",14,colors.text,true);
+        selectionBar.addView(selectionCounter);
+        HorizontalScrollView actionScroll=new HorizontalScrollView(this);
+        actionScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout batchActions=Ui.horizontal(this);
+        addSelectionAction(batchActions,"Selecionar visíveis","check",this::selectVisibleDownloads);
+        addSelectionAction(batchActions,"Enviar","link",this::shareSelectedDownloads);
+        addSelectionAction(batchActions,"Remover da lista","folder",()->confirmSelectedCleanup(false));
+        addSelectionAction(batchActions,"Apagar arquivos","trash",()->confirmSelectedCleanup(true));
+        addSelectionAction(batchActions,"Sair","x",this::endDownloadSelection);
+        actionScroll.addView(batchActions,new HorizontalScrollView.LayoutParams(-2,-2));
+        selectionBar.addView(actionScroll,Ui.lp(this,-1,46,8));
+        selectionBar.setVisibility(View.GONE);
+        header.addView(selectionBar,Ui.lp(this,-1,-2,6));
 
         filterRow = Ui.horizontal(this);
         filterChips = new TextView[3];
@@ -256,10 +289,23 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams chipParams = Ui.lp(this,-2,44,0);
             if (i > 0) chipParams.leftMargin=dp(8);
             filterRow.addView(chip,chipParams);filterChips[i]=chip;
-            chip.setOnClickListener(v->{listFilter=selection; updateFilterChips(); refresh();});
+            chip.setOnClickListener(v->{endDownloadSelection();listFilter=selection; updateFilterChips(); refresh();});
         }
         updateFilterChips();
         header.addView(filterRow,Ui.lp(this,-1,44,3));
+        activeFilterBar=Ui.horizontal(this);
+        activeFilterBar.setPadding(dp(12),dp(3),dp(8),dp(3));
+        activeFilterBar.setBackground(Ui.shape(this,colors.soft,13));
+        activeFilterSummary=Ui.text(this,"",12,colors.text,true);
+        activeFilterSummary.setMaxLines(2);
+        activeFilterSummary.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        activeFilterBar.addView(activeFilterSummary,new LinearLayout.LayoutParams(0,-2,1));
+        TextView clearFilters=Ui.pill(this,"Limpar",colors.text,colors.surface);
+        clearFilters.setContentDescription("Limpar os filtros de downloads");
+        clearFilters.setOnClickListener(v->clearDownloadFilters());
+        activeFilterBar.addView(clearFilters,new LinearLayout.LayoutParams(-2,dp(44)));
+        activeFilterBar.setVisibility(View.GONE);
+        header.addView(activeFilterBar,Ui.lp(this,-1,-2,7));
         searchInput = new EditText(this);
         searchInput.setSingleLine(true);searchInput.setHint("Pesquisar por nome, status ou origem");
         searchInput.setTextSize(14);searchInput.setTextColor(colors.text);searchInput.setHintTextColor(colors.muted);
@@ -268,7 +314,7 @@ public class MainActivity extends Activity {
         header.addView(searchInput,Ui.lp(this,-1,48,10));
         searchInput.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s,int start,int count,int after) {}
-            @Override public void onTextChanged(CharSequence s,int start,int before,int count) {refresh();}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count) {endDownloadSelection();refresh();}
             @Override public void afterTextChanged(Editable e) {}
         });
         history.addHeaderView(header,null,false);
@@ -281,9 +327,9 @@ public class MainActivity extends Activity {
         emptyIcon.setBackground(Ui.shape(this,colors.soft,60));
         emptyIcon.addView(Ui.icon(this,"folder",colors.muted,46),new android.widget.FrameLayout.LayoutParams(dp(48),dp(48),Gravity.CENTER));
         empty.addView(emptyIcon,new LinearLayout.LayoutParams(dp(94),dp(94)));
-        TextView emptyTitle = Ui.text(this,"Seus downloads aparecerão aqui",17,colors.text,true);
+        emptyTitle = Ui.text(this,"Seus downloads aparecerão aqui",17,colors.text,true);
         emptyTitle.setGravity(Gravity.CENTER);empty.addView(emptyTitle,Ui.lp(this,-1,-2,16));
-        TextView emptySub=Ui.text(this,"Cole um link ou use o navegador para começar.",13,colors.muted,false);
+        emptySub=Ui.text(this,"Cole um link ou use o navegador para começar.",13,colors.muted,false);
         emptySub.setGravity(Gravity.CENTER);empty.addView(emptySub,Ui.lp(this,-1,-2,10));
         LinearLayout emptyMargins = Ui.vertical(this);
         emptyMargins.setPadding(dp(16),dp(2),dp(16),dp(22));
@@ -295,7 +341,11 @@ public class MainActivity extends Activity {
         history.setAdapter(adapter);
         history.setOnItemClickListener((parent,view,position,id)->{
             int index=position-history.getHeaderViewsCount();
-            if(index>=0 && index<adapter.getCount()) showItemActions(adapter.getItem(index));
+            if(index>=0 && index<adapter.getCount()) {
+                JSONObject item=adapter.getItem(index);
+                if(selectingDownloads)toggleDownloadSelection(item);
+                else showItemActions(item);
+            }
         });
         refresh();
         browserPane = new BrowserPane(this,colors,state);
@@ -353,6 +403,7 @@ public class MainActivity extends Activity {
     }
     private void showBrowser() {
         if(downloadsList==null||browserPane==null)return;
+        endDownloadSelection();
         downloadsVisible=false;
         downloadsList.setVisibility(View.GONE);
         browserPane.view.setVisibility(View.VISIBLE);
@@ -385,6 +436,7 @@ public class MainActivity extends Activity {
         if(browserPane!=null)browserPane.saveState(out);
     }
     private void handleBack(){
+        if(downloadsVisible && selectingDownloads){endDownloadSelection();return;}
         if(downloadsVisible){showBrowser();return;}
         if(browserPane!=null&&browserPane.canGoBack()){browserPane.goBack();return;}
         finish();
@@ -454,9 +506,192 @@ public class MainActivity extends Activity {
         rows.add(AppMenus.Entry.item("Filtros de status", "Mostrar ou ocultar as opções Todos/Em fila/Concluídos","filter",()->
             filterRow.setVisibility(filterRow.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE)));
         rows.add(AppMenus.Entry.item("Tipo: "+typeFilter,"Filtrar arquivos pela extensão","file",this::chooseFileType));
+        rows.add(AppMenus.Entry.item("Tamanho: "+DownloadListFilters.sizeLabel(sizeFilter),
+            "Inclui tamanho desconhecido e faixas de até 10 MB, 10 a 100 MB ou 100 MB+","filter",this::chooseSizeFilter));
+        rows.add(AppMenus.Entry.item("Site: "+(originFilter==null?"Todos":originFilter.isEmpty()?"Origem não identificada":originFilter),
+            "Mostrar downloads pelo domínio de origem","globe",this::chooseOriginFilter));
         rows.add(AppMenus.Entry.item("Ordenação","Recentes, antigos, nome ou tamanho","menu",this::chooseSortMode));
-        AppMenus.show(this,"Organizar downloads","Personalize a lista sem alterar os arquivos.",rows);
+        if(hasExtraFilters() || !"Todos".equals(listFilter) || (searchInput!=null && searchInput.length()>0))
+            rows.add(AppMenus.Entry.item("Limpar filtros aplicados","Voltar a exibir todos os downloads","reload",this::clearDownloadFilters));
+        AppMenus.show(this,"Organizar downloads","Filtros combináveis, apenas locais. Nenhuma transferência é alterada.",rows);
     }
+    private boolean hasExtraFilters(){
+        return !"Todos".equals(typeFilter) || sizeFilter!=DownloadListFilters.ALL_SIZES || originFilter!=null;
+    }
+    private void updateActiveFilterBar(){
+        if(activeFilterBar==null || activeFilterSummary==null)return;
+        if(!hasExtraFilters()){activeFilterBar.setVisibility(View.GONE);return;}
+        StringBuilder text=new StringBuilder("Filtros: ");
+        if(!"Todos".equals(typeFilter))text.append(typeFilter).append(" · ");
+        if(sizeFilter!=DownloadListFilters.ALL_SIZES)text.append(DownloadListFilters.sizeLabel(sizeFilter)).append(" · ");
+        if(originFilter!=null)text.append(originFilter.isEmpty()?"Origem não identificada":originFilter).append(" · ");
+        String label=text.toString();
+        if(label.endsWith(" · "))label=label.substring(0,label.length()-3);
+        activeFilterSummary.setText(label);
+        activeFilterBar.setVisibility(View.VISIBLE);
+    }
+    private void applyDownloadFilters(){
+        endDownloadSelection();
+        updateActiveFilterBar();
+        refresh();
+    }
+    private void clearDownloadFilters(){
+        endDownloadSelection();
+        typeFilter="Todos";
+        sizeFilter=DownloadListFilters.ALL_SIZES;
+        originFilter=null;
+        listFilter="Todos";
+        updateFilterChips();
+        if(searchInput!=null)searchInput.setText("");
+        updateActiveFilterBar();
+        refresh();
+    }
+    private void chooseSizeFilter(){
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        for(int mode=DownloadListFilters.ALL_SIZES;mode<=DownloadListFilters.FROM_100_MB;mode++){
+            final int choice=mode;
+            String title=DownloadListFilters.sizeLabel(mode);
+            String hint=mode==DownloadListFilters.UNKNOWN_SIZE?"Para arquivos ainda sem tamanho informado pelo servidor":
+                mode==DownloadListFilters.ALL_SIZES?"Mostrar todos os tamanhos":"Usa o tamanho total quando conhecido";
+            rows.add(AppMenus.Entry.item(title+(sizeFilter==mode?" • atual":""),hint,"filter",()->{
+                sizeFilter=choice;applyDownloadFilters();
+            }));
+        }
+        AppMenus.show(this,"Filtrar por tamanho","Itens em andamento sem tamanho total não são classificados pelos bytes parciais.",rows);
+    }
+    private void chooseOriginFilter(){
+        List<String> urls=new ArrayList<>();
+        for(JSONObject item:DownloadStore.all(this))urls.add(item.optString("url"));
+        List<DownloadListFilters.OriginCount> origins=DownloadListFilters.countOrigins(urls);
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Todos os sites"+(originFilter==null?" • atual":""),
+            "Sem filtro de origem","globe",()->{originFilter=null;applyDownloadFilters();}));
+        for(int i=0;i<Math.min(30,origins.size());i++){
+            DownloadListFilters.OriginCount item=origins.get(i);
+            String domain=item.host;
+            rows.add(AppMenus.Entry.item(item.label()+(domain.equals(originFilter)?" • atual":""),
+                item.count+" registro(s) neste site","globe",()->{originFilter=domain;applyDownloadFilters();}));
+        }
+        if(origins.size()>30)rows.add(AppMenus.Entry.note("Exibidos os 30 sites mais frequentes. Use a pesquisa para localizar arquivos de outros sites."));
+        AppMenus.show(this,"Filtrar por site",origins.isEmpty()?"Ainda não há origens no histórico.":
+            "Os nomes são obtidos somente do histórico local, sem acessar os sites nem expor parâmetros de links.",rows);
+    }
+    private void addSelectionAction(LinearLayout row,String title,String glyph,Runnable click){
+        Ui.Palette p=colors;
+        LinearLayout action=Ui.action(this,title,glyph,p.text,p.soft,12);
+        action.setPadding(dp(10),0,dp(10),0);
+        action.setOnClickListener(v->click.run());
+        LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-2,dp(44));
+        params.rightMargin=dp(7);
+        row.addView(action,params);
+    }
+
+    private void startDownloadSelection(){
+        selectingDownloads=true;
+        selectedDownloadIds.clear();
+        selectionBar.setVisibility(View.VISIBLE);
+        updateSelectionCount();
+        if(adapter!=null)adapter.notifyDataSetChanged();
+        Toast.makeText(this,"Selecione arquivos concluídos. Toque longo também seleciona.",Toast.LENGTH_SHORT).show();
+    }
+    private void endDownloadSelection(){
+        if(!selectingDownloads)return;
+        selectingDownloads=false;
+        selectedDownloadIds.clear();
+        if(selectionBar!=null)selectionBar.setVisibility(View.GONE);
+        if(adapter!=null)adapter.notifyDataSetChanged();
+    }
+    private void updateSelectionCount(){
+        if(selectionCounter!=null)selectionCounter.setText(selectedDownloadIds.size()+" arquivo(s) selecionado(s)");
+    }
+    private void toggleDownloadSelection(JSONObject row){
+        if(row==null)return;
+        String id=row.optString("id");
+        JSONObject current=DownloadStore.get(this,id);
+        if(current==null || !DownloadSelectionPolicy.selectable(current.optString("status"),current.optString("uri"))){
+            Toast.makeText(this,"Seleção disponível apenas para arquivos concluídos",Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if(!selectingDownloads){ selectingDownloads=true; selectionBar.setVisibility(View.VISIBLE); }
+        if(!selectedDownloadIds.add(id))selectedDownloadIds.remove(id);
+        updateSelectionCount();
+        adapter.notifyDataSetChanged();
+    }
+    private void selectVisibleDownloads(){
+        if(adapter==null)return;
+        int added=0;
+        for(int i=0;i<adapter.getCount();i++){
+            JSONObject row=adapter.getItem(i);
+            if(DownloadSelectionPolicy.selectable(row.optString("status"),row.optString("uri"))){
+                if(selectedDownloadIds.add(row.optString("id")))added++;
+            }
+        }
+        updateSelectionCount();adapter.notifyDataSetChanged();
+        if(added==0)Toast.makeText(this,"Nenhum arquivo novo selecionável neste filtro",Toast.LENGTH_SHORT).show();
+    }
+    private java.util.List<JSONObject> selectedCompletedRows(){
+        java.util.List<JSONObject> rows=new java.util.ArrayList<>();
+        for(String id:new java.util.ArrayList<>(selectedDownloadIds)){
+            JSONObject current=DownloadStore.get(this,id);
+            if(current!=null && DownloadSelectionPolicy.selectable(current.optString("status"),current.optString("uri")))rows.add(current);
+        }
+        return rows;
+    }
+    private void shareSelectedDownloads(){
+        java.util.List<JSONObject> rows=selectedCompletedRows();
+        if(rows.isEmpty()){Toast.makeText(this,"Selecione ao menos um arquivo concluído",Toast.LENGTH_SHORT).show();return;}
+        if(rows.size()>DownloadSelectionPolicy.MAX_SHARE_ITEMS){
+            Toast.makeText(this,"Selecione até "+DownloadSelectionPolicy.MAX_SHARE_ITEMS+" arquivos para compartilhar de uma vez",Toast.LENGTH_LONG).show();return;
+        }
+        java.util.ArrayList<Uri> uris=new java.util.ArrayList<>();
+        for(JSONObject row:rows){
+            Uri uri=safeUri(row.optString("uri"));
+            if(uri!=null && "content".equalsIgnoreCase(uri.getScheme()) && !uris.contains(uri))uris.add(uri);
+        }
+        if(uris.isEmpty()){Toast.makeText(this,"Arquivos selecionados indisponíveis",Toast.LENGTH_SHORT).show();return;}
+        try{
+            Intent intent=new Intent(uris.size()==1?Intent.ACTION_SEND:Intent.ACTION_SEND_MULTIPLE);
+            intent.setType("*/*");
+            if(uris.size()==1)intent.putExtra(Intent.EXTRA_STREAM,uris.get(0));
+            else intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM,uris);
+            ClipData clip=ClipData.newUri(getContentResolver(),"Arquivos Baixa Fácil",uris.get(0));
+            for(int i=1;i<uris.size();i++)clip.addItem(new ClipData.Item(uris.get(i)));
+            intent.setClipData(clip);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(intent,"Enviar arquivos selecionados"));
+        }catch(RuntimeException error){
+            AppEventLog.error(this,"Compartilhamento múltiplo",error);
+            Toast.makeText(this,"Não foi possível abrir o compartilhamento",Toast.LENGTH_LONG).show();
+        }
+    }
+    private void confirmSelectedCleanup(boolean deleteFiles){
+        java.util.List<JSONObject> rows=selectedCompletedRows();
+        if(rows.isEmpty()){Toast.makeText(this,"Nenhum arquivo concluído selecionado",Toast.LENGTH_SHORT).show();return;}
+        final java.util.Set<String> ids=new java.util.LinkedHashSet<>();
+        for(JSONObject row:rows)ids.add(row.optString("id"));
+        List<AppMenus.Entry> actions=AppMenus.entries();
+        actions.add(AppMenus.Entry.danger(deleteFiles?"Apagar arquivos selecionados":"Remover registros selecionados",
+            deleteFiles?"Excluir definitivamente "+ids.size()+" arquivo(s) do armazenamento":"Manter os arquivos; remover "+ids.size()+" registro(s)","trash",()->runSelectedCleanup(ids,deleteFiles)));
+        AppMenus.info(this,deleteFiles?"Apagar "+ids.size()+" arquivo(s)?":"Remover "+ids.size()+" da lista?",
+            deleteFiles?"A operação apaga os arquivos concluídos do MediaStore. Se o Android negar acesso, o registro será preservado. Não pode ser desfeita.":
+            "Apenas os registros selecionados serão retirados do histórico. Os arquivos permanecem na pasta Download.",actions);
+    }
+    private void runSelectedCleanup(java.util.Set<String> ids,boolean deleteFiles){
+        Toast.makeText(this,"Processando arquivos selecionados…",Toast.LENGTH_SHORT).show();
+        final java.util.Set<String> snapshot=new java.util.LinkedHashSet<>(ids);
+        new Thread(()->{
+            DownloadCleanup.Report report=DownloadCleanup.runSelected(getApplicationContext(),snapshot,deleteFiles);
+            handler.post(()->{
+                if(isFinishing()||isDestroyed())return;
+                endDownloadSelection();refresh();
+                String result=report.removed+" registro(s) removido(s)";
+                if(deleteFiles)result+=" • "+report.deletedFiles+" arquivo(s) apagado(s)";
+                if(report.failedFiles>0)result+=" • "+report.failedFiles+" sem permissão ou não encontrados";
+                Toast.makeText(this,result,Toast.LENGTH_LONG).show();
+            });
+        },"selected-download-cleanup").start();
+    }
+
     private void showCleanDownloadsOptions() {
         int eligible=0, protectedCount=0, completed=0;
         for(JSONObject row:DownloadStore.all(this)) {
@@ -507,7 +742,7 @@ public class MainActivity extends Activity {
         List<AppMenus.Entry> rows=AppMenus.entries();
         for(String type:types){
             rows.add(AppMenus.Entry.item(type+(type.equals(typeFilter)?" • atual":""),
-                "Filtrar a lista de downloads","file",()->{typeFilter=type;refresh();}));
+                "Filtrar a lista de downloads","file",()->{typeFilter=type;applyDownloadFilters();}));
         }
         AppMenus.show(this,"Tipos de arquivo","Filtragem estimada pela extensão do nome.",rows);
     }
@@ -602,12 +837,29 @@ public class MainActivity extends Activity {
     private void refresh() {
         if (adapter == null) return;
         adapter.reload();
+        updateActiveFilterBar();
+        if(selectingDownloads){
+            // IDs inválidos/alterados nunca sobrevivem na seleção.
+            selectedDownloadIds.removeIf(id->{
+                JSONObject row=DownloadStore.get(this,id);
+                return row==null || !DownloadSelectionPolicy.selectable(row.optString("status"),row.optString("uri"));
+            });
+            updateSelectionCount();
+        }
         if (recoverQueueAction != null) {
             int count=DownloadStore.recoverable(this).size();
             recoverQueueAction.setText("Recuperar fila ("+count+")");
             recoverQueueAction.setVisibility(count>0?View.VISIBLE:View.GONE);
         }
-        if (emptyState != null) emptyState.setVisibility(adapter.getCount() == 0 ? View.VISIBLE : View.GONE);
+        if (emptyState != null) {
+            boolean empty=adapter.getCount()==0;
+            emptyState.setVisibility(empty?View.VISIBLE:View.GONE);
+            if(empty && emptyTitle!=null && emptySub!=null){
+                boolean hasHistory=!DownloadStore.all(this).isEmpty();
+                emptyTitle.setText(hasHistory?"Nenhum download neste filtro":"Seus downloads aparecerão aqui");
+                emptySub.setText(hasHistory?"Experimente limpar os filtros ou mudar a pesquisa.":"Cole um link ou use o navegador para começar.");
+            }
+        }
     }
 
     private void showItemActions(JSONObject entry) {
@@ -974,6 +1226,8 @@ public class MainActivity extends Activity {
                 String guess=item.optString("name");
                 if("Preparando download".equals(guess)||guess.isEmpty()) guess=FileNames.choose(null,item.optString("url"),null);
                 if(!"Todos".equals(typeFilter) && !typeFilter.equals(DownloadInfo.kind(guess)))continue;
+                if(!DownloadListFilters.matchesSize(sizeFilter,item.optLong("total",-1),item.optLong("bytes",0),status))continue;
+                if(!DownloadListFilters.matchesOrigin(originFilter,item.optString("url")))continue;
                 next.add(item);
                 String id=item.optString("id");
                 if(TransferStarter.isActive(id) && TransferStarter.queuePosition(MainActivity.this,id)<=0) {
@@ -1024,11 +1278,16 @@ public class MainActivity extends Activity {
             outer.setPadding(dp(12),dp(3),dp(12),dp(3));
             LinearLayout card=Ui.vertical(MainActivity.this);
             card.setPadding(dp(11),dp(10),dp(10),dp(10));
-            card.setBackground(Ui.shape(MainActivity.this,colors.surface,16));
+            boolean checked=selectedDownloadIds.contains(id);
+            card.setBackground(selectingDownloads && checked ?
+                Ui.outline(MainActivity.this,colors.soft,16,colors.teal) : Ui.shape(MainActivity.this,colors.surface,16));
             outer.addView(card,new LinearLayout.LayoutParams(-1,-2));
             card.setClickable(true);card.setFocusable(true);
-            card.setContentDescription(filename+". "+status+". Toque para "+(expanded?"recolher":"expandir")+" detalhes.");
+            card.setContentDescription(filename+". "+status+". "+(selectingDownloads?(checked?"Selecionado":"Toque para selecionar"):
+                "Toque para "+(expanded?"recolher":"expandir")+" detalhes."));
+            card.setOnLongClickListener(v->{toggleDownloadSelection(entry);return true;});
             card.setOnClickListener(v->{
+                if(selectingDownloads){toggleDownloadSelection(entry);return;}
                 if(expandedDownloads.contains(id))expandedDownloads.remove(id);
                 else expandedDownloads.add(id);
                 notifyDataSetChanged();
@@ -1041,6 +1300,15 @@ public class MainActivity extends Activity {
             fileIcon.addView(Ui.icon(MainActivity.this,type,colors.text,20),
                 new android.widget.FrameLayout.LayoutParams(dp(22),dp(22),Gravity.CENTER));
             head.addView(fileIcon,new LinearLayout.LayoutParams(dp(46),dp(46)));
+            if(selectingDownloads){
+                android.widget.FrameLayout selectionIcon=new android.widget.FrameLayout(MainActivity.this);
+                selectionIcon.setBackground(Ui.outline(MainActivity.this,checked?colors.teal:colors.soft,8,checked?colors.teal:colors.border));
+                if(checked)selectionIcon.addView(Ui.icon(MainActivity.this,"check",Color.WHITE,18),
+                    new android.widget.FrameLayout.LayoutParams(dp(20),dp(20),Gravity.CENTER));
+                LinearLayout.LayoutParams iconP=new LinearLayout.LayoutParams(dp(27),dp(27));
+                iconP.leftMargin=dp(5);
+                head.addView(selectionIcon,iconP);
+            }
             LinearLayout info=Ui.vertical(MainActivity.this);
             TextView filenameView=Ui.text(MainActivity.this,filename,14,colors.text,true);
             filenameView.setSingleLine(true);
@@ -1052,8 +1320,10 @@ public class MainActivity extends Activity {
             info.addView(hostView,Ui.lp(MainActivity.this,-1,-2,1));
             LinearLayout.LayoutParams infoParams=new LinearLayout.LayoutParams(0,-2,1);
             infoParams.leftMargin=dp(9);head.addView(info,infoParams);
-            android.widget.FrameLayout menu=iconButton("more","Mais ações de "+filename,()->showItemActions(entry));
-            head.addView(menu,new LinearLayout.LayoutParams(dp(40),dp(40)));
+            if(!selectingDownloads){
+                android.widget.FrameLayout menu=iconButton("more","Mais ações de "+filename,()->showItemActions(entry));
+                head.addView(menu,new LinearLayout.LayoutParams(dp(40),dp(40)));
+            }
             card.addView(head);
             if(finished && ("Vídeos".equals(DownloadInfo.kind(filename)) || "Imagens".equals(DownloadInfo.kind(filename)))) {
                 String itemUri=entry.optString("uri");
@@ -1113,7 +1383,12 @@ public class MainActivity extends Activity {
             bottom.addView(metrics,new LinearLayout.LayoutParams(0,dp(36),1));
 
             // Atalhos com ícones e rótulos: toque >= 44 dp, espaço entre botões.
-            if(finished){
+            if(selectingDownloads){
+                TextView hint=Ui.text(MainActivity.this,DownloadSelectionPolicy.selectable(status,entry.optString("uri"))?
+                    (checked?"Selecionado • toque para desmarcar":"Toque para selecionar este arquivo"):
+                    "Item protegido: não entra na seleção",11,colors.muted,false);
+                bottom.addView(hint,new LinearLayout.LayoutParams(0,dp(44),1));
+            }else if(finished){
                 final Uri itemUri=safeUri(entry.optString("uri"));
                 LinearLayout.LayoutParams openP=new LinearLayout.LayoutParams(-2,dp(44));
                 openP.leftMargin=dp(6);

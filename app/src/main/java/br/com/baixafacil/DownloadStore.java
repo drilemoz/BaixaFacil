@@ -210,6 +210,27 @@ public final class DownloadStore {
         }
     }
 
+    /** Remove somente registro concluído cuja URI ainda coincide com a seleção confirmada. */
+    static boolean removeIfCompleted(Context context, String id, String expectedUri) {
+        if(id==null || id.isEmpty() || expectedUri==null || expectedUri.isEmpty()) return false;
+        synchronized (LOCK) {
+            SharedPreferences pref=context.getSharedPreferences(PREF,Context.MODE_PRIVATE);
+            JSONArray old=read(pref), next=new JSONArray();
+            boolean removed=false;
+            for(int i=0;i<old.length();i++) {
+                JSONObject row=old.optJSONObject(i);
+                if(row==null)continue;
+                if(id.equals(row.optString("id")) && expectedUri.equals(row.optString("uri"))
+                    && DownloadSelectionPolicy.selectable(row.optString("status"),row.optString("uri"))) {
+                    removed=true;
+                    continue;
+                }
+                next.put(row);
+            }
+            return removed && pref.edit().putString(KEY,next.toString()).commit();
+        }
+    }
+
     public static List<JSONObject> all(Context context) {
         synchronized (LOCK) {
             JSONArray arr = read(context.getSharedPreferences(PREF, Context.MODE_PRIVATE));

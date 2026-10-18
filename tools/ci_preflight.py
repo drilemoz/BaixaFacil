@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.41"
-CODE = "41"
+VERSION = "0.1.0-alpha.43"
+CODE = "43"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -14,12 +14,24 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "alpha43 local download filters": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+        for x in ["chooseSizeFilter", "chooseOriginFilter", "clearDownloadFilters", "updateActiveFilterBar", "DownloadListFilters.matchesSize", "DownloadListFilters.matchesOrigin", "selectVisibleDownloads", "endDownloadSelection();"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/DownloadListFilters.java")
+        for x in ["class DownloadListFilters", "public static String originHost", "getRawUserInfo", "getHost()", "matchesSize", "matchesOrigin", "countOrigins"])
+        and "class DownloadListFiltersTest" in read("app/src/test/java/br/com/baixafacil/DownloadListFiltersTest.java"),
     "alpha41 Custom Tabs wiring": all(x in app for x in ["androidx.browser:browser:1.10.0", "compileSdk 36"])
         and all(x in read("app/src/main/java/br/com/baixafacil/CustomTabsBrowser.java")
             for x in ["CustomTabsClient.getPackageName", "tab.intent.setPackage", "tab.launchUrl", "forLogin"])
         and 'android.support.customtabs.action.CustomTabsService' in read("app/src/main/AndroidManifest.xml")
         and all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["Login em Custom Tabs", "CustomTabsBrowser::setForLogin", "CustomTabsBrowser.forLogin"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["openCompatibleBrowser", "openLoginBrowser", "Abrir com Custom Tabs"]),
+    "alpha42 multi-select safety": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
+            for x in ["startDownloadSelection", "selectVisibleDownloads", "shareSelectedDownloads", "confirmSelectedCleanup", "runSelectedCleanup", "selectedCompletedRows", "DownloadSelectionPolicy.selectable", "ACTION_SEND_MULTIPLE", "FLAG_GRANT_READ_URI_PERMISSION"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/DownloadCleanup.java")
+            for x in ["runSelected", "DownloadStore.removeIfCompleted", "getContentResolver().delete"])
+        and all(x in read("app/src/main/java/br/com/baixafacil/DownloadStore.java")
+            for x in ["removeIfCompleted", "expectedUri.equals", "DownloadSelectionPolicy.selectable"])
+        and "class DownloadSelectionPolicyTest" in read("app/src/test/java/br/com/baixafacil/DownloadSelectionPolicyTest.java"),
     "alpha41 safe cleanup": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
             for x in ["showCleanDownloadsOptions", "confirmClearDownloads", "runDownloadCleanup", "Limpar downloads"])
         and all(x in read("app/src/main/java/br/com/baixafacil/DownloadCleanup.java")

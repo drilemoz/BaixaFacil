@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.0-alpha.43 (versionCode 43) - 2026-10-17
+
+- Adicionados **filtros combináveis por tamanho e site de origem** em Meus downloads > Filtrar e ordenar, além dos filtros anteriores por estado, tipo e pesquisa.
+- Tamanho: todos, desconhecido, menor que 10 MiB, de 10 até menos de 100 MiB e 100 MiB ou mais. Downloads parciais com total desconhecido não recebem tamanho inventado. Quando concluído e sem total registrado, bytes efetivamente recebidos podem representar seu tamanho.
+- Filtro de origem extrai apenas o host HTTP(S) do histórico local, com contagem por site, lista dos 30 hosts mais frequentes e opção sem origem identificada. Nenhum URL completo, assinatura ou token é apresentado nos filtros.
+- Faixa discreta de filtros ativos com botão **Limpar**, opção no menu para restaurar status/tipo/tamanho/site/pesquisa, e estado vazio específico para filtros sem resultados.
+- Seleção múltipla da alpha.42 respeita o resultado filtrado em "Selecionar visíveis"; ao trocar filtros a seleção é encerrada para não remover itens escondidos acidentalmente. Nenhum download ou arquivo é alterado pelo filtro.
+- Implementado `DownloadListFilters` (Java puro), com 10 testes JVM de limites de tamanho, URLs privadas, domínios e agregação; sincronizados versionName/versionCode 43, User-Agent, Sobre, workflow, preflight, mock e documentos.
+- Compilação Android completa e testes no aparelho continuam pendentes.
+
+## 0.1.0-alpha.42 (versionCode 42) - 2026-10-17
+
+- Implementada **seleção múltipla** de arquivos concluídos, pelo botão Selecionar ou por toque longo nos cartões. Interface com seleção visível, contador e barra horizontal de ações.
+- Incluído **Selecionar visíveis**, respeitando pesquisa/filtros, e **Enviar**, com compartilhamento Android de até 25 arquivos e permissão temporária de leitura para o destino.
+- **Remover da lista** e **Apagar arquivos** exigem confirmação, executam fora da UI e revalidam o status e a URI antes de qualquer exclusão. Só downloads concluídos do MediaStore podem ser selecionados.
+- Arquivos físicos ficam intocados ao remover registros, falhas de exclusão preservam histórico e os itens pausados/na fila/em andamento não entram na operação.
+- Novos testes da política `DownloadSelectionPolicy`, pré-validação do workflow e versionamento 42 sincronizados em Gradle, Sobre, User-Agent e documentação. APK completo pendente no GitHub Actions.
+
 ## 0.1.0-alpha.41 (versionCode 41) - 2026-10-17
 
 - Adicionado **Custom Tabs** do AndroidX Browser 1.10.0 com detecção do navegador compatível e pacote explícito, para abrir a página atual a pedido e encaminhar login Google ao navegador externo quando habilitado. Nenhum cookie ou download é transferido para a WebView.

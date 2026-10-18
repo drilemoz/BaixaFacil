@@ -100,3 +100,9 @@
 
 - Alpha.41: Custom Tabs requer navegador externo instalado, permissão de visibilidade da ação do serviço `android.support.customtabs.action.CustomTabsService`, `CustomTabsClient.getPackageName` e pacote explícito para não retornar à MainActivity. Sem sincronização de cookies, downloads ou sessões entre WebView e navegador externo; fallback somente ao seletor de navegador do Android.
 - Alpha.41: limpeza em lote exige confirmação, trabalha fora da UI e remove apenas `Concluído`, `Cancelado` e `Falhou` sem URI. Nunca excluir fila, pausados, interrompidos, itens em andamento ou fragmentos recuperáveis. Exclusão física apenas para MediaStore `content://media/...`, mantendo o registro se a exclusão não for bem-sucedida.
+
+- Alpha.42: seleção múltipla aceita somente `Concluído` com URI `content://media/...`; nunca escolher filas ativas, pausados, interrompidos ou fragmentos.
+- Alpha.42: a limpeza da seleção deve confirmar, executar fora da UI, revalidar status e URI atuais, e não remover o registro quando a exclusão física falha. `Remover da lista` mantém arquivos. `Enviar` usa somente URIs públicas com permissão temporária de leitura, limitado a 25.
+
+- Alpha.43: filtros do histórico por tamanho e host são apenas de apresentação. Total conhecido prevalece; bytes recebidos só servem de tamanho final quando o status é Concluído. Não inferir tamanho total de download parcial, nem consultar rede para filtrar.
+- Alpha.43: extrair somente host HTTP(S) da URL local e nunca incluir path/query/token no texto de filtro, no diagnóstico ou em requisições. Filtros se combinam com status, pesquisa e tipo; trocar filtros encerra seleção múltipla e "Selecionar visíveis" deve operar exclusivamente na lista filtrada.

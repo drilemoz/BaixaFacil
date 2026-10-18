@@ -13,6 +13,36 @@ final class DownloadCleanup {
             this.removed=removed;this.deletedFiles=deletedFiles;this.failedFiles=failedFiles;this.preserved=preserved;
         }
     }
+    /** Exclusão específica dos IDs confirmados, exclusivamente arquivos concluídos do MediaStore. */
+    static Report runSelected(Context context, java.util.Set<String> ids, boolean deleteFiles) {
+        if(ids==null || ids.isEmpty())return new Report(0,0,0,0);
+        int removed=0, deleted=0, failed=0, preserved=0;
+        for(JSONObject row:DownloadStore.all(context)) {
+            String id=row.optString("id");
+            if(!ids.contains(id))continue;
+            String uri=row.optString("uri");
+            JSONObject current=DownloadStore.get(context,id);
+            if(current==null || !uri.equals(current.optString("uri"))
+                    || !DownloadSelectionPolicy.selectable(current.optString("status"),uri)) {
+                preserved++;continue;
+            }
+            if(deleteFiles) {
+                try {
+                    if(context.getContentResolver().delete(Uri.parse(uri),null,null)!=1) {
+                        failed++;continue;
+                    }
+                    deleted++;
+                }catch(RuntimeException error){
+                    AppEventLog.error(context,"Exclusão múltipla",error);
+                    failed++;continue;
+                }
+            }
+            if(DownloadStore.removeIfCompleted(context,id,uri)) removed++;
+            else preserved++;
+        }
+        return new Report(removed,deleted,failed,preserved);
+    }
+
     static Report run(Context context, boolean deleteFiles) {
         int removed=0, deleted=0, failed=0, preserved=0;
         for (JSONObject row : DownloadStore.all(context)) {

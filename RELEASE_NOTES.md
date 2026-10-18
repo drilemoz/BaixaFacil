@@ -1,13 +1,15 @@
-# Baixa Fácil 0.1.0-alpha.41 (versionCode 41)
+# Baixa Fácil 0.1.0-alpha.43 (versionCode 43)
 
 ## Novidades
 
-- **Custom Tabs (AndroidX Browser 1.10.0)**: abrir a página no navegador instalado, pelo menu do navegador. Fluxos Google OAuth oferecem navegador compatível e usam Custom Tabs, se habilitado em Configurações; fallback para navegador externo.
-- **Limpar downloads**: novo botão de lixeira em Meus downloads com opções para limpar registros finalizados sem apagar os arquivos ou apagar também arquivos concluídos do armazenamento MediaStore quando houver permissão.
-- Downloads na fila, ativos, pausados ou com fragmentos de retomada continuam protegidos. Falhas de exclusão preservam o registro para nova tentativa.
-- Novos testes JVM de política de limpeza e verificações preventivas de integração.
+- Filtros de downloads por **tamanho** e **site de origem** combinados com pesquisa, estado e tipo.
+- Tamanhos: todos, desconhecido, menos de 10 MB, 10 a 100 MB, 100 MB ou mais. Sem extrapolar bytes parciais como tamanho do arquivo.
+- Lista local dos principais domínios do histórico, mostrando somente o host, nunca a URL completa ou seus tokens.
+- Faixa de filtros ativos e botão **Limpar filtros**, com aviso específico quando nenhum download atende à seleção.
+- Seleção múltipla respeita a lista filtrada; alterar filtros cancela seleções anteriores para proteger arquivos ocultos.
 
-## Limitações
+## Segurança e validação
 
-- Custom Tabs utiliza a sessão do navegador externo e não fornece cookies, vídeos ou downloads ao motor do Baixa Fácil. Não garante autorização Google para todas as páginas.
-- A compilação Android completa e a validação de UI/MediaStore em dispositivo ainda dependem do GitHub Actions e teste físico. Este ZIP contém **código-fonte**, não APK compilado.
+- Não modifica arquivos, histórico nem fila ao aplicar filtros.
+- 10 testes JVM de domínio/tamanho e verificação de consistência estrutural, preflight e simulação de publicação.
+- **Pendente:** compilação `:app:testDebugUnitTest :app:assembleDebug` no GitHub Actions e teste visual Android real. Este ZIP contém o código-fonte, não um APK.
