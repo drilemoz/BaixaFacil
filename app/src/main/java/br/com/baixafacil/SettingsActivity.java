@@ -86,6 +86,9 @@ public final class SettingsActivity extends Activity {
         option("Limpar dados do navegador","Cookies, cache e histórico locais","trash",this::confirmClear);
         option("Compatibilidade de login", "Cookies de terceiros: " + (BrowserPrefs.thirdPartyCookies(this) ? "ativados (menos privacidade)" : "bloqueados (padrão)"), "lock", this::chooseCookieCompatibility);
         option("Cookies e sessões","Manter logins, excluir cookies e dados por origem","lock",()->{sessionSettingsPage=true;render();});
+        downloadSwitch("Login em Custom Tabs",
+            "Quando disponível, usa um navegador instalado para login Google e páginas incompatíveis. Sessões e downloads desse navegador são separados dos do Baixa Fácil.",
+            CustomTabsBrowser.forLogin(this),CustomTabsBrowser::setForLogin);
 
         section("🛡 Bloqueio de anúncios");
         option("Proteção", adBlockModeName(), "shield", this::chooseAdBlockMode);
@@ -138,8 +141,8 @@ public final class SettingsActivity extends Activity {
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
         option("Diagnóstico e alertas",AppEventLog.enabled(this)?"Captura local ativada":"Captura local desativada","alert",()->{diagnosticsPage=true;render();});
-        option("Sobre","Baixa Fácil 0.1.0-alpha.40","webdown",()->{
-            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.40\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
+        option("Sobre","Baixa Fácil 0.1.0-alpha.41","webdown",()->{
+            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.41\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
         });
     }
     private void renderSessionSettings(){

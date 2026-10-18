@@ -244,6 +244,7 @@ public class MainActivity extends Activity {
             else {searchInput.setText("");((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(searchInput.getWindowToken(),0);}
         }),new LinearLayout.LayoutParams(dp(44),dp(48)));
         section.addView(iconButton("filter","Filtrar e ordenar downloads",this::showOrganizeMenu),new LinearLayout.LayoutParams(dp(44),dp(48)));
+        section.addView(iconButton("trash","Limpar downloads",this::showCleanDownloadsOptions),new LinearLayout.LayoutParams(dp(44),dp(48)));
         header.addView(section,Ui.lp(this,-1,52,12));
 
         filterRow = Ui.horizontal(this);
@@ -456,6 +457,51 @@ public class MainActivity extends Activity {
         rows.add(AppMenus.Entry.item("Ordenação","Recentes, antigos, nome ou tamanho","menu",this::chooseSortMode));
         AppMenus.show(this,"Organizar downloads","Personalize a lista sem alterar os arquivos.",rows);
     }
+    private void showCleanDownloadsOptions() {
+        int eligible=0, protectedCount=0, completed=0;
+        for(JSONObject row:DownloadStore.all(this)) {
+            String status=row.optString("status");
+            if(DownloadCleanupPolicy.eligible(status,!row.optString("uri").isEmpty())) {
+                eligible++;
+                if("Concluído".equals(status))completed++;
+            } else protectedCount++;
+        }
+        final int total=eligible, files=completed;
+        List<AppMenus.Entry> actions=AppMenus.entries();
+        actions.add(AppMenus.Entry.item("Limpar lista (manter arquivos)",
+            total+" registros finalizados; nenhum arquivo será apagado","folder",()->confirmClearDownloads(false,total)));
+        actions.add(AppMenus.Entry.danger("Apagar arquivos e limpar lista",
+            files+" concluídos; exclusão definitiva do armazenamento","trash",()->confirmClearDownloads(true,total)));
+        AppMenus.info(this,"Limpar downloads",
+            "Ações aplicadas a downloads terminados. Transferências em andamento, na fila, pausadas ou com partes recuperáveis são protegidas ("+protectedCount+" registros). A limpeza da lista mantém os arquivos físicos.",actions);
+    }
+
+    private void confirmClearDownloads(boolean deleteFiles,int count) {
+        if(count==0){Toast.makeText(this,"Não há downloads finalizados para limpar",Toast.LENGTH_LONG).show();return;}
+        List<AppMenus.Entry> actions=AppMenus.entries();
+        actions.add(AppMenus.Entry.danger(deleteFiles?"Confirmar exclusão de arquivos":"Confirmar limpeza da lista",
+            deleteFiles?"Arquivos concluídos serão apagados definitivamente":"Os arquivos baixados permanecerão no dispositivo",
+            "trash",()->runDownloadCleanup(deleteFiles)));
+        AppMenus.info(this,deleteFiles?"Excluir arquivos e registros?":"Limpar histórico de downloads?",
+            deleteFiles?"Arquivos baixados e os registros correspondentes serão excluídos. Arquivos sem permissão ou que falharem permanecerão na lista. Esta ação não pode ser desfeita.":
+            "Remove os registros de downloads concluídos, cancelados e falhas sem arquivo parcial. Arquivos baixados ficam na pasta Download. Não afeta fila nem pausados.",actions);
+    }
+
+    private void runDownloadCleanup(boolean deleteFiles) {
+        Toast.makeText(this,"Limpando downloads...",Toast.LENGTH_SHORT).show();
+        new Thread(()->{
+            DownloadCleanup.Report report=DownloadCleanup.run(getApplicationContext(),deleteFiles);
+            handler.post(()->{
+                if(isFinishing() || isDestroyed())return;
+                refresh();
+                String message=report.removed+" registros removidos";
+                if(deleteFiles) message+=" • "+report.deletedFiles+" arquivos apagados";
+                if(report.failedFiles>0)message+=" • "+report.failedFiles+" não apagados";
+                Toast.makeText(this,message,Toast.LENGTH_LONG).show();
+            });
+        },"download-cleanup").start();
+    }
+
     private void chooseFileType() {
         final String[] types={"Todos","Aplicativos","Vídeos","Áudios","Imagens","Documentos","Compactados","Outros"};
         List<AppMenus.Entry> rows=AppMenus.entries();

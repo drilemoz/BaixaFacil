@@ -1,4 +1,11 @@
-# Baixa Fácil 0.1.0-alpha.40
+# Baixa Fácil 0.1.0-alpha.41
+
+## Navegação compatível e limpeza de downloads (alpha.41)
+
+- **Custom Tabs**: menu ⋮ do navegador > Ferramentas da página > **Abrir com Custom Tabs**. Utiliza um navegador instalado compatível com cookies e sessões próprios; o Baixa Fácil não importa credenciais ou downloads desse navegador. **Configurações > Login em Custom Tabs** permite desativar a opção automática para autenticação Google (padrão ligado). Se não houver serviço Custom Tabs, usa o seletor de navegador externo.
+- **Limpar downloads**: ícone de lixeira ao lado dos controles de pesquisa e organização em **Meus downloads**. Permite **Limpar lista (manter arquivos)** ou **Apagar arquivos e limpar lista** com duas confirmações.
+- A limpeza só afeta registros de status **Concluído**, **Cancelado** e **Falhou** sem fragmentos. Fila, ativos, pausados, interrompidos e itens com partes recuperáveis permanecem intactos. A opção de apagar arquivos concluídos atua apenas sobre URIs MediaStore e preserva o registro se a exclusão falhar.
+- Todo o processo ocorre localmente; nenhum acesso a cookies do navegador externo e nenhum download universal de vídeos é prometido.
 
 ## Ações rápidas e prevenção de duplicatas (alpha.40)
 

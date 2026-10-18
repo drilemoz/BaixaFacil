@@ -97,3 +97,6 @@
 
 - Alpha.40: URLs repetidas são verificadas por igualdade exata, inclusive query; não deduplicar por nome, domínio, path sem assinatura nem tamanho aparente. Downloads ativos/pausados devem ser acessados pela lista e um arquivo concluído só deve ser baixado novamente por escolha explícita.
 - Alpha.40: `catch` múltiplo não pode conter `RuntimeException` e subclasses. Atalhos Abrir/Enviar validam URIs content:// e capturam falhas de Intent/ClipData/chooser, mantendo leituras de cookies e URLs assinadas fora do diagnóstico.
+
+- Alpha.41: Custom Tabs requer navegador externo instalado, permissão de visibilidade da ação do serviço `android.support.customtabs.action.CustomTabsService`, `CustomTabsClient.getPackageName` e pacote explícito para não retornar à MainActivity. Sem sincronização de cookies, downloads ou sessões entre WebView e navegador externo; fallback somente ao seletor de navegador do Android.
+- Alpha.41: limpeza em lote exige confirmação, trabalha fora da UI e remove apenas `Concluído`, `Cancelado` e `Falhou` sem URI. Nunca excluir fila, pausados, interrompidos, itens em andamento ou fragmentos recuperáveis. Exclusão física apenas para MediaStore `content://media/...`, mantendo o registro se a exclusão não for bem-sucedida.

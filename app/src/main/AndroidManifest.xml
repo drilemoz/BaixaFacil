@@ -7,6 +7,13 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RUN_USER_INITIATED_JOBS" />
 
+    <!-- Descoberta de navegadores que oferecem o serviço oficial Custom Tabs (Android 11+). -->
+    <queries>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+    </queries>
+
     <application
         android:name=".BaixaFacilApp"
         android:allowBackup="false"

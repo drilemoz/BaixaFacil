@@ -1,24 +1,20 @@
-# Validação 0.1.0-alpha.40
+# Validação 0.1.0-alpha.41
 
-## Mudanças
+## Inspeção preventiva
 
-- Correção de Java: eliminar `catch (SecurityException | IllegalArgumentException | RuntimeException)`, que é inválido porque os dois primeiros tipos derivam de `RuntimeException`.
-- Atalhos Abrir/Enviar com rótulos e toques de 44 dp, compatíveis com os três temas do app.
-- Proteção ao abrir/compartilhar URI `content://` com autoridade, incluindo a construção de ClipData e do Intent dentro de `try`.
-- Proteção conservadora de duplicatas (`DownloadDuplicatePolicy`) com igualdade exata incluindo query e host, aplicada tanto ao navegador quanto à área de downloads.
-- Eventos diagnósticos sem URL completa em falhas de carregamento da página principal e renderizador WebView.
+- `python3 tools/ci_preflight.py` com checagens de dependência `androidx.browser:browser:1.10.0`, `CustomTabsClient`, pacote explícito, `<queries>` da API Android 11+ e menu/preferência visíveis.
+- `bash tools/test_publish_mock.sh` para simular criação, atualização e divergência de SHA-256 na publicação de APK.
+- `DownloadCleanupPolicyTest` para estados de limpeza e proteção de registros em andamento/pausados e validação da URI MediaStore.
+- Análise da sintaxe Java, XML, YAML e integridade de ZIP.
 
-## Testes automatizados locais
+## Testes funcionais pendentes no dispositivo
 
-- `DownloadDuplicatePolicyTest` cobre URL ativa, pausada, interrompida, concluída, falha, alterada por assinatura, outro domínio e listas vazias.
-- `python3 tools/ci_preflight.py` deve conferir versionamento, integração, políticas e workflow.
-- `bash tools/test_publish_mock.sh` verifica criação/atualização da release simulada e SHA-256.
-- Sintaxe Java/XML/YAML/ZIP deve ser validada, sem alegar Android compilado.
+1. Instalar APK no Android e validar Custom Tabs com Chrome/Firefox: abrir página, voltar ao app, verificar cookies separados e opção desativada para login.
+2. Abrir Google OAuth e confirmar que ele é encaminhado ao navegador compatível; sem expectativa de sessão sincronizada na WebView.
+3. Adicionar downloads concluídos, pausados, em fila e falhos com fragmento. **Limpar lista** deve retirar apenas finalizados e preservar arquivos/retomadas.
+4. **Apagar arquivos e limpar lista** deve excluir somente arquivos MediaStore concluídos com permissão, preservar os registros quando a exclusão falhar e deixar ativos/pausados intactos.
+5. Repetir em temas claro e AMOLED, Android 10 e Android 14+ quando possível.
 
-## Testes pendentes no aparelho
+## Limitação do ambiente local
 
-- Compilar com GitHub Actions `:app:testDebugUnitTest :app:assembleDebug`.
-- Baixar arquivo grande, abrir e compartilhar pelos atalhos sem crash.
-- Tentar repetir o mesmo link enquanto ativo/pausado, e depois de concluído.
-- Testar dois links assinados diferentes para o mesmo caminho, que não devem ser agrupados sem confirmação de conteúdo.
-- Verificar logs em Configurações > Diagnóstico e alertas para falhas do navegador sem exposição de endereços com tokens.
+Compilação `:app:testDebugUnitTest :app:assembleDebug` e teste de execução Android pendentes até build com SDK/Gradle no GitHub Actions. Sintaxe Java aprovada isoladamente não garante resolução de APIs Android.

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.41 (versionCode 41) - 2026-10-17
+
+- Adicionado **Custom Tabs** do AndroidX Browser 1.10.0 com detecção do navegador compatível e pacote explícito, para abrir a página atual a pedido e encaminhar login Google ao navegador externo quando habilitado. Nenhum cookie ou download é transferido para a WebView.
+- Nova preferência **Login em Custom Tabs** ativada por padrão, com fallback para o seletor de navegador externo. O navegador WebView permanece o motor padrão e Custom Tabs não equivale a burlar OAuth nem concede acesso aos downloads privados do navegador externo.
+- Novo botão **Limpar downloads** no cabeçalho de Meus downloads, com duas ações confirmadas: remover registros finalizados sem tocar nos arquivos, ou excluir arquivos concluídos do MediaStore e seus registros quando autorizado.
+- Limpeza fora da thread de interface, com política para preservar fila, downloads ativos, pausados, interrompidos e falhas com arquivo parcial. Exclusões sem permissão falham sem remover o respectivo registro.
+- Política de limpeza testável em Java puro e checagens preventivas de CI, com versão e documentação sincronizadas.
+- Ainda pendentes build Gradle/Android e testes de Custom Tabs, MediaStore e UI em aparelho.
+
 ## 0.1.0-alpha.40 (versionCode 40) - 2026-10-17
 
 - Ações rápidas de arquivos concluídos agora têm ícones **e** rótulos Abrir/Enviar, com espaço entre os botões e alvos de 44 dp.

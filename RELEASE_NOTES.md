@@ -1,14 +1,13 @@
-# Baixa Fácil 0.1.0-alpha.40 (versionCode 40)
+# Baixa Fácil 0.1.0-alpha.41 (versionCode 41)
 
 ## Novidades
 
-- Na aba **Meus downloads**, ações rápidas **Abrir** e **Enviar** ganharam ícone + texto e foram separadas visualmente.
-- Correção de `catch` incompatível introduzido na alpha.39, com validação de URI `content://` e tratamento de falhas ao abrir ou compartilhar.
-- Links exatamente iguais já ativos ou pausados não são enfileirados de novo. Se o download estiver concluído, um menu permite baixar novamente somente por escolha explícita.
-- O diagnóstico local opcional agora registra erros de páginas principais (sem URL), eventos do renderizador WebView e falhas relevantes de arquivo.
+- **Custom Tabs (AndroidX Browser 1.10.0)**: abrir a página no navegador instalado, pelo menu do navegador. Fluxos Google OAuth oferecem navegador compatível e usam Custom Tabs, se habilitado em Configurações; fallback para navegador externo.
+- **Limpar downloads**: novo botão de lixeira em Meus downloads com opções para limpar registros finalizados sem apagar os arquivos ou apagar também arquivos concluídos do armazenamento MediaStore quando houver permissão.
+- Downloads na fila, ativos, pausados ou com fragmentos de retomada continuam protegidos. Falhas de exclusão preservam o registro para nova tentativa.
+- Novos testes JVM de política de limpeza e verificações preventivas de integração.
 
-## Observações
+## Limitações
 
-- Comparação de URL exata não equivale a comparação de conteúdo ou checksum; links assinados diferentes continuam sendo tratados como endereços distintos.
-- Nenhuma sessão de site, cookie ou token de autenticação é armazenado nos eventos de diagnóstico.
-- O ZIP contém o código-fonte. O build Android completo e os testes no aparelho ainda precisam ser confirmados via GitHub Actions.
+- Custom Tabs utiliza a sessão do navegador externo e não fornece cookies, vídeos ou downloads ao motor do Baixa Fácil. Não garante autorização Google para todas as páginas.
+- A compilação Android completa e a validação de UI/MediaStore em dispositivo ainda dependem do GitHub Actions e teste físico. Este ZIP contém **código-fonte**, não APK compilado.

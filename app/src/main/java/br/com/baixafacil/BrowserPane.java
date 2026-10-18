@@ -740,7 +740,8 @@ final class BrowserPane {
                 BrowserPrefs.setDesktop(host,!BrowserPrefs.desktop(host));applyPagePreferences(false);
                 Toast.makeText(host,"Visualização atualizada",Toast.LENGTH_SHORT).show();
             }));
-        rows.add(AppMenus.Entry.item("Abrir em outro navegador","Compartilhar a página com o navegador externo","forward",()->openInExternalBrowser(web.getUrl())));
+        rows.add(AppMenus.Entry.item("Abrir com Custom Tabs","Navegador instalado com sessão própria","globe",()->openCompatibleBrowser(web.getUrl())));
+        rows.add(AppMenus.Entry.item("Abrir em outro navegador","Escolher um navegador externo","forward",()->openInExternalBrowser(web.getUrl())));
         AppMenus.show(host,"Ferramentas da página","Ajustes de visualização e pesquisa.",rows);
     }
     private void showProtectionTools(){
@@ -759,7 +760,8 @@ final class BrowserPane {
         rows.add(AppMenus.Entry.item("Diagnóstico do navegador","WebView, cookies e erros sem dados sensíveis","alert",this::showLoginDiagnosis));
         rows.add(AppMenus.Entry.item("Desempenho e memória","RAM disponível, PSS do app e estado da WebView","settings",this::showPerformanceDiagnosis));
         rows.add(AppMenus.Entry.item("Ajuda com login","Google, Facebook e verificações","lock",this::showLoginHelp));
-        rows.add(AppMenus.Entry.item("Abrir em navegador externo","Para sites que exigem autenticação externa","globe",()->openInExternalBrowser(web.getUrl())));
+        rows.add(AppMenus.Entry.item("Abrir com Custom Tabs","Compatibilidade com login e navegador externo","globe",()->openCompatibleBrowser(web.getUrl())));
+        rows.add(AppMenus.Entry.item("Escolher navegador externo","Alternativa caso Custom Tabs não esteja disponível","forward",()->openInExternalBrowser(web.getUrl())));
         AppMenus.show(host,"Login e diagnóstico","Ferramentas de compatibilidade e segurança.",rows);
     }
 
@@ -944,7 +946,7 @@ final class BrowserPane {
             .setTitle("Login do Google no navegador")
             .setMessage("O Google não permite login OAuth dentro de uma WebView. Para proteger sua conta, abra a autenticação em um navegador compatível.\n\nA sessão do navegador externo é independente e não entra automaticamente no Baixa Fácil.")
             .setNegativeButton("Cancelar",null)
-            .setPositiveButton("Abrir navegador",(d,w)->openInExternalBrowser(url))
+            .setPositiveButton("Abrir navegador",(d,w)->openLoginBrowser(url))
             .create();
         dialog.setOnDismissListener(d->googleLoginDialogVisible=false);
         dialog.show();
@@ -952,12 +954,20 @@ final class BrowserPane {
 
     private void showLoginHelp() {
         List<AppMenus.Entry> rows=AppMenus.entries();
-        rows.add(AppMenus.Entry.item("Abrir navegador externo","Usar um navegador compatível para o login","globe",()->openInExternalBrowser(web.getUrl())));
+        rows.add(AppMenus.Entry.item("Abrir com Custom Tabs","Usar um navegador instalado para o login","globe",()->openCompatibleBrowser(web.getUrl())));
         rows.add(AppMenus.Entry.item("Ver diagnóstico","WebView, cookies e falhas recentes","alert",this::showLoginDiagnosis));
         AppMenus.info(host,"Ajuda com login",
             "Google: login OAuth não é compatível com WebView. Use o navegador externo.\n\n"
             + "Facebook: mantenha JavaScript ligado, desative o modo computador e tente a opção de cookies de terceiros somente se necessário (menos privacidade).\n\n"
             + "A sessão externa não é importada. Nenhuma alteração garante que todos os sites aceitem login na WebView.",rows);
+    }
+
+    private void openCompatibleBrowser(String url) {
+        if(!CustomTabsBrowser.open(host,url))openInExternalBrowser(url);
+    }
+    private void openLoginBrowser(String url) {
+        if(CustomTabsBrowser.forLogin(host))openCompatibleBrowser(url);
+        else openInExternalBrowser(url);
     }
 
     private void openInExternalBrowser(String url) {

@@ -191,6 +191,25 @@ public final class DownloadStore {
         }
     }
 
+    /** Remoção atômica sob a mesma trava de atualização, condicionada a estado final. */
+    static boolean removeIfFinished(Context context, String id) {
+        synchronized (LOCK) {
+            SharedPreferences pref=context.getSharedPreferences(PREF,Context.MODE_PRIVATE);
+            JSONArray old=read(pref),filtered=new JSONArray();
+            boolean removed=false;
+            for(int i=0;i<old.length();i++) {
+                JSONObject row=old.optJSONObject(i);
+                if(row==null)continue;
+                if(id.equals(row.optString("id")) && DownloadCleanupPolicy.eligible(
+                        row.optString("status"),!row.optString("uri").isEmpty())) {
+                    removed=true;continue;
+                }
+                filtered.put(row);
+            }
+            return removed && pref.edit().putString(KEY,filtered.toString()).commit();
+        }
+    }
+
     public static List<JSONObject> all(Context context) {
         synchronized (LOCK) {
             JSONArray arr = read(context.getSharedPreferences(PREF, Context.MODE_PRIVATE));
