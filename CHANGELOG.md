@@ -1,3 +1,12 @@
+# Baixa Fácil 0.1.0-alpha.53 (versionCode 53) - 2026-10-19
+
+- Proteção contra ciclo de recriação do navegador após `GeckoSession.ContentDelegate.onCrash/onKill`: até duas tentativas automáticas a cada 120 segundos; terceira falha exige ação explícita.
+- Ao retornar ao navegador de uma aba oculta, recuperação pendente é tratada sem reativar sessão fechada.
+- Adicionados `GeckoCrashPolicy` (sem Android, testável), teste JUnit e executor local de contrato Java; sem persistir URL/cookies no contador.
+- Resumo de publicação exibe tamanho real dos três APKs e SHA-256, além de rejeitar saída diferente de três ABIs.
+- Versionamento/documentação/workflow/testes sincronizados; GeckoView 158, SDK 37, bibliotecas e motor HTTP sem alterações.
+- A compilação Android e os testes físicos da alpha.53 ainda precisam ocorrer no GitHub Actions/aparelho.
+
 # Baixa Fácil 0.1.0-alpha.52 (versionCode 52) - 2026-10-19
 
 - **Build 23:** `:app:testDebugUnitTest`, `:app:assembleDebug` e `:app:assembleRelease` concluíram com `BUILD SUCCESSFUL`. Falha depois do build, em `collect_abi_apks.py`: `Bibliotecas nativas de x86 inválidas: set()`.

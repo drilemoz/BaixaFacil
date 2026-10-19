@@ -103,6 +103,6 @@ final class GeckoBrowserView extends GeckoView {
         scanCallback=null;
         if(contentPort!=null){contentPort.disconnect();contentPort=null;}
         releaseSession();
-        session.close();
+        if(session.isOpen())session.close();
     }
 }

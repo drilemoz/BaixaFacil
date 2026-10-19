@@ -1,3 +1,13 @@
+# Baixa Fácil 0.1.0-alpha.53 (versionCode 53)
+
+**Estabilidade GeckoView:** recuperação automática limitada a duas tentativas durante 120 segundos. Se o processo de conteúdo continuar encerrando, o aplicativo oferece tentar manualmente, abrir o site no navegador externo ou voltar aos downloads. Sessão/cookies não são copiados para o motor HTTP.
+
+**APKs por arquitetura:** permanece a geração `armeabi-v7a`, `arm64-v8a`, `x86_64`, sem universal/x86 32 bits. O resumo do GitHub Actions passa a apresentar tamanhos reais de cada arquivo e SHA-256 após publicação. Não foram gerados APKs neste ambiente.
+
+**Validação local:** testes da regra Java de prevenção de crash, coletor de ABIs, publicador simulado e pré-validação. Gradle/Android e teste em aparelho pendentes.
+
+---
+
 # Baixa Fácil 0.1.0-alpha.52 (versionCode 52)
 
 ## APKs por arquitetura validados para GeckoView 158

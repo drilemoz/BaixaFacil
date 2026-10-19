@@ -80,7 +80,9 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo "- [Release com os três APKs]($release_url)"
     echo "- Assinatura: \`${SIGNING_MODE:-não informada}\`"
     for file in "${files[@]}"; do
-      echo "- \`$(basename "$file")\`: SHA-256 \`$(sha256sum "$file" | cut -d' ' -f1)\`"
+      bytes="$(wc -c < "$file" | tr -d ' ')"
+      mib="$(awk -v bytes="$bytes" 'BEGIN {printf "%.1f", bytes / 1048576}')"
+      echo "- \`$(basename "$file")\`: **${mib} MiB** (${bytes} bytes), SHA-256 \`$(sha256sum "$file" | cut -d' ' -f1)\`"
     done
     echo '- Para celulares Android ARM modernos, prefira arm64-v8a; confira a ABI do aparelho.'
     echo '- ZIP de código-fonte não é Artifact de workflow.'

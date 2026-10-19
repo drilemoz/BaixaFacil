@@ -157,3 +157,9 @@
 - `splits.abi`: permitir somente armeabi-v7a, arm64-v8a e x86_64. Proibir universal e APK x86 sem motor; exigir `lib/<ABI>/libxul.so` no coletor.
 - GitHub Actions publica três APKs e verifica `apksigner`, `aapt`, versões e SHA-256 após download. Testar x86 ausente, libxul.so faltante e extras na preflight.
 - Preservar assinatura e demais requisitos de segurança; próxima versão 0.1.0-alpha.53/versionCode 53.
+
+## Versão 0.1.0-alpha.53: segurança de recuperação GeckoView
+- Nunca recrear indefinidamente a Activity após `onCrash`/`onKill`; a sessão fechada não pode ser reativada. Até duas tentativas automáticas por 120 segundos, depois escolha explícita do usuário. Adiar recuperação se a aba está oculta.
+- Persistir somente contagem e tempo monotônico para o limite, sem URLs, tokens ou cookies. Testar a regra Java real via JDK e JUnit da CI.
+- O resumo da Release deve informar tamanho **real** de cada APK, sem converter tamanho do código-fonte em estimativa de APK.
+- Preservar GeckoView 158, ABI ARM32/ARM64/x86_64, SDK 37.0, download engine. Próxima versão `0.1.0-alpha.54`/versionCode 54.

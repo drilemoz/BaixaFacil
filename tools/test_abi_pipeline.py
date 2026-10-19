@@ -14,7 +14,7 @@ assert ABIS == ('armeabi-v7a','arm64-v8a','x86_64')
 assert all(x in gradle for x in ('enable true', 'reset()', 'universalApk false',
               "include 'armeabi-v7a', 'arm64-v8a', 'x86_64'"))
 assert "'x86', 'x86_64'" not in gradle
-assert 'versionCode 52' in gradle and "versionName '0.1.0-alpha.52'" in gradle
+assert 'versionCode 53' in gradle and "versionName '0.1.0-alpha.53'" in gradle
 assert 'tools/collect_abi_apks.py' in yaml and 'apk_dir=dist' in yaml
 assert 'for abi in armeabi-v7a arm64-v8a x86_64; do' in yaml
 assert 'APK_DIR:' in yaml and 'APK_FILE:' not in yaml
@@ -36,27 +36,27 @@ with tempfile.TemporaryDirectory() as td:
     for abi in ABIS:
         name=make_apk(abi)
         els.append({'filters':[{'filterType':'ABI','value':abi}],
-                    'versionCode':52,'versionName':'0.1.0-alpha.52','outputFile':name})
+                    'versionCode':53,'versionName':'0.1.0-alpha.53','outputFile':name})
     meta={'variantName':'debug','applicationId':'br.com.baixafacil','elements':els}
     metadata_file=directory/'output-metadata.json'
     def write_meta(): metadata_file.write_text(json.dumps(meta),encoding='utf-8')
-    def rejects(tag,code=52):
+    def rejects(tag,code=53):
         write_meta()
-        try: collect(root,'debug','0.1.0-alpha.52',code,root/tag)
+        try: collect(root,'debug','0.1.0-alpha.53',code,root/tag)
         except ValueError: return
         raise AssertionError(f'{tag}: collector accepted invalid APK')
     write_meta()
-    paths=collect(root,'debug','0.1.0-alpha.52',52,root/'dist')
+    paths=collect(root,'debug','0.1.0-alpha.53',53,root/'dist')
     assert len(paths)==3 and all(p.is_file() for p in paths)
     assert all(p.name.endswith(f'{abi}.apk') for p,abi in zip(paths,ABIS))
-    rejects('bad_version',code=51)
+    rejects('bad_version',code=52)
     # Duplication of ABI filter
     meta['elements'][1]['filters'][0]['value']='armeabi-v7a'
     rejects('bad_duplicate')
     meta['elements'][1]['filters'][0]['value']='arm64-v8a'
     # Unsupported x86 even if Gradle produces an APK (the build 23 failure)
     x86={'filters':[{'filterType':'ABI','value':'x86'}],
-         'versionCode':52,'versionName':'0.1.0-alpha.52',
+         'versionCode':53,'versionName':'0.1.0-alpha.53',
          'outputFile':make_apk('x86',libpath=False)}
     meta['elements'].append(x86)
     rejects('bad_x86')

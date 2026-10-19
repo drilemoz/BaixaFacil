@@ -90,6 +90,9 @@ final class BrowserPane {
     private long lastAutomaticScanUptime;
     private volatile boolean lightweightPage;
     private boolean rendererUnresponsive;
+    private boolean geckoProcessGone;
+    private boolean geckoRecoveryScheduled;
+    private boolean geckoRecoveryDialogVisible;
     private int lastProgressBucket=-1;
     private final AdBlockController adBlock;
 
@@ -444,11 +447,13 @@ final class BrowserPane {
     void pause(){
         pageActive=false;
         cancelMediaScan();
-        if(web!=null)web.setActive(false);
+        if(web!=null && !geckoProcessGone)web.setActive(false);
     }
     void resume(){
         if(web==null)return;
         pageActive=true;
+        // Após onCrash/onKill a GeckoSession está fechada: nunca ativá-la novamente.
+        if(geckoProcessGone){scheduleGeckoRecovery();return;}
         web.setActive(true);
         adBlock.loadPreferences();
         lightweightPage=BrowserLoadPolicy.lightMode(web.getUrl(),BrowserPrefs.chatGptLight(host));
@@ -652,14 +657,50 @@ final class BrowserPane {
     }
 
     private void recoverGeckoCrash(){
+        // Os dois callbacks podem chegar para a mesma sessão. Tratar somente uma vez.
+        if(geckoProcessGone)return;
+        geckoProcessGone=true;
         lastNavigationProblem="Processo de conteúdo Gecko encerrado pelo Android.";
         AppEventLog.error(host,"Navegador","Processo de conteúdo Gecko encerrado.");
+        cancelMediaScan();
         if(loginPopupDialog!=null)loginPopupDialog.dismiss();
+        if(status!=null)status.setText("GeckoView interrompido. Abra o navegador para recuperar.");
+        if(pageActive)scheduleGeckoRecovery();
+    }
+
+    private void scheduleGeckoRecovery(){
+        if(geckoRecoveryScheduled || geckoRecoveryDialogVisible)return;
+        geckoRecoveryScheduled=true;
         host.getWindow().getDecorView().post(()->{
-            if(!host.isFinishing()&&!host.isDestroyed()){
-                Toast.makeText(host,"O navegador parou. Reabrindo a página.",Toast.LENGTH_LONG).show();
+            geckoRecoveryScheduled=false;
+            if(!geckoProcessGone || !pageActive || host.isFinishing() || host.isDestroyed())return;
+            // elapsedRealtime evita depender do relógio alterado pelo usuário.
+            android.content.SharedPreferences prefs=host.getSharedPreferences("gecko_crash_guard",android.content.Context.MODE_PRIVATE);
+            GeckoCrashPolicy.Decision decision=GeckoCrashPolicy.afterFailure(
+                SystemClock.elapsedRealtime(),prefs.getLong("window_start",0),prefs.getInt("count",0));
+            prefs.edit().putLong("window_start",decision.windowStartMs)
+                .putInt("count",decision.crashes).apply();
+            if(decision.restartAutomatically){
+                Toast.makeText(host,"GeckoView interrompido. Recuperando navegador ("+
+                    decision.crashes+"/"+GeckoCrashPolicy.MAX_AUTO_RESTARTS+").",Toast.LENGTH_LONG).show();
                 host.recreate();
+                return;
             }
+            geckoRecoveryDialogVisible=true;
+            AlertDialog dialog=new AlertDialog.Builder(host)
+                .setTitle("Navegador interrompido repetidamente")
+                .setMessage("O GeckoView parou três vezes em pouco tempo. A recuperação automática foi suspensa para evitar reinicializações contínuas. Seus downloads continuam separados do navegador.")
+                .setPositiveButton("Tentar novamente",(d,w)->host.recreate())
+                .setNegativeButton("Navegador externo",(d,w)->{
+                    String current=web==null?null:web.getUrl();
+                    if(LoginWindowPolicy.safeWebAddress(current))openInExternalBrowser(current);
+                    host.showDownloads();
+                })
+                .setNeutralButton("Ir aos downloads",(d,w)->host.showDownloads())
+                .setOnCancelListener(d->host.showDownloads())
+                .create();
+            dialog.setOnDismissListener(d->geckoRecoveryDialogVisible=false);
+            dialog.show();
         });
     }
 
@@ -1167,7 +1208,7 @@ final class BrowserPane {
         pageActive=false;cancelMediaScan();dismissAddressSuggestions();
         if(loginPopupDialog!=null)loginPopupDialog.dismiss();
         if(web!=null){
-            web.stopLoading();
+            if(!geckoProcessGone)web.stopLoading();
             ViewGroup parent=(ViewGroup)web.getParent();
             if(parent!=null)parent.removeView(web);
             web.destroyBrowser();web=null;

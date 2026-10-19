@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.52"
-CODE = "52"
+VERSION = "0.1.0-alpha.53"
+CODE = "53"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -17,6 +17,13 @@ service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
     "ABI splits and publishing regression": subprocess.run([sys.executable, str(ROOT / "tools/test_abi_pipeline.py")], check=False).returncode == 0,
+    "GeckoView crash recovery bounded (JDK real code test)": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_crash_policy.py")], check=False).returncode == 0
+        and "onCrash(GeckoSession gecko){recoverGeckoCrash();}" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        and "onKill(GeckoSession gecko){recoverGeckoCrash();}" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        and "geckoCrashNotified" not in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        and "if(web!=null && !geckoProcessGone)web.setActive(false);" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        and "if(!geckoProcessGone)web.stopLoading();" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        and "if(session.isOpen())session.close();" in read("app/src/main/java/br/com/baixafacil/GeckoBrowserView.java"),
     "GeckoBrowserView facade contract (workflow 21 regression)": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_browser_contract.py")], check=False).returncode == 0,
     "API 37.0 workflow shell regression": subprocess.run([sys.executable, str(ROOT / "tools/test_sdk_workflow.py")], check=False).returncode == 0,
     "alpha44 Downloads-Home navigation regression": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")

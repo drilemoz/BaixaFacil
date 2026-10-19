@@ -1,3 +1,11 @@
+## 0.1.0-alpha.53: estabilidade do GeckoView e diagnóstico dos APKs
+
+Consulte `docs/TESTE_APARELHO_GECKOVIEW.md` para o roteiro de validação física.
+
+A recuperação após `onCrash` ou `onKill` agora tem limite de duas tentativas automáticas em uma janela de 120 segundos, evitando um ciclo de recriações do Android. Se a falha persistir, o aplicativo oferece tentativa manual, navegador externo ou retorno aos downloads. O contador salvo não inclui URL, cookies ou credenciais; quando a aba está oculta, a recuperação é adiada até voltar ao navegador.
+
+O GitHub Actions passa a incluir o tamanho **real por arquitetura** (MiB/bytes) no resumo da Release junto ao SHA-256. Permanecem três APKs (`armeabi-v7a`, `arm64-v8a`, `x86_64`), GeckoView 158, SDK 37.0, minSdk 29/targetSdk 34 e as regras de assinatura. Esta entrega contém código-fonte; **não foi compilada nem instalada em Android aqui**.
+
 ## 0.1.0-alpha.52: corrigida matriz de APKs GeckoView
 
 O **Gerar APK 23** compilou Debug e Release com sucesso, inclusive os testes Java. A falha estava na validação do APK `x86` (32 bits), que não continha bibliotecas nativas do GeckoView 158. Por isso a versão atual publica **três APKs válidos**, separados por CPU: **ARM 32 bits** (`armeabi-v7a`), **ARM 64 bits** (`arm64-v8a`) e **x86 de 64 bits** (`x86_64`). Não é gerado APK universal nem x86 de 32 bits, e não misturamos bibliotecas de versões distintas do GeckoView.

@@ -1,3 +1,12 @@
+## 0.1.0-alpha.53: tratamento de falhas Gecko e tamanho por ABI
+
+- Checklist de validação no aparelho: `docs/TESTE_APARELHO_GECKOVIEW.md`.
+- `tools/test_gecko_crash_policy.py`: compila a regra Java real com JDK e exercita dois reinícios, terceira falha, cooldown, reboot e contador inconsistente.
+- `GeckoCrashPolicyTest`: os mesmos cenários com JUnit na tarefa `:app:testDebugUnitTest` (ainda depende da CI).
+- `tools/test_publish_mock.sh`: simulação de três APKs/Release, verificação de SHA-256, rejeição de arquivo ausente/extra e checagem dos três tamanhos no resumo.
+- `tools/ci_preflight.py`: contrato da fachada, novo teste de crash, publicação e demais verificações estruturais.
+- **Não executados neste ambiente:** compilação Gradle/Android, execução em aparelho, medição de memória/latência/tamanho dos APKs reais. A última CI informada foi o workflow 23 da alpha.51, com compilação bem-sucedida e falha na coleta x86; isso não comprova a alpha.53.
+
 ## 0.1.0-alpha.52: corrigida matriz de APKs GeckoView
 
 No **Gerar APK 23**, Gradle concluiu com sucesso a compilação de Debug/Release e os testes unitários; a coleta falhou porque o split `x86` de 32 bits não possuía `.so` do GeckoView 158 (`set()`). O Android permite criar esse APK vazio de bibliotecas, mas o navegador falharia ao executar. GeckoView 158 não oferece binários `x86` 32 bits; a última linha publicada nessa arquitetura é a 144.
