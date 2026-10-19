@@ -117,3 +117,9 @@
 - O navegador ativo usa `GeckoBrowserView`, `GeckoEngine` e `BrowserPane`, não `android.webkit.WebView`. Regras antigas de interceptação WebView não são aplicáveis até que sejam implementadas usando APIs do Gecko ou extensão compatível.
 - Ao trabalhar com GeckoView, preservar a regra de runtime único, não copiar cookies de sistemas Android WebView e validar a extensão `assets/baixafacil_gecko`.
 - A próxima versão é `0.1.0-alpha.47` com versionCode `47`.
+
+## Versão 0.1.0-alpha.47: requisito de build GeckoView 158
+- A falha comprovada no workflow Gerar APK 18 é o AAR metadata: GeckoView 158 requer compileSdk 37, AndroidX Core 1.19 requer API 37 e AGP 9.1+.
+- Padrão atual: compileSdk 37, AGP 9.1.1, Gradle 9.3.1, Build Tools 36.0.0, JDK 17. As recomendações das versões anteriores são históricas.
+- Preservar minSdk 29, targetSdk 34 e dependência GeckoView 158. Em toda versão sincronizar `tools/test_publish_mock.sh` (incluindo números de asset, versão e payload fictício), `ci_preflight.py`, GitHub Actions, Gradle, Sobre, UA e documentos.
+- Próxima versão: 0.1.0-alpha.48 com versionCode 48.

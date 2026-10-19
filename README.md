@@ -1,3 +1,9 @@
+## 0.1.0-alpha.47: compatibilidade de compilação GeckoView
+
+O workflow **Gerar APK 18** falhou em `:app:checkDebugAarMetadata`: GeckoView 158 requer Android API 37 e AndroidX Core 1.19 exige API 37 com Android Gradle Plugin 9.1 ou superior. Corrigido para **compileSdk 37 + AGP 9.1.1 + Gradle 9.3.1 + Build Tools 36.0.0**, com instalação explícita da API 37 no GitHub Actions. Android `minSdk 29` e `targetSdk 34` permanecem inalterados. O GeckoView continua em 158.0.20261007201254.
+
+Sincronizados os testes de pré-validação, simulação de publicação, validação `aapt`/`apksigner` e número sequencial da versão 47. A causa AAR foi corrigida na configuração; **compilação Android e testes reais ainda precisam passar no GitHub Actions**.
+
 ## 0.1.0-alpha.46: migração GeckoView
 
 Navegador integrado GeckoView (Firefox), sessão nativa, detector local de vídeos via WebExtension. Algumas funções dependentes de interceptação de rede do WebView não têm equivalente nesta versão. Consulte RELEASE_NOTES.md.

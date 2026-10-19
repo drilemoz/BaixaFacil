@@ -1,3 +1,14 @@
+# Baixa Fácil 0.1.0-alpha.47 (versionCode 47)
+
+## Correção da compilação GeckoView
+
+- Corrigidas incompatibilidades de metadados AAR observadas no workflow **Gerar APK 18**.
+- `compileSdk 37`, Android Gradle Plugin **9.1.1**, Gradle **9.3.1** e Android Build Tools **36.0.0**; CI instala `platforms;android-37`.
+- GeckoView 158 e recursos da alpha.46 mantidos; `minSdk 29`/`targetSdk 34` não foram alterados.
+- Versão 47 sincronizada no app, GitHub Actions, pré-validação, teste de publicação e documentação.
+
+**Status:** preflight e testes locais disponíveis; compilação Android completa e testes em aparelho ainda pendentes. O log fornecido comprova a falha anterior, não a conclusão deste build corrigido.
+
 # Baixa Fácil 0.1.0-alpha.46 (versionCode 46)
 
 ## Integração GeckoView

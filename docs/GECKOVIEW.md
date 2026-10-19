@@ -1,9 +1,9 @@
-# GeckoView no Baixa Fácil (alpha.46)
+# GeckoView no Baixa Fácil (alpha.47)
 
 ## Dependências e arquitetura
 
 - Runtime: `org.mozilla.geckoview:geckoview:158.0.20261007201254`, Maven da Mozilla.
-- Java 17, `compileSdk 36`, Android `minSdk 29` preservado.
+- Java 17, `compileSdk 37`, Android `minSdk 29` preservado.
 - `GeckoEngine`: uma única instância de GeckoRuntime por processo e operações de `StorageController`.
 - `GeckoBrowserView`: `GeckoView` + `GeckoSession` + extensão de mídia local.
 - `GeckoPromptHandler`: janelas básicas de alerta/confirmação, entrada de texto e seleção simples/múltipla.
@@ -12,7 +12,7 @@
 
 ## Estado dos recursos
 
-| Recurso | GeckoView alpha.46 |
+| Recurso | GeckoView alpha.47 |
 | --- | --- |
 | Navegação, URL, histórico de sessão, recarregar | Adaptados |
 | Modo desktop / tamanho de texto / JavaScript | Adaptados |
@@ -35,5 +35,5 @@
 - Nenhum cookie GeckoView é copiado para o motor HTTP do gerenciador de downloads. A falta de suporte a downloads autenticados evita transferir inadvertidamente credenciais.
 - A limpeza de sessões desativadas espera a conclusão da remoção de dados antes de navegar. Em erro, a navegação não é liberada automaticamente.
 - `tools/ci_preflight.py` verifica dependência, bridge, versionamento, regras de UI, preferências e workflow.
-- Em ambiente com Android SDK 36 e Gradle 8.11.1, executar: `gradle :app:testDebugUnitTest :app:assembleDebug`.
+- Em ambiente com Android SDK 37 e Gradle 9.3.1, executar: `gradle :app:testDebugUnitTest :app:assembleDebug`.
 - Testes no aparelho: navegação e histórico, pop-up permitido/bloqueado, seleção/alert, detecção MP4/WebM/HLS/DASH, downloads e cookies. Comparar PSS e bateria do Gecko com a versão WebView separadamente.

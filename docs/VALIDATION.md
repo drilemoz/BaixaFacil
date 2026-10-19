@@ -1,3 +1,18 @@
+## 0.1.0-alpha.47: correção de AAR metadata (workflow Gerar APK 18)
+
+### Falha verificada
+
+- `:app:checkDebugAarMetadata FAILED`, antes de `:app:compileDebugJavaWithJavac`.
+- GeckoView 158.0.20261007201254 exige `compileSdk >= 37`; AndroidX Core e Core-KTX 1.19.0 exigem `compileSdk >= 37` e AGP >= 9.1.0. Cinco problemas detectados na etapa de metadados.
+- O projeto anterior usava API 36, AGP 8.10.1 e Gradle 8.11.1.
+
+### Correção
+
+- Projeto passou a `compileSdk 37`, AGP 9.1.1 e Gradle 9.3.1 com JDK 17. GitHub Actions instala API 37 e Build Tools 36.0.0; valida assinatura e pacote com as mesmas Build Tools.
+- `minSdk 29`, `targetSdk 34` e a dependência GeckoView permanecem iguais.
+- `python3 tools/ci_preflight.py`, `bash tools/test_publish_mock.sh`, validação estrutural, XML, JS e integridade do ZIP.
+- Compilação Android real (`gradle :app:testDebugUnitTest :app:assembleDebug`) **não executada localmente** porque SDK Android, Gradle e dependências baixáveis não estão disponíveis. Reexecutar no GitHub Actions; se passar da checagem AAR, eventuais erros Java/API do GeckoView precisam ser avaliados no próximo log.
+
 ## 0.1.0-alpha.46: migração GeckoView
 
 Navegador integrado GeckoView (Firefox), sessão nativa, detector local de vídeos via WebExtension. Algumas funções dependentes de interceptação de rede do WebView não têm equivalente nesta versão. Consulte RELEASE_NOTES.md.

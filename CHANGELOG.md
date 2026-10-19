@@ -1,3 +1,10 @@
+# Baixa Fácil 0.1.0-alpha.47 (versionCode 47) - 2026-10-19
+
+- Correção do workflow Gerar APK 18: `checkDebugAarMetadata` acusou 5 incompatibilidades entre GeckoView 158, AndroidX Core 1.19, compileSdk 36 e AGP 8.10.1.
+- Atualizados compileSdk 37, AGP 9.1.1, Gradle 9.3.1, Build Tools 36.0.0 e instalação do SDK 37 no CI. JDK 17, minSdk 29 e targetSdk 34 preservados.
+- Atualizados verificações estáticas, preflight e mock de publicação para versão 47, mantendo o GeckoView 158 e o motor de downloads.
+- Pendente execução real do Gradle/SDK Android e testes em dispositivo.
+
 # Baixa Fácil 0.1.0-alpha.46 (versionCode 46)
 
 ## Integração GeckoView
