@@ -1,9 +1,9 @@
-# GeckoView no Baixa Fácil (alpha.47)
+# GeckoView no Baixa Fácil (alpha.48)
 
 ## Dependências e arquitetura
 
 - Runtime: `org.mozilla.geckoview:geckoview:158.0.20261007201254`, Maven da Mozilla.
-- Java 17, `compileSdk 37`, Android `minSdk 29` preservado.
+- Java 17, `compileSdk` Android API **37.0** (`release(37)` e `minorApiLevel = 0`), Android `minSdk 29` preservado.
 - `GeckoEngine`: uma única instância de GeckoRuntime por processo e operações de `StorageController`.
 - `GeckoBrowserView`: `GeckoView` + `GeckoSession` + extensão de mídia local.
 - `GeckoPromptHandler`: janelas básicas de alerta/confirmação, entrada de texto e seleção simples/múltipla.
@@ -12,7 +12,7 @@
 
 ## Estado dos recursos
 
-| Recurso | GeckoView alpha.47 |
+| Recurso | GeckoView alpha.48 |
 | --- | --- |
 | Navegação, URL, histórico de sessão, recarregar | Adaptados |
 | Modo desktop / tamanho de texto / JavaScript | Adaptados |

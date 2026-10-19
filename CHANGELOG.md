@@ -1,3 +1,11 @@
+# Baixa Fácil 0.1.0-alpha.48 (versionCode 48) - 2026-10-19
+
+- Corrigido o erro comprovado do workflow **Gerar APK 19**: `Failed to find package 'platforms;android-37'`. O pacote correto é `platforms;android-37.0`.
+- Adicionado check de `android.jar` após instalar a plataforma, para falhar com diagnóstico direto se o SDK estiver ausente.
+- Declarada explicitamente a API 37.0 no Gradle com `compileSdk { version = release(37) { minorApiLevel = 0 } }`; preservados GeckoView 158, AGP 9.1.1 e Gradle 9.3.1.
+- Versão 48 sincronizada em código, Sobre, User-Agent, workflow, testes de pré-validação e publicação e documentação.
+- Ainda sem confirmação de compilação Android completa ou testes no dispositivo.
+
 # Baixa Fácil 0.1.0-alpha.47 (versionCode 47) - 2026-10-19
 
 - Correção do workflow Gerar APK 18: `checkDebugAarMetadata` acusou 5 incompatibilidades entre GeckoView 158, AndroidX Core 1.19, compileSdk 36 e AGP 8.10.1.

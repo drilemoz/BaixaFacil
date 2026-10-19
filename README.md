@@ -1,3 +1,9 @@
+## 0.1.0-alpha.48: SDK Android 37.0 no GitHub Actions
+
+O workflow **Gerar APK 19** parou antes do Gradle: `sdkmanager` não encontrou `platforms;android-37`. A plataforma oficial é **`platforms;android-37.0`**. O CI instala o pacote correto e verifica o arquivo `android.jar`. A configuração `compileSdk { version = release(37) { minorApiLevel = 0 } }` usa explicitamente API 37.0, evitando resolver o nome inexistente `android-37`.
+
+Mantidos GeckoView 158, Android Gradle Plugin 9.1.1, Gradle 9.3.1, Build Tools 36.0.0, JDK 17, `minSdk 29` e `targetSdk 34`. Esta alteração resolve o erro de instalação do SDK observado, mas **não comprova** build Java/Android concluído; reexecutar o GitHub Actions.
+
 ## 0.1.0-alpha.47: compatibilidade de compilação GeckoView
 
 O workflow **Gerar APK 18** falhou em `:app:checkDebugAarMetadata`: GeckoView 158 requer Android API 37 e AndroidX Core 1.19 exige API 37 com Android Gradle Plugin 9.1 ou superior. Corrigido para **compileSdk 37 + AGP 9.1.1 + Gradle 9.3.1 + Build Tools 36.0.0**, com instalação explícita da API 37 no GitHub Actions. Android `minSdk 29` e `targetSdk 34` permanecem inalterados. O GeckoView continua em 158.0.20261007201254.

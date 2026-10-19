@@ -123,3 +123,9 @@
 - Padrão atual: compileSdk 37, AGP 9.1.1, Gradle 9.3.1, Build Tools 36.0.0, JDK 17. As recomendações das versões anteriores são históricas.
 - Preservar minSdk 29, targetSdk 34 e dependência GeckoView 158. Em toda versão sincronizar `tools/test_publish_mock.sh` (incluindo números de asset, versão e payload fictício), `ci_preflight.py`, GitHub Actions, Gradle, Sobre, UA e documentos.
 - Próxima versão: 0.1.0-alpha.48 com versionCode 48.
+
+## Versão 0.1.0-alpha.48: SDK 37.0 com identificador exato
+- O workflow Gerar APK 19 falhou na instalação do SDK antes do Gradle: `platforms;android-37` não existe. Instalar `platforms;android-37.0` e verificar `platforms/android-37.0/android.jar`.
+- O build deve usar `compileSdk { version = release(37) { minorApiLevel = 0 } }`, prevenindo busca pelo caminho inexistente `android-37`.
+- Testes estáticos não provam compilação real. Manter GeckoView 158 e versões de dependências; só corrigir Java se o novo log demonstrar o erro.
+- Próxima versão sequencial: 0.1.0-alpha.49 com versionCode 49.

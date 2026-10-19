@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.47"
-CODE = "47"
+VERSION = "0.1.0-alpha.48"
+CODE = "48"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -27,7 +27,7 @@ checks = {
         and all(x in read("app/src/main/java/br/com/baixafacil/DownloadListFilters.java")
         for x in ["class DownloadListFilters", "public static String originHost", "getRawUserInfo", "getHost()", "matchesSize", "matchesOrigin", "countOrigins"])
         and "class DownloadListFiltersTest" in read("app/src/test/java/br/com/baixafacil/DownloadListFiltersTest.java"),
-    "alpha41 Custom Tabs wiring": all(x in app for x in ["androidx.browser:browser:1.10.0", "compileSdk 37"])
+    "alpha41 Custom Tabs wiring": all(x in app for x in ["androidx.browser:browser:1.10.0", "minorApiLevel = 0"])
         and all(x in read("app/src/main/java/br/com/baixafacil/CustomTabsBrowser.java")
             for x in ["CustomTabsClient.getPackageName", "tab.intent.setPackage", "tab.launchUrl", "forLogin"])
         and 'android.support.customtabs.action.CustomTabsService' in read("app/src/main/AndroidManifest.xml")
@@ -66,16 +66,18 @@ checks = {
     "video sources policy tests": "class VideoMenuModelTest" in read("app/src/test/java/br/com/baixafacil/VideoMenuModelTest.java"),
 
     # AAR metadata do Media3 1.11.1 exige android-36. Impede regressão para API 35.
-    "Media3 e GeckoView Android API 37 compileSdk": bool(re.search(r"(?m)^\s*compileSdk\s+37\s*$", app))
+    "Media3 e GeckoView Android API 37 compileSdk": bool(re.search(r"compileSdk\s*\{\s*version\s*=\s*release\(37\)\s*\{\s*minorApiLevel\s*=\s*0\s*\}", app))
         and all(x in app for x in ["media3-exoplayer:1.11.1", "media3-ui:1.11.1", "media3-exoplayer-hls:1.11.1", "media3-exoplayer-dash:1.11.1"]),
     "AGP supports API 37 and AndroidX Core 1.19": "version '9.1.1'" in read("build.gradle")
         and "gradle-version: '9.3.1'" in workflow,
-    "CI installs compile SDK 37": "'platforms;android-37'" in workflow
-        and "'build-tools;36.0.0'" in workflow,
-    "Gradle API 37 compatibility and APK inspector": all(x in workflow for x in [
-        "'platforms;android-37'", "'build-tools;36.0.0'", "gradle-version: '9.3.1'", 'tool_dir="$ANDROID_HOME/build-tools/36.0.0"',
-        ":app:testDebugUnitTest :app:assembleDebug", "versionCode='47'",
-    ]) and "version '9.1.1'" in read("build.gradle") and "compileSdk 37" in app,
+    "CI installs exact Android SDK Platform 37.0": "'platforms;android-37.0'" in workflow
+        and "'build-tools;36.0.0'" in workflow
+        and 'platforms/android-37.0/android.jar' in workflow
+        and "'platforms;android-37'" not in workflow,
+    "Gradle API 37.0 and APK inspector": all(x in workflow for x in [
+        "'platforms;android-37.0'", "'build-tools;36.0.0'", "gradle-version: '9.3.1'", 'tool_dir="$ANDROID_HOME/build-tools/36.0.0"',
+        ":app:testDebugUnitTest :app:assembleDebug", "versionCode='48'",
+    ]) and "version '9.1.1'" in read("build.gradle") and "minorApiLevel = 0" in app,
     "Android install targets remain unchanged": bool(re.search(r"(?m)^\s*minSdk\s+29\s*$", app))
         and bool(re.search(r"(?m)^\s*targetSdk\s+34\s*$", app)),
     "versionCode": bool(re.search(r"(?m)^\s*versionCode\s+" + CODE + r"\s*$", app)),

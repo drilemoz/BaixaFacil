@@ -1,3 +1,14 @@
+# Baixa Fácil 0.1.0-alpha.48 (versionCode 48)
+
+## Correção do workflow Gerar APK 19
+
+- SDK Android 17/API 37 é distribuído no `sdkmanager` como `platforms;android-37.0`; instalação do pacote `android-37` falhava antes do Gradle.
+- O GitHub Actions instala `platforms;android-37.0` e `build-tools;36.0.0`, com verificação do `android.jar`.
+- Gradle seleciona explicitamente `release(37)` com `minorApiLevel = 0`, compatível com a plataforma 37.0.
+- Mantidos GeckoView 158, `minSdk 29`, `targetSdk 34`, AGP 9.1.1 e Gradle 9.3.1.
+
+**Status:** validações locais do projeto; compilação Android e teste físico pendentes do próximo workflow.
+
 # Baixa Fácil 0.1.0-alpha.47 (versionCode 47)
 
 ## Correção da compilação GeckoView

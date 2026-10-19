@@ -1,3 +1,17 @@
+## 0.1.0-alpha.48: nome do pacote Android SDK 37.0 (workflow Gerar APK 19)
+
+### Falha confirmada nos logs
+
+- Etapa `Instalar SDK API 37` encerrou com código 1, antes do Gradle. `sdkmanager --install 'platforms;android-37' 'build-tools;36.0.0'` produziu `Warning: Failed to find package 'platforms;android-37'`.
+- A versão correta do pacote de plataforma é `platforms;android-37.0`, com pasta `platforms/android-37.0`. O nome genérico `android-37` não resolve esse pacote.
+
+### Correção e verificação
+
+- Atualizado o comando de instalação para API 37.0 e verificação `test -s "$ANDROID_HOME/platforms/android-37.0/android.jar"`.
+- `compileSdk { version = release(37) { minorApiLevel = 0 } }` seleciona explicitamente API 37.0 no AGP 9.1.1.
+- Versionamento 0.1.0-alpha.48 e documentação/validações sincronizados.
+- Testes locais de pré-validação e publicador simulado executados; **não** foi realizado build Android, pois o ambiente não oferece SDK 37.0/Gradle. O próximo log poderá revelar erros posteriores, atualmente desconhecidos.
+
 ## 0.1.0-alpha.47: correção de AAR metadata (workflow Gerar APK 18)
 
 ### Falha verificada

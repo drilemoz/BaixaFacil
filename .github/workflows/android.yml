@@ -34,7 +34,8 @@ jobs:
           packages: platform-tools
 
       - name: Instalar SDK API 37
-        run: sdkmanager --install 'platforms;android-37' 'build-tools;36.0.0'
+        run: sdkmanager --install 'platforms;android-37.0' 'build-tools;36.0.0'
+          test -s "${ANDROID_HOME}/platforms/android-37.0/android.jar" || { echo '::error::Android SDK Platform 37.0 não instalado'; exit 1; }
 
       - name: Configurar Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
@@ -60,7 +61,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          version='0.1.0-alpha.47'
+          version='0.1.0-alpha.48'
           count=0
           [[ -n "$KEYSTORE_BASE64" ]] && count=$((count+1))
           [[ -n "$KEYSTORE_PASSWORD" ]] && count=$((count+1))
@@ -93,8 +94,8 @@ jobs:
           package_line="$(printf '%s\n' "$badging" | grep '^package: ' | head -1)"
           printf '%s\n' "$package_line"
           [[ "$package_line" == *"name='br.com.baixafacil'"* ]] || { echo '::error::applicationId inesperado'; exit 1; }
-          [[ "$package_line" == *"versionCode='47'"* ]] || { echo '::error::versionCode incorreto no APK'; exit 1; }
-          [[ "$package_line" == *"versionName='0.1.0-alpha.47'"* ]] || { echo '::error::versionName incorreto no APK'; exit 1; }
+          [[ "$package_line" == *"versionCode='48'"* ]] || { echo '::error::versionCode incorreto no APK'; exit 1; }
+          [[ "$package_line" == *"versionName='0.1.0-alpha.48'"* ]] || { echo '::error::versionName incorreto no APK'; exit 1; }
           sha256sum "dist/$name"
           echo "apk_file=dist/$name" >> "$GITHUB_OUTPUT"
           echo "signing_mode=$mode" >> "$GITHUB_OUTPUT"
@@ -104,7 +105,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           APK_FILE: ${{ steps.build_apk.outputs.apk_file }}
-          VERSION: 0.1.0-alpha.47
+          VERSION: 0.1.0-alpha.48
           SIGNING_MODE: ${{ steps.build_apk.outputs.signing_mode }}
         run: bash tools/publish_apk.sh
 
