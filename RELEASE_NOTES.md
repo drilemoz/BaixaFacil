@@ -1,3 +1,14 @@
+# Baixa Fácil 0.1.0-alpha.50 (versionCode 50)
+
+## Correção do workflow Gerar APK 21
+
+- O Android SDK foi instalado e o Gradle alcançou a compilação de fontes Java. A compilação encontrou apenas `GeckoBrowserView.canGoForward()` ausente, chamado a partir da linha 440 do navegador.
+- Adicionado método que consulta o estado `canForward` já alimentado por `onCanGoForward`, preservando o comportamento de navegação do GeckoView.
+- Novo teste do contrato da fachada evita novos esquecimentos de métodos invocados pelo `BrowserPane` durante a evolução da migração.
+- Dependências, downloads e configurações de segurança sem alterações.
+
+**Status:** validações estáticas locais, publicação simulada e integridade do ZIP; compilação Android completa e execução real ainda não confirmadas nesta versão.
+
 # Baixa Fácil 0.1.0-alpha.49 (versionCode 49)
 
 ## Correção do workflow Gerar APK 20

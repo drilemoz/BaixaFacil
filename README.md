@@ -1,3 +1,9 @@
+## 0.1.0-alpha.50: correção de compilação Java no build 21
+
+O workflow **Gerar APK 21** avançou com sucesso pela instalação do SDK 37.0, checagem de metadados AAR e início do javac. Falhou com um único erro em `BrowserPane.java:440`: a fachada `GeckoBrowserView` não tinha `canGoForward()` apesar de já possuir estado `canForward`, atualizações por `onCanGoForward` e `goForward()`.
+
+A fachada agora fornece `boolean canGoForward(){return canForward;}`. Incluído `tools/test_gecko_browser_contract.py` na pré-validação para verificar métodos utilizados pelo navegador, bem como callbacks do histórico. Preservados SDK 37.0, GeckoView 158 e o motor de downloads. **Testes locais não garantem build Android completo; repetir GitHub Actions.**
+
 ## 0.1.0-alpha.49: correção do passo de instalação do SDK no build 20
 
 O workflow **Gerar APK 20** falhou antes do Gradle: o YAML transformou duas linhas do `run:` da etapa de instalação em **um comando só**. O `sdkmanager` recebeu `test` como argumento e informou `Failed to find package 'test'`. Agora a etapa usa `run: |` e executa instalação e validação em linhas separadas, com `set -euo pipefail`. Um teste automatizado usa `sdkmanager` simulado e verifica caminhos de sucesso e de ausência do `android.jar`; o preflight executa antes da instalação real.

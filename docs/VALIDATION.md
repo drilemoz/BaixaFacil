@@ -1,3 +1,17 @@
+## 0.1.0-alpha.50: método ausente no GeckoBrowserView (workflow Gerar APK 21)
+
+### Causa observada
+
+- O SDK 37.0 instalou corretamente, metadados AAR passaram e `:app:compileDebugJavaWithJavac` falhou com exatamente um erro: `BrowserPane.java:440: cannot find symbol: method canGoForward()` em `GeckoBrowserView`.
+- `goForward()`, `canForward` e atualização via `onCanGoForward` já existiam, mas o getter não havia sido implementado. Checagens sintáticas anteriores não fazem resolução semântica de símbolos.
+
+### Correção e prevenção
+
+- Adicionado `GeckoBrowserView.canGoForward()` consultando `canForward`.
+- `tools/test_gecko_browser_contract.py` checa todas as chamadas diretas de `BrowserPane` à fachada e a ligação dos callbacks de histórico com o estado da sessão. Integrado ao `tools/ci_preflight.py` para rodar antes de baixar o Android SDK no CI.
+- Testes locais: preflight, contrato da fachada, teste de instalação SDK simulado, publicação simulada (inclusive SHA-256 incorreto), análise estática Java/recursos, integridade ZIP.
+- Limite: teste de contrato não compila Java/Android nem prova ausência de outros erros semânticos; reexecutar `gradle :app:testDebugUnitTest :app:assembleDebug` no GitHub Actions e testar no aparelho.
+
 ## 0.1.0-alpha.49: etapa SDK corrigida (workflow Gerar APK 20)
 
 ### Falha confirmada no log

@@ -1,3 +1,11 @@
+# Baixa Fácil 0.1.0-alpha.50 (versionCode 50) - 2026-10-19
+
+- Corrigido único erro `cannot find symbol` de `BrowserPane.java:440` no workflow **Gerar APK 21**: faltava `GeckoBrowserView.canGoForward()`.
+- Nova validação de contrato da fachada GeckoView verifica referências de métodos e atualizações de histórico antes do build.
+- Mantidos GeckoView 158, API 37.0, fluxos de download, sessão e configurações.
+- Versionamento 50 sincronizado em Gradle, CI, Sobre, User-Agent, testes de publicação e documentação.
+- Build Android completo e testes no aparelho ainda pendentes para esta versão.
+
 # Baixa Fácil 0.1.0-alpha.49 (versionCode 49) - 2026-10-19
 
 - Corrigido o workflow **Gerar APK 20**: `run:` dobrado concatenava `sdkmanager` com `test -s`, causando `Failed to find package 'test'` e saída 1 antes da compilação.

@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.49"
-CODE = "49"
+VERSION = "0.1.0-alpha.50"
+CODE = "50"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -16,6 +16,7 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "GeckoBrowserView facade contract (workflow 21 regression)": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_browser_contract.py")], check=False).returncode == 0,
     "API 37.0 workflow shell regression": subprocess.run([sys.executable, str(ROOT / "tools/test_sdk_workflow.py")], check=False).returncode == 0,
     "alpha44 Downloads-Home navigation regression": all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
         for x in ["MainNavigationPolicy.bottomAction(downloadsVisible,action)",
@@ -79,7 +80,7 @@ checks = {
         and "'platforms;android-37'" not in workflow,
     "Gradle API 37.0 and APK inspector": all(x in workflow for x in [
         "'platforms;android-37.0'", "'build-tools;36.0.0'", "gradle-version: '9.3.1'", 'tool_dir="$ANDROID_HOME/build-tools/36.0.0"',
-        ":app:testDebugUnitTest :app:assembleDebug", "versionCode='49'",
+        ":app:testDebugUnitTest :app:assembleDebug", "versionCode='" + CODE + "'",
     ]) and "version '9.1.1'" in read("build.gradle") and "minorApiLevel = 0" in app,
     "Android install targets remain unchanged": bool(re.search(r"(?m)^\s*minSdk\s+29\s*$", app))
         and bool(re.search(r"(?m)^\s*targetSdk\s+34\s*$", app)),

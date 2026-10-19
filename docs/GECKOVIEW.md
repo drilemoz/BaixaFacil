@@ -1,4 +1,4 @@
-# GeckoView no Baixa Fácil (alpha.49)
+# GeckoView no Baixa Fácil (alpha.50)
 
 ## Dependências e arquitetura
 
@@ -12,7 +12,7 @@
 
 ## Estado dos recursos
 
-| Recurso | GeckoView alpha.49 |
+| Recurso | GeckoView alpha.50 |
 | --- | --- |
 | Navegação, URL, histórico de sessão, recarregar | Adaptados |
 | Modo desktop / tamanho de texto / JavaScript | Adaptados |

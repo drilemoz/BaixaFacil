@@ -36,6 +36,7 @@ final class GeckoBrowserView extends GeckoView {
     String getTitle(){return title;}
     void pageTitle(String value){title=value;}
     boolean canGoBack(){return canBack;}
+    boolean canGoForward(){return canForward;}
     void backAvailable(boolean value){canBack=value;}
     void forwardAvailable(boolean value){canForward=value;}
     void goBack(){if(canBack)session.goBack();}

@@ -137,3 +137,9 @@
 - `python3 tools/test_sdk_workflow.py` valida separação, sintaxe e comportamento da etapa com um `sdkmanager` simulado, inclusive quando o JAR não existe. Incluir o teste no preflight; executar preflight antes da instalação no CI.
 - Manter GeckoView 158, AGP 9.1.1, Gradle 9.3.1, compileSdk 37.0, minSdk 29, targetSdk 34, Build Tools 36.0.0; sem alterações no motor HTTP ou navegador.
 - Próxima versão sequencial: 0.1.0-alpha.50 com versionCode 50.
+
+## Versão 0.1.0-alpha.50: compilar fachada GeckoView e manter histórico
+- O workflow Gerar APK 21 instalou SDK 37.0 e executou javac. Único erro: `BrowserPane.java:440` invocava `web.canGoForward()`, inexistente em `GeckoBrowserView`.
+- A fachada declara `boolean canGoForward(){return canForward;}` e o estado recebe `onCanGoForward`; preservar a semântica de histórico.
+- `tools/test_gecko_browser_contract.py` valida referências de métodos `web`/`loginPopup` usados pelo `BrowserPane` e o contrato dos callbacks. Executar em `ci_preflight.py`, mas não o confundir com compilação Android real.
+- Manter demais bibliotecas e configurações, sem copiar cookies Gecko para downloads. Próxima versão: `0.1.0-alpha.51`, `versionCode 51`.
