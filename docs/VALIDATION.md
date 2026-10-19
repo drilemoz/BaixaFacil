@@ -1,3 +1,10 @@
+## 0.1.0-alpha.57: perfis ETP nativos do GeckoView
+
+- `tools/test_gecko_protection.py` compila a lógica real de perfis com Java 17, testa a matriz modo/rastreadores/cookies, inspeciona o vínculo ao GeckoRuntimeSettings e os callbacks `ContentBlocking.Delegate`.
+- `tools/ci_preflight.py` executa a regressão antes do Gradle no GitHub Actions.
+- Limites: não há compilação Android neste ambiente, não foi testado o uso real do GeckoView em sites, nem medida redução de tráfego. O contador é de eventos do motor, não de downloads ou anúncios individuais.
+- Validar em aparelho: sites normais e login com modo Leve/Forte/Extremo, permitir cookies, alternância entre Configurações e navegador, CSS por domínio, fechar pop-up, Safe Browsing, páginas quebradas em ETP estrito e tamanho das três arquiteturas.
+
 ## 0.1.0-alpha.56: ícone adaptativo, redondo e monocromático tematizável do Internet XP
 
 - Validação local das referências de recursos, sintaxe de XML, integridade de bitmaps e versionamento.

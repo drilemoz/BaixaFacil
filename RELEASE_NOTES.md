@@ -1,3 +1,11 @@
+# Baixa Fácil 0.1.0-alpha.57 (versionCode 57)
+
+**Proteção nativa no GeckoView:** os perfis de anúncios passam a configurar ETP padrão ou rigorosa. O modo Extremo habilita proteção social rigorosa e limpeza de parâmetros conhecidos. A contagem de bloqueios vem do motor, sem armazenar endereços.
+
+O controle de cookies de terceiros continua explícito: ETP usa isolamento por origem, e a opção de compatibilidade permite cookies de terceiros ao custo de suspender ETP. As listas EasyList locais não interceptam requisições e as exceções por domínio alteram apenas a ocultação CSS. Não há garantia de bloqueio de 100% dos anúncios.
+
+**Validação:** verificações de código e lógica local; APKs Android e comportamento em sites reais ainda exigem GitHub Actions e teste no aparelho.
+
 # Baixa Fácil 0.1.0-alpha.56 (versionCode 56)
 
 - ícone adaptativo, redondo e monocromático tematizável do Internet XP.

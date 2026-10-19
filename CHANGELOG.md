@@ -1,3 +1,12 @@
+# Baixa Fácil 0.1.0-alpha.57 (versionCode 57) - 2026-10-19
+
+- Perfis GeckoView ETP: Desligado, Leve (padrão), Forte (rigoroso) e Extremo (rigoroso com proteção social e limpeza de parâmetros).
+- GeckoRuntime atualizado ao regressar das Configurações; recarregamento quando o perfil, rastreadores ou cookies mudam. Pop-ups seguem perfil ativo.
+- Contadores de recursos bloqueados recebidos do próprio GeckoView em memória, sem registrar as URLs dos eventos.
+- Cookies de terceiros isolados por origem quando ETP está ativo e opção de compatibilidade desativada. A compatibilidade de login permite cookies e suspende ETP explicitamente.
+- Exceções por domínio continuam SOMENTE cosméticas, sem prometer suspender ETP por site. EasyList/EasyPrivacy locais não bloqueiam rede; Safe Browsing não é desativado.
+- Mantidos ícones Internet XP, GeckoView 158 e APKs por ABI ARM32/ARM64/x86_64. Sem build Android executado neste ambiente.
+
 # Baixa Fácil 0.1.0-alpha.56 (versionCode 56) - 2026-10-19
 
 - ícone adaptativo, redondo e monocromático tematizável do Internet XP.

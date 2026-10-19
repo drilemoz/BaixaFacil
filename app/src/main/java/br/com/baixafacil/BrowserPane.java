@@ -44,6 +44,7 @@ import org.mozilla.geckoview.AllowOrDeny;
 import org.mozilla.geckoview.WebRequestError;
 import org.mozilla.geckoview.WebResponse;
 import org.mozilla.geckoview.StorageController;
+import org.mozilla.geckoview.ContentBlocking;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -77,6 +78,9 @@ final class BrowserPane {
     private boolean appliedDesktop;
     private int appliedTextZoom;
     private boolean appliedThirdPartyCookies;
+    private int appliedProtectionMode;
+    private boolean appliedTrackers;
+    private int geckoBlockedOnPage;
     private GeckoBrowserView loginPopup;
     private boolean popupGestureAllowed;
     private AlertDialog loginPopupDialog;
@@ -239,12 +243,14 @@ final class BrowserPane {
         appliedDesktop=BrowserPrefs.desktop(host);
         appliedTextZoom=BrowserPrefs.textZoom(host);
         appliedThirdPartyCookies=BrowserPrefs.thirdPartyCookies(host);
+        appliedProtectionMode=AdBlockController.savedMode(host);
+        appliedTrackers=AdBlockController.savedTrackers(host);
         session.getSettings().setAllowJavascript(BrowserPrefs.javascript(host));
         session.getSettings().setUserAgentMode(appliedDesktop ?
             GeckoSessionSettings.USER_AGENT_MODE_DESKTOP : GeckoSessionSettings.USER_AGENT_MODE_MOBILE);
         session.getSettings().setViewportMode(appliedDesktop ?
             GeckoSessionSettings.VIEWPORT_MODE_DESKTOP : GeckoSessionSettings.VIEWPORT_MODE_MOBILE);
-        session.getSettings().setUseTrackingProtection(AdBlockController.savedTrackers(host));
+        session.getSettings().setUseTrackingProtection(GeckoEngine.trackingEnabled(host));
         web.setFindListener(code -> {
             if(findCount!=null && findBar.getVisibility()==View.VISIBLE) {
                 int current=code/10000, total=code%10000;
@@ -291,9 +297,17 @@ final class BrowserPane {
                 return null; // Não libera páginas internas inseguras nem ignora TLS.
             }
         });
+        session.setContentBlockingDelegate(new ContentBlocking.Delegate(){
+            @Override public void onContentBlocked(GeckoSession gecko, ContentBlocking.BlockEvent event) {
+                // Gecko contou um recurso real. Não inspecionar ou salvar event.uri.
+                geckoBlockedOnPage++;
+                AdBlockController.noteGeckoBlocked();
+            }
+        });
         session.setProgressDelegate(new GeckoSession.ProgressDelegate(){
             @Override public void onPageStart(GeckoSession gecko,String url){
                 adBlock.setPage(url);
+                geckoBlockedOnPage=0;
                 lastHttpStatus=0;
                 lightweightPage=BrowserLoadPolicy.lightMode(url,BrowserPrefs.chatGptLight(host));
                 lastProgressBucket=-1;
@@ -498,11 +512,22 @@ final class BrowserPane {
         if(web==null)return;
         GeckoSessionSettings settings=web.session.getSettings();
         settings.setAllowJavascript(BrowserPrefs.javascript(host));
-        settings.setUseTrackingProtection(AdBlockController.savedTrackers(host));
+        int protectionMode=AdBlockController.savedMode(host);
+        boolean trackers=AdBlockController.savedTrackers(host);
+        if(protectionMode!=appliedProtectionMode || trackers!=appliedTrackers){
+            appliedProtectionMode=protectionMode;
+            appliedTrackers=trackers;
+            forceReload=true;
+        }
+        settings.setUseTrackingProtection(GeckoEngine.trackingEnabled(host));
         int zoom=BrowserPrefs.textZoom(host);
         if(appliedTextZoom!=zoom){appliedTextZoom=zoom;forceReload=true;}
         boolean thirdParty=BrowserPrefs.thirdPartyCookies(host);
-        if(thirdParty!=appliedThirdPartyCookies){appliedThirdPartyCookies=thirdParty;forceReload=true;}
+        if(thirdParty!=appliedThirdPartyCookies){
+            appliedThirdPartyCookies=thirdParty;
+            settings.setUseTrackingProtection(GeckoEngine.trackingEnabled(host));
+            forceReload=true;
+        }
         GeckoEngine.updatePreferences(host);
         boolean desktop=BrowserPrefs.desktop(host);
         if(desktop!=appliedDesktop){
@@ -527,13 +552,16 @@ final class BrowserPane {
         int mode=adBlock.mode();
         String[] names={"Desligado","Leve","Forte","Extremo"};
         String page=web==null?null:web.getUrl();
-        String summary="Modo cosmético salvo: "+names[mode]+" • "+adBlock.ruleCount()+" regras cadastradas (domínios não interceptados)\n"
-            +"Bloqueios de domínios por listas locais: não disponível no GeckoView\n"
-            +"Ocultação CSS neste site: "+(adBlock.isException(page)?"desativada":"ativa");
+        String summary="Proteção GeckoView: "+names[mode]
+            +(GeckoEngine.trackingEnabled(host)?" (ativa)":" (inativa)")+"\n"
+            +"Bloqueios nativos nesta página: "+geckoBlockedOnPage+"\n"
+            +"Bloqueios nativos nesta sessão: "+AdBlockController.sessionBlocked()+"\n"
+            +"Listas EasyList locais: "+adBlock.ruleCount()+" regras (sem bloqueio de rede)\n"
+            +"Exceção visual CSS neste domínio: "+(adBlock.isException(page)?"ativa":"inativa");
         List<AppMenus.Entry> rows=AppMenus.entries();
         rows.add(AppMenus.Entry.item("Abrir configurações","Intensidade, listas e rastreadores","settings",host::openSettings));
-        rows.add(AppMenus.Entry.item(adBlock.isException(page)?"Ativar neste site":"Desativar neste site",
-            "Alterar apenas o domínio aberto","shield",()->{
+        rows.add(AppMenus.Entry.item(adBlock.isException(page)?"Reativar ocultação CSS":"Suspender ocultação CSS",
+            "Não altera a proteção de rede do GeckoView","shield",()->{
                 if(AdBlockRules.host(page)==null)return;
                 adBlock.setException(page,!adBlock.isException(page));web.reload();
             }));
@@ -591,8 +619,8 @@ final class BrowserPane {
         List<AppMenus.Entry> rows=AppMenus.entries();
         rows.add(AppMenus.Entry.item("Bloqueador de anúncios","Nível e contador de requisições bloqueadas","shield",this::showAdBlockMenu));
         boolean exception=adBlock.isException(web.getUrl());
-        rows.add(AppMenus.Entry.item(exception?"Ativar neste site":"Desativar neste site",
-            exception?"Restaurar o bloqueio neste domínio":"Criar exceção apenas para este domínio","shield",()->{
+        rows.add(AppMenus.Entry.item(exception?"Reativar ocultação CSS":"Suspender ocultação CSS",
+            exception?"Voltar a esconder banners":"Não afeta os bloqueios nativos do GeckoView","shield",()->{
                 if(AdBlockRules.host(web.getUrl())==null){Toast.makeText(host,"Abra um site HTTPS",Toast.LENGTH_SHORT).show();return;}
                 adBlock.setException(web.getUrl(),!exception);web.reload();
             }));
@@ -619,7 +647,7 @@ final class BrowserPane {
         GeckoBrowserView popup=new GeckoBrowserView(host);
         loginPopup=popup;
         popup.session.getSettings().setAllowJavascript(BrowserPrefs.javascript(host));
-        popup.session.getSettings().setUseTrackingProtection(AdBlockController.savedTrackers(host));
+        popup.session.getSettings().setUseTrackingProtection(GeckoEngine.trackingEnabled(host));
         popup.session.setPromptDelegate(new GeckoPromptHandler(host,host.geckoFilePicker()));
         // Permissões de mídia e localização são recusadas em popups: não herdar a origem da janela principal.
         popup.session.setNavigationDelegate(new GeckoSession.NavigationDelegate(){

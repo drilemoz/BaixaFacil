@@ -1,3 +1,11 @@
+## 0.1.0-alpha.57: proteção GeckoView por perfis ETP
+
+- Configurações: perfis **Desligado / Leve / Forte / Extremo** agora configuram Enhanced Tracking Protection nativa. A mudança é aplicada ao voltar ao navegador e recarrega a página.
+- Bloqueios contam apenas eventos `ContentBlocking.Delegate.onContentBlocked`, sem armazenar URLs. Contagem é local e temporária, não indica taxa de anúncios bloqueados.
+- Cookies: padrão restringe terceiros; com ETP ativo, cookies de terceiros podem ficar isolados por origem. O modo de compatibilidade permite terceiros e suspende ETP, com aviso ao usuário.
+- EasyList/EasyPrivacy são apenas listas locais ainda não ligadas ao bloqueio de requisições; ocultação visual CSS é recurso separado. Exceções por site afetam somente CSS.
+- Mantidos o ícone Internet XP, GeckoView 158, os três APKs (armeabi-v7a, arm64-v8a e x86_64), o motor HTTP e o versionamento. Testes Android físicos/Gradle pendentes.
+
 ## 0.1.0-alpha.56: ícone adaptativo, redondo e monocromático tematizável do Internet XP
 
 - Novo ícone de launcher importado do Internet XP do usuário.

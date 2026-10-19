@@ -180,3 +180,9 @@
 - ícone adaptativo, redondo e monocromático tematizável do Internet XP.
 - Preservar applicationId, nome Baixa Fácil e assinatura de APK ao atualizar; versão subsequente 0.1.0-alpha.57 / versionCode 57.
 - Launcher pode usar máscara/cor de papel de parede; verificar em dispositivos reais.
+
+## Versão 0.1.0-alpha.57: ETP nativa GeckoView
+- `GeckoProtectionProfile` é lógica Java pura e teste regressivo. Os quatro perfis controlam `setEnhancedTrackingProtectionLevel` no GeckoRuntime 158. Leve DEFAULT, Forte STRICT, Extremo STRICT com proteção social e limpeza de parâmetros, Desligado NONE.
+- ETP requer comportamento de cookies compatível: quando ligado, preferências sem compatibilidade usam `ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS` (cookies de terceiros isolados por origem, não completamente recusados). Se usuário permitir terceiros por compatibilidade (`ACCEPT_ALL`), ETP é explicitamente suspenso. Jamais mascarar essa decisão.
+- Exceções por site continuam só para o CSS; não anunciar como exceção da rede GeckoView. Listas EasyList/EasyPrivacy são locais e não interceptam requisições. Contagem deve vir exclusivamente de `onContentBlocked`, sem logging de URLs/tokens.
+- Preservar Safe Browsing, GeckoView 158, download engine, minSdk 29, targetSdk 34, compileSdk 37.0, três ABI e ícone Internet XP; próxima versão 0.1.0-alpha.58 / versionCode 58.

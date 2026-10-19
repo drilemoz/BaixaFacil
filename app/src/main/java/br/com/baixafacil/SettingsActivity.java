@@ -80,20 +80,20 @@ public final class SettingsActivity extends Activity {
         option("Favoritos","Sites salvos: "+BrowserPrefs.favorites(this).size(),"bookmark",this::manageFavorites);
         option("Histórico de navegação","Ver os últimos endereços visitados","menu",this::showHistory);
         option("Limpar dados do navegador","Cookies, cache e histórico locais","trash",this::confirmClear);
-        option("Compatibilidade de login", "Cookies de terceiros: " + (BrowserPrefs.thirdPartyCookies(this) ? "ativados (menos privacidade)" : "bloqueados (padrão)"), "lock", this::chooseCookieCompatibility);
+        option("Compatibilidade de login", "Cookies de terceiros: " + (BrowserPrefs.thirdPartyCookies(this) ? "permitidos (ETP suspenso)" : GeckoEngine.trackingEnabled(this) ? "isolados por origem" : "bloqueados"), "lock", this::chooseCookieCompatibility);
         option("Cookies e sessões","Manter logins e limpar cookies e dados gerais","lock",()->{sessionSettingsPage=true;render();});
         downloadSwitch("Login em Custom Tabs",
             "Quando disponível, usa um navegador instalado para login Google e páginas incompatíveis. Sessões e downloads desse navegador são separados dos do Baixa Fácil.",
             CustomTabsBrowser.forLogin(this),CustomTabsBrowser::setForLogin);
 
         section("🛡 Bloqueio de anúncios");
-        option("Filtro cosmético", adBlockModeName(), "shield", this::chooseAdBlockMode);
-        downloadSwitch("Bloquear rastreadores", "Ativa a proteção nativa contra rastreamento do GeckoView. Recarregue a página para aplicar.",
+        option("Proteção GeckoView", adBlockModeName(), "shield", this::chooseAdBlockMode);
+        downloadSwitch("Bloquear rastreadores", "Ativa a proteção nativa conforme o perfil escolhido; o modo de compatibilidade de cookies suspende o ETP.",
             AdBlockController.savedTrackers(this),AdBlockController::setTrackers);
         downloadSwitch("Ocultar anúncios na página", "Esconde banners reconhecidos com CSS local; exige JavaScript.",
             AdBlockController.savedCosmetic(this),AdBlockController::setCosmetic);
-        // As regras de domínio EasyList não são aplicadas pelo GeckoView sem integração webRequest.
-        TextView adTip=Ui.text(this,"GeckoView: proteção nativa de rastreamento e ocultação CSS básica. Regras de domínio EasyList/EasyPrivacy não são interceptadas nesta versão. Atualizar listas locais não altera o bloqueio de rede.",12,palette.muted,false);
+        // Cookies de terceiros isolados quando ETP ativo; opção de compatibilidade preserva ACCEPT_ALL.
+        TextView adTip=Ui.text(this,"ETP do Firefox: Leve (padrão), Forte (rigoroso), Extremo (rigoroso + proteção social/parâmetros). Quando ativo, cookies de terceiros são isolados por origem. A opção de compatibilidade de cookies suspende o ETP. EasyList/EasyPrivacy locais NÃO interceptam requisições.",12,palette.muted,false);
         adTip.setPadding(dp(8),dp(10),dp(8),dp(5));list.addView(adTip);
 
         section("Vídeos e mídia");
@@ -129,7 +129,7 @@ public final class SettingsActivity extends Activity {
         });
         js.addView(toggle,new LinearLayout.LayoutParams(dp(52),dp(50)));
         list.addView(js,Ui.lp(this,-1,-2,7));
-        TextView info=Ui.text(this,"Segurança fixa: arquivos locais e conteúdo misto bloqueados. Cookies de terceiros são opcionais e desligados por padrão. O login OAuth do Google exige navegador compatível.",12,palette.muted,false);
+        TextView info=Ui.text(this,"Segurança fixa: arquivos locais e conteúdo misto bloqueados. Cookies de terceiros são restringidos por padrão (isolados quando ETP ativo). O login OAuth do Google exige navegador compatível.",12,palette.muted,false);
         info.setPadding(dp(8),dp(11),dp(8),dp(8));
         list.addView(info);
 
@@ -137,8 +137,8 @@ public final class SettingsActivity extends Activity {
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
         option("Diagnóstico e alertas",AppEventLog.enabled(this)?"Captura local ativada":"Captura local desativada","alert",()->{diagnosticsPage=true;render();});
-        option("Sobre","Baixa Fácil 0.1.0-alpha.56","webdown",()->{
-            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.56\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
+        option("Sobre","Baixa Fácil 0.1.0-alpha.57","webdown",()->{
+            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.57\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
         });
     }
     private void renderSessionSettings(){
@@ -184,7 +184,7 @@ public final class SettingsActivity extends Activity {
     }
 
     private String adBlockModeName(){
-        String[] names={"Desligado","Leve","Forte (padrão)","Extremo"};
+        String[] names={"Desligado","Leve (ETP padrão)","Forte (ETP rigoroso)","Extremo (ETP rigoroso+)"};
         int mode=AdBlockController.savedMode(this);
         return names[mode>=0&&mode<names.length?mode:AdBlockRules.STRONG];
     }
@@ -277,7 +277,7 @@ public final class SettingsActivity extends Activity {
     }
     private void chooseAdBlockMode(){
         String[] choices={"Desligado", "Leve", "Forte", "Extremo"};
-        String[] notes={"Sem bloqueio de anúncios", "Domínios publicitários conhecidos", "Anúncios e rastreadores", "Filtros agressivos que podem quebrar sites"};
+        String[] notes={"Desativa ETP e ocultação CSS; Safe Browsing permanece", "ETP padrão do GeckoView", "ETP rigoroso: pode quebrar sites", "ETP rigoroso + proteção social e limpeza de parâmetros; pode quebrar sites"};
         List<AppMenus.Entry> rows=AppMenus.entries();
         for(int i=0;i<choices.length;i++){
             final int mode=i;
@@ -286,7 +286,7 @@ public final class SettingsActivity extends Activity {
                 Toast.makeText(this,"Recarregue a página para aplicar",Toast.LENGTH_SHORT).show();
             }));
         }
-        AppMenus.show(this,"Bloqueio de anúncios","Escolha a intensidade da proteção.",rows);
+        AppMenus.show(this,"Proteção GeckoView","Perfis nativos do Firefox; listas EasyList locais não interceptam a rede.",rows);
     }
     private void updateAdLists(){
         List<AppMenus.Entry> rows=AppMenus.entries();
@@ -295,14 +295,14 @@ public final class SettingsActivity extends Activity {
             new AdBlockController(this).updateNow((ok,msg)->runOnUiThread(()->Toast.makeText(this,msg,Toast.LENGTH_LONG).show()));
         }));
         AppMenus.info(this,"Atualizar filtros",
-            "A atualização de EasyList e EasyPrivacy usa HTTPS e pode consumir alguns MB. Só são interpretadas regras simples de domínio; em caso de falha, a lista anterior será preservada.",rows);
+            "Listas EasyList/EasyPrivacy são armazenadas localmente, mas NÃO alimentam o bloqueio de rede do GeckoView. Para proteção real use os perfis ETP. Esta atualização é opcional.",rows);
     }
     private void chooseCookieCompatibility(){
         List<AppMenus.Entry> rows=AppMenus.entries();
-        rows.add(AppMenus.Entry.item("Bloquear cookies de terceiros"+(BrowserPrefs.thirdPartyCookies(this)?"":" • atual"),
-            "Privacidade recomendada","shield",()->{
+        rows.add(AppMenus.Entry.item("Restringir cookies de terceiros"+(BrowserPrefs.thirdPartyCookies(this)?"":" • atual"),
+            "Isolados por origem com ETP ativo; bloqueados quando ETP desligado","shield",()->{
                 BrowserPrefs.setThirdPartyCookies(this,false);render();
-                Toast.makeText(this,"Cookies de terceiros bloqueados",Toast.LENGTH_SHORT).show();
+                Toast.makeText(this,"Restrição de cookies habilitada",Toast.LENGTH_SHORT).show();
             }));
         rows.add(AppMenus.Entry.item("Permitir cookies de terceiros"+(BrowserPrefs.thirdPartyCookies(this)?" • atual":""),
             "Pode ajudar em alguns logins, mas reduz a privacidade","lock",()->{
@@ -310,7 +310,7 @@ public final class SettingsActivity extends Activity {
                 Toast.makeText(this,"Opção alterada. Recarregue a página.",Toast.LENGTH_LONG).show();
             }));
         AppMenus.info(this,"Compatibilidade de login",
-            "Cookies de terceiros podem ajudar certos sites, mas permitem rastreamento entre origens e não garantem login no Facebook. O Google OAuth pode bloquear navegadores incorporados. Cookies do navegador externo nunca são importados.",rows);
+            "Ao permitir cookies de terceiros para compatibilidade, o GeckoView suspende o ETP nativo; isso reduz a privacidade. Com proteção ETP ativa e cookies de terceiros desabilitados, o Firefox pode isolá-los por origem. Navegadores externos não compartilham cookies.",rows);
     }
 
     private interface SwitchSaver { void save(android.content.Context context, boolean checked); }

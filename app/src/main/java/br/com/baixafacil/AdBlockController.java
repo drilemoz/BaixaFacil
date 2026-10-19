@@ -62,7 +62,9 @@ public final class AdBlockController {
     public int mode(){return mode;}
     public boolean cosmetic(){return cosmetic;}
     public int ruleCount(){return rules.count();}
+    /** Contagem somente em memória dos eventos onContentBlocked do Gecko; não retém URLs. */
     public static int sessionBlocked(){return BLOCKED.get();}
+    public static void noteGeckoBlocked(){BLOCKED.incrementAndGet();}
     public void setPage(String url){ pageUrl=url==null?"":url; }
     public boolean isException(String url){
         String host=AdBlockRules.host(url);
@@ -88,7 +90,8 @@ public final class AdBlockController {
         String page=pageUrl;
         if(isException(page))return false;
         boolean block=rules.shouldBlock(resource,page,mode,trackers);
-        if(block)BLOCKED.incrementAndGet();
+        // Regras locais não são conectadas à rede do GeckoView.
+        // O contador público recebe exclusivamente eventos nativos do Gecko.
         return block;
     }
     public boolean shouldHideCosmetic(String url){
@@ -159,7 +162,7 @@ public final class AdBlockController {
                 loadLocalRules();
                 preferences().edit().putLong("updated_at",System.currentTimeMillis()).apply();
                 ok=true;
-                message="Listas atualizadas. Recarregue a página para aplicar os filtros.";
+                message="Listas locais atualizadas; ainda não são usadas para bloquear requisições no GeckoView.";
             }catch(Exception ex){temp.delete();}
             callback.finished(ok,message);
         });

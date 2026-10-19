@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.56"
-CODE = "56"
+VERSION = "0.1.0-alpha.57"
+CODE = "57"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -16,6 +16,7 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "GeckoView native ETP profiles and event counters": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_protection.py")],check=False).returncode==0,
     "Launcher Internet XP adaptive/round/mono": subprocess.run([sys.executable, str(ROOT / "tools/test_launcher_branding.py")],check=False).returncode==0,
     "GeckoView site permissions, file picker and fullscreen (alpha.54)": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_sites.py")],check=False).returncode==0,
     "ABI splits and publishing regression": subprocess.run([sys.executable, str(ROOT / "tools/test_abi_pipeline.py")], check=False).returncode == 0,
@@ -183,7 +184,7 @@ checks = {
         and all(x in read("app/src/main/java/br/com/baixafacil/AdBlockController.java")
         for x in ["adblock_seed.txt", "easylist.txt", "easyprivacy.txt", "setException", "updateNow", "setMode"])
         and "class AdBlockRulesTest" in read("app/src/test/java/br/com/baixafacil/AdBlockRulesTest.java"),
-    "Gecko native tracking protection and cosmetic rules": "setUseTrackingProtection(AdBlockController.savedTrackers(host))" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") and "web.cosmeticFilters()" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") and "bf-ad-css" in read("app/src/main/assets/baixafacil_gecko/media.js"),
+    "Gecko native tracking protection and cosmetic rules": "setUseTrackingProtection(GeckoEngine.trackingEnabled(host))" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") and "web.cosmeticFilters()" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") and "bf-ad-css" in read("app/src/main/assets/baixafacil_gecko/media.js"),
     "adblock settings and per-site controls": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
         for x in ["chooseAdBlockMode", "updateAdLists", "Bloquear rastreadores", "Ocultar anúncios na página"]),
     "documentation": all(VERSION in read(x) for x in ["README.md", "RELEASE_NOTES.md", "docs/VERSIONING.md", "docs/VALIDATION.md"]),
