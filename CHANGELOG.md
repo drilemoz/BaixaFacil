@@ -1,3 +1,12 @@
+# Baixa Fácil 0.1.0-alpha.51 (versionCode 51) - 2026-10-19
+
+- Configurados quatro APKs independentes por ABI: armeabi-v7a, arm64-v8a, x86 e x86_64. APK universal desativado.
+- `tools/collect_abi_apks.py` copia saídas declaradas no metadata do Gradle, recusando APK ausente/extra/versão errada ou `.so` de outra CPU.
+- Workflow verifica cada APK com apksigner e aapt e publica quatro assets na Release; `tools/publish_apk.sh` verifica os quatro SHA-256 reais após download.
+- `tools/test_abi_pipeline.py` e testes mock de publicação cobrem falhas de ABI, metadados, SHA-256, asset extra/ausente.
+- Alteradas somente distribuição, validação e versão. Mantidos GeckoView 158, SDK API 37.0, minSdk 29, targetSdk 34 e motor HTTP.
+- Compilação Gradle/Android real e tamanho dos pacotes continuam pendentes de CI.
+
 # Baixa Fácil 0.1.0-alpha.50 (versionCode 50) - 2026-10-19
 
 - Corrigido único erro `cannot find symbol` de `BrowserPane.java:440` no workflow **Gerar APK 21**: faltava `GeckoBrowserView.canGoForward()`.

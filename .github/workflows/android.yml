@@ -17,7 +17,7 @@ jobs:
   apk:
     name: Compilar, verificar e publicar APK
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - name: Baixar código
         uses: actions/checkout@v4
@@ -54,7 +54,7 @@ jobs:
       - name: Testar e compilar APK Debug obrigatoriamente
         run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
 
-      - name: Compilar e verificar APK de publicação
+      - name: Compilar e verificar os quatro APKs por arquitetura
         id: build_apk
         shell: bash
         env:
@@ -64,7 +64,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          version='0.1.0-alpha.50'
+          version='0.1.0-alpha.51'
           count=0
           [[ -n "$KEYSTORE_BASE64" ]] && count=$((count+1))
           [[ -n "$KEYSTORE_PASSWORD" ]] && count=$((count+1))
@@ -77,38 +77,36 @@ jobs:
             keytool -list -storetype PKCS12 -keystore "$KEYSTORE_FILE" \
               -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
             gradle --no-daemon --stacktrace :app:assembleRelease
-            source_apk='app/build/outputs/apk/release/app-release.apk'
             mode='release'
           elif [[ "$count" -eq 0 ]]; then
-            source_apk='app/build/outputs/apk/debug/app-debug.apk'
             mode='debug'
             echo '::warning::Usando assinatura Debug temporária. Configure os quatro Secrets para assinatura estável.'
           else
             echo '::error::Assinatura incompleta: configure os quatro Secrets ou nenhum.'
             exit 1
           fi
-          test -s "$source_apk"
-          mkdir -p dist
-          name="Baixa-Facil-v${version}.apk"
-          cp "$source_apk" "dist/$name"
+          python3 tools/collect_abi_apks.py --variant "$mode" --version "$version" --code 51 --output dist
           tool_dir="$ANDROID_HOME/build-tools/36.0.0"
-          "$tool_dir/apksigner" verify --verbose --print-certs "dist/$name"
-          badging="$("$tool_dir/aapt" dump badging "dist/$name")"
-          package_line="$(printf '%s\n' "$badging" | grep '^package: ' | head -1)"
-          printf '%s\n' "$package_line"
-          [[ "$package_line" == *"name='br.com.baixafacil'"* ]] || { echo '::error::applicationId inesperado'; exit 1; }
-          [[ "$package_line" == *"versionCode='50'"* ]] || { echo '::error::versionCode incorreto no APK'; exit 1; }
-          [[ "$package_line" == *"versionName='0.1.0-alpha.50'"* ]] || { echo '::error::versionName incorreto no APK'; exit 1; }
-          sha256sum "dist/$name"
-          echo "apk_file=dist/$name" >> "$GITHUB_OUTPUT"
+          for abi in armeabi-v7a arm64-v8a x86 x86_64; do
+            name="Baixa-Facil-v${version}-${abi}.apk"
+            "$tool_dir/apksigner" verify --verbose --print-certs "dist/$name"
+            badging="$("$tool_dir/aapt" dump badging "dist/$name")"
+            package_line="$(printf '%s\n' "$badging" | grep '^package: ' | head -1)"
+            printf '%s: %s\n' "$abi" "$package_line"
+            [[ "$package_line" == *"name='br.com.baixafacil'"* ]] || { echo '::error::applicationId inesperado'; exit 1; }
+            [[ "$package_line" == *"versionCode='51'"* ]] || { echo '::error::versionCode incorreto no APK'; exit 1; }
+            [[ "$package_line" == *"versionName='0.1.0-alpha.51'"* ]] || { echo '::error::versionName incorreto no APK'; exit 1; }
+            sha256sum "dist/$name"
+          done
+          echo "apk_dir=dist" >> "$GITHUB_OUTPUT"
           echo "signing_mode=$mode" >> "$GITHUB_OUTPUT"
 
-      - name: Publicar e verificar APK em Releases
+      - name: Publicar e verificar quatro APKs em Releases
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          APK_FILE: ${{ steps.build_apk.outputs.apk_file }}
-          VERSION: 0.1.0-alpha.50
+          APK_DIR: ${{ steps.build_apk.outputs.apk_dir }}
+          VERSION: 0.1.0-alpha.51
           SIGNING_MODE: ${{ steps.build_apk.outputs.signing_mode }}
         run: bash tools/publish_apk.sh
 

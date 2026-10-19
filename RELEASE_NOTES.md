@@ -1,3 +1,15 @@
+# Baixa Fácil 0.1.0-alpha.51 (versionCode 51)
+
+## APKs menores separados por CPU
+
+- ARM 32 bits `armeabi-v7a`, ARM 64 bits `arm64-v8a`, Intel 32 bits `x86`, Intel 64 bits `x86_64`.
+- Um APK por arquitetura, sem APK universal com todas as bibliotecas do GeckoView.
+- Quatro arquivos na mesma Release, validados por identidade, versão, assinatura, ABI nativa e SHA-256 baixado do GitHub.
+- Build `Release` com os quatro Secrets de assinatura, ou fallback `Debug` quando nenhum foi fornecido. Secrets parciais causam falha explícita.
+- Preservadas as funções de navegador e download; versões da plataforma e dependências não alteradas.
+
+**Status:** testes locais e publicação simulada; ainda não há build Android completo nem medição real do tamanho dos APKs por ABI.
+
 # Baixa Fácil 0.1.0-alpha.50 (versionCode 50)
 
 ## Correção do workflow Gerar APK 21

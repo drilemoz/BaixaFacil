@@ -1,30 +1,32 @@
 #!/usr/bin/env bash
-# Teste de contrato local: não usa GitHub e não publica nenhum APK real.
+# Offline test: 4 APKs on fresh release + replacing assets + rejecting corrupted bytes.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-mkdir -p "$work/bin" "$work/github"
+mkdir -p "$work/bin" "$work/github" "$work/dist"
 cat > "$work/bin/gh" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
 cmd="${1:-}"; sub="${2:-}"; shift 2
 state="${MOCK_GH_STATE:?}"
-if [[ "$cmd" != release ]]; then exit 7; fi
+[[ "$cmd" == release ]] || exit 7
 case "$sub" in
   view)
     [[ -f "$state/created" ]] || exit 1
     if [[ "$*" == *'--json assets'* ]]; then
-      [[ -f "$state/asset.apk" ]] && echo 'Baixa-Facil-v0.1.0-alpha.50.apk'
+      find "$state" -maxdepth 1 -type f -name '*.apk' -printf '%f\n' | sort
     elif [[ "$*" == *'--json url'* ]]; then
-      echo 'https://example.invalid/releases/v0.1.0-alpha.50'
+      echo 'https://example.invalid/releases/v0.1.0-alpha.51'
     fi
     ;;
   create|upload)
-    file=''
-    for arg in "$@"; do [[ "$arg" == *.apk ]] && file="$arg"; done
-    [[ -s "$file" ]] || exit 9
-    cp "$file" "$state/asset.apk"
+    for arg in "$@"; do
+      if [[ "$arg" == *.apk ]]; then
+        [[ -s "$arg" ]] || exit 9
+        cp "$arg" "$state/$(basename "$arg")"
+      fi
+    done
     touch "$state/created"
     ;;
   download)
@@ -32,24 +34,36 @@ case "$sub" in
     while (($#)); do
       if [[ "$1" == '--dir' ]]; then dir="$2"; shift 2; else shift; fi
     done
-    [[ -f "$state/asset.apk" ]] || exit 8
-    cp "$state/asset.apk" "$dir/Baixa-Facil-v0.1.0-alpha.50.apk"
-    if [[ "${MOCK_CORRUPT:-0}" == 1 ]]; then printf X >> "$dir/Baixa-Facil-v0.1.0-alpha.50.apk"; fi
+    [[ -f "$state/created" && -n "$dir" ]] || exit 8
+    for f in "$state"/*.apk; do cp "$f" "$dir/"; done
+    if [[ "${MOCK_CORRUPT:-0}" == 1 ]]; then
+      printf X >> "$dir/Baixa-Facil-v0.1.0-alpha.51-arm64-v8a.apk"
+    fi
     ;;
   *) exit 8;;
 esac
 MOCK
 chmod +x "$work/bin/gh"
-printf 'apk-exemplo-da-versao-50\n' > "$work/Baixa-Facil-v0.1.0-alpha.50.apk"
+abis=(armeabi-v7a arm64-v8a x86 x86_64)
+for abi in "${abis[@]}"; do printf 'conteudo-exemplo-%s\n' "$abi" > "$work/dist/Baixa-Facil-v0.1.0-alpha.51-${abi}.apk"; done
 export PATH="$work/bin:$PATH" MOCK_GH_STATE="$work/github" GH_TOKEN=ficticio
 export GITHUB_REPOSITORY=example/test GITHUB_SHA=abc123 RELEASE_MAX_ATTEMPTS=1
-export VERSION=0.1.0-alpha.50 APK_FILE="$work/Baixa-Facil-v0.1.0-alpha.50.apk"
+export VERSION=0.1.0-alpha.51 APK_DIR="$work/dist"
 export GITHUB_STEP_SUMMARY="$work/summary.txt" SIGNING_MODE=debug
 (cd "$root" && bash tools/publish_apk.sh) > "$work/first.log"
-[[ -f "$work/github/created" ]] && grep -q 'SHA-256' "$work/summary.txt"
+[[ -f "$work/github/created" ]] && [[ $(find "$work/github" -maxdepth 1 -name '*.apk' | wc -l) -eq 4 ]]
 (cd "$root" && bash tools/publish_apk.sh) > "$work/second.log"
 if (cd "$root" && MOCK_CORRUPT=1 bash tools/publish_apk.sh) > "$work/corrupt.log" 2>&1; then
- echo 'ERRO: hash diferente passou'; exit 1
+  echo 'ERRO: SHA-256 divergente não foi detectado'; exit 1
 fi
 grep -q 'SHA-256' "$work/corrupt.log"
-echo 'PASSOU: nova Release, atualização de Release e falha por SHA-256 divergente.'
+printf extra > "$work/dist/extra.apk"
+if (cd "$root" && bash tools/publish_apk.sh) > "$work/extra.log" 2>&1; then
+  echo 'ERRO: APK extra não foi detectado'; exit 1
+fi
+rm "$work/dist/extra.apk"
+rm "$work/dist/Baixa-Facil-v0.1.0-alpha.51-x86.apk"
+if (cd "$root" && bash tools/publish_apk.sh) > "$work/missing.log" 2>&1; then
+  echo 'ERRO: APK ausente não foi detectado'; exit 1
+fi
+echo 'PASSOU: criação, atualização, quatro assets, SHA-256 divergente, APK extra e APK ausente.'

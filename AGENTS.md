@@ -143,3 +143,11 @@
 - A fachada declara `boolean canGoForward(){return canForward;}` e o estado recebe `onCanGoForward`; preservar a semântica de histórico.
 - `tools/test_gecko_browser_contract.py` valida referências de métodos `web`/`loginPopup` usados pelo `BrowserPane` e o contrato dos callbacks. Executar em `ci_preflight.py`, mas não o confundir com compilação Android real.
 - Manter demais bibliotecas e configurações, sem copiar cookies Gecko para downloads. Próxima versão: `0.1.0-alpha.51`, `versionCode 51`.
+
+## Versão 0.1.0-alpha.51: distribuir quatro APKs GeckoView por ABI
+- APK universal carrega bibliotecas de várias CPUs e fica grande; usar `splits.abi` com `enable true`, `reset()`, quatro ABIs e `universalApk false`.
+- `tools/collect_abi_apks.py` deve ler output-metadata.json, exigir 4 elementos de ABI, mesma versão e bibliotecas nativas exclusivas de cada ABI; não presumir capitalização dos APKs do Gradle.
+- GitHub Actions deve verificar assinatura e badging de **cada** APK; Release contém **quatro** assets `.apk`, e `publish_apk.sh` deve confirmar os 4 SHA-256 após download.
+- Testes localmente com APKs falsos validam lógica, não tamanho real ou execução no Android; novas falhas devem ser analisadas nos logs CI.
+- Não incluir universal APK nem subir ZIP para Artifacts; preservar minSdk 29, targetSdk 34, GeckoView 158 e proteção de Secrets.
+- Próxima versão sequencial: `0.1.0-alpha.52` (versionCode 52).

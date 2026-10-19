@@ -1,3 +1,11 @@
+## 0.1.0-alpha.51: APKs separados por arquitetura (GeckoView)
+
+O GeckoView reúne bibliotecas nativas volumosas de quatro CPUs. A compilação agora produz **quatro APKs independentes**, um por ABI: `armeabi-v7a` (ARM 32 bits), `arm64-v8a` (ARM 64 bits), `x86` e `x86_64`; `universalApk false` evita o APK universal. Os quatro arquivos levam o mesmo `applicationId`, `versionCode 51` e a mesma versão, apropriados para instalação direta por arquitetura. A compilação precisa confirmar o tamanho real de cada pacote; nenhuma redução exata é garantida antecipadamente.
+
+O GitHub Actions coleta os APKs a partir do `output-metadata.json` do Gradle em vez de presumir nomes ou ordem, valida que cada APK contém `.so` apenas da ABI correspondente, confere assinatura `apksigner`, identidade/versão `aapt`, publica quatro assets na mesma Release e baixa cada um de volta para conferir SHA-256. Os testes simulados incluem APK ausente, extra, arquitetura errada e hash divergente. A assinatura permanece por Secrets (release) ou Debug temporária, sem misturar chaves.
+
+**Limites:** este ZIP tem apenas código-fonte, não contém os APKs compilados; os quatro APKs reais e seus tamanhos só serão gerados e confirmados no GitHub Actions. `minSdk 29`, `targetSdk 34`, SDK 37.0, GeckoView 158, navegação e downloads permanecem inalterados.
+
 ## 0.1.0-alpha.50: correção de compilação Java no build 21
 
 O workflow **Gerar APK 21** avançou com sucesso pela instalação do SDK 37.0, checagem de metadados AAR e início do javac. Falhou com um único erro em `BrowserPane.java:440`: a fachada `GeckoBrowserView` não tinha `canGoForward()` apesar de já possuir estado `canForward`, atualizações por `onCanGoForward` e `goForward()`.

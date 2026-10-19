@@ -14,9 +14,20 @@ android {
         applicationId 'br.com.baixafacil'
         minSdk 29
         targetSdk 34
-        versionCode 50
-        versionName '0.1.0-alpha.50'
+        versionCode 51
+        versionName '0.1.0-alpha.51'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    // GeckoView inclui bibliotecas nativas grandes para quatro arquiteturas.
+    // Gerar arquivos separados para não instalar binários de outras CPUs.
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            universalApk false
+        }
     }
 
     // Usado somente quando os 4 Secrets estão disponíveis no GitHub Actions.
