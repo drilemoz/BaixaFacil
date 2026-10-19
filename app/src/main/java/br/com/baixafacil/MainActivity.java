@@ -56,6 +56,8 @@ public class MainActivity extends Activity {
     private android.widget.FrameLayout contentHost;
     private ListView downloadsList;
     private BrowserPane browserPane;
+    private GeckoFilePicker geckoPicker;
+    private LinearLayout browserBottomBar;
     private boolean downloadsVisible;
     private android.widget.FrameLayout[] bottomButtons;
     private int appearanceMode;
@@ -86,6 +88,7 @@ public class MainActivity extends Activity {
     @Override public void onCreate(Bundle savedInstanceState) {
         Ui.selectTheme(this);
         super.onCreate(savedInstanceState);
+        geckoPicker=new GeckoFilePicker(this);
         appearanceMode = Ui.mode(this);
         compactDownloads = getSharedPreferences("download_view",MODE_PRIVATE).getBoolean("compact",true);
         if(savedInstanceState!=null){
@@ -362,6 +365,7 @@ public class MainActivity extends Activity {
 
     private void createBottomBar(LinearLayout root) {
         LinearLayout bar=Ui.horizontal(this);
+        browserBottomBar=bar;
         bar.setPadding(dp(6),0,dp(6),dp(4));
         bar.setBackground(Ui.shape(this,colors.surface,20));
         bottomButtons = new android.widget.FrameLayout[5];
@@ -416,8 +420,15 @@ public class MainActivity extends Activity {
             b.setBackground(Ui.shape(this,selected?colors.soft:colors.surface,16));
         }
     }
+    GeckoFilePicker geckoFilePicker(){return geckoPicker;}
+    void setBrowserFullscreen(boolean enabled){
+        if(browserBottomBar!=null)browserBottomBar.setVisibility(enabled?View.GONE:View.VISIBLE);
+        if(enabled)getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        else getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
+    }
     public void showDownloads() {
         if(downloadsList==null||browserPane==null)return;
+        browserPane.exitVideoFullscreen();
         downloadsVisible=true;
         downloadsList.setVisibility(View.VISIBLE);
         browserPane.view.setVisibility(View.GONE);
@@ -457,6 +468,7 @@ public class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
+        if(geckoPicker!=null && geckoPicker.onActivityResult(request,result,data))return;
         if(request==1001 && result==RESULT_OK && data!=null){
             String url=data.getStringExtra("open_url");
             if(url!=null&&browserPane!=null){showBrowser();browserPane.navigate(url);}
@@ -468,7 +480,14 @@ public class MainActivity extends Activity {
         out.putStringArrayList("EXPANDED_DOWNLOAD_IDS",new java.util.ArrayList<>(expandedDownloads));
         if(browserPane!=null)browserPane.saveState(out);
     }
+    @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants){
+        super.onRequestPermissionsResult(request,permissions,grants);
+        if(browserPane!=null && browserPane.onAndroidPermissionsResult(request,permissions,grants))return;
+    }
     private void handleBack(){
+        if(browserPane!=null && browserPane.isVideoFullscreen()){
+            browserPane.exitVideoFullscreen();return;
+        }
         executeNavigation(MainNavigationPolicy.systemBack(
             downloadsVisible,selectingDownloads,browserPane!=null&&browserPane.canGoBack()));
     }
@@ -1226,6 +1245,8 @@ public class MainActivity extends Activity {
         if(browserPane!=null)browserPane.onMemoryPressure(15);
     }
     @Override protected void onDestroy(){
+        if(browserPane!=null)browserPane.exitVideoFullscreen();
+        if(geckoPicker!=null)geckoPicker.cancel();
         mediaPreviewLoader.shutdown();
         if(Build.VERSION.SDK_INT>=33 && systemBackCallback!=null){
             getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(systemBackCallback);

@@ -163,3 +163,20 @@
 - Persistir somente contagem e tempo monotônico para o limite, sem URLs, tokens ou cookies. Testar a regra Java real via JDK e JUnit da CI.
 - O resumo da Release deve informar tamanho **real** de cada APK, sem converter tamanho do código-fonte em estimativa de APK.
 - Preservar GeckoView 158, ABI ARM32/ARM64/x86_64, SDK 37.0, download engine. Próxima versão `0.1.0-alpha.54`/versionCode 54.
+
+## Versão 0.1.0-alpha.54: arquivos, tela cheia e permissões GeckoView
+- `FilePrompt` usa exclusivamente seletor Android ACTION_OPEN_DOCUMENT com URIs `content://`; não copiar arquivos para caminhos privados, não registrar URIs e não conceder armazenamento amplo. Seletor ativo deve resolver ao cancelar/encerrar. Pastas e captura direta permanecem indisponíveis.
+- Delegado de permissões deve exigir site HTTPS e aceite explícito para geolocalização, câmera, microfone e autoplay sonoro. Não permitir captura de tela/áudio do aparelho, rede local, DRM ou notificações de sites sem implementação e testes dedicados.
+- Tela cheia é controlada por onFullScreen/exitFullScreen; restaurar barras ao usar Voltar, Downloads, destruição da Activity e falha Gecko; não cancelar downloads.
+- Preservar minSdk29, targetSdk34, compileSdk37.0, GeckoView 158 e APKs ARM32, ARM64, x86_64 com versionCode 54.
+- Não confundir pré-validação com compilação Android. Próxima versão sequencial: 0.1.0-alpha.55 / versionCode 55.
+
+## Versão 0.1.0-alpha.55: ícone do Internet XP
+- ícone do Internet XP nas densidades padrão e versão redonda de launcher.
+- Preservar applicationId, nome Baixa Fácil e assinatura de APK ao atualizar; versão subsequente 0.1.0-alpha.56 / versionCode 56.
+- Launcher pode usar máscara/cor de papel de parede; verificar em dispositivos reais.
+
+## Versão 0.1.0-alpha.56: ícone do Internet XP
+- ícone adaptativo, redondo e monocromático tematizável do Internet XP.
+- Preservar applicationId, nome Baixa Fácil e assinatura de APK ao atualizar; versão subsequente 0.1.0-alpha.57 / versionCode 57.
+- Launcher pode usar máscara/cor de papel de parede; verificar em dispositivos reais.

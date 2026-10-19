@@ -9,7 +9,11 @@ import org.mozilla.geckoview.GeckoSession;
 /** Suporte básico e explícito para caixas JavaScript e menus HTML do Gecko. */
 final class GeckoPromptHandler implements GeckoSession.PromptDelegate {
     private final Activity host;
-    GeckoPromptHandler(Activity host){this.host=host;}
+    private final GeckoFilePicker picker;
+    GeckoPromptHandler(Activity host,GeckoFilePicker picker){this.host=host;this.picker=picker;}
+    @Override public GeckoResult<PromptResponse> onFilePrompt(GeckoSession session,FilePrompt prompt){
+        return picker.open(prompt);
+    }
 
     private boolean available(){return !host.isFinishing()&&!host.isDestroyed();}
     private String title(String value){return value==null || value.isEmpty()?"Mensagem do site":value;}

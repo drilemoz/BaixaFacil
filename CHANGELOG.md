@@ -1,3 +1,21 @@
+# Baixa Fácil 0.1.0-alpha.56 (versionCode 56) - 2026-10-19
+
+- ícone adaptativo, redondo e monocromático tematizável do Internet XP.
+- Versionamento, CI e documentação sincronizados; código do navegador não alterado.
+
+# Baixa Fácil 0.1.0-alpha.55 (versionCode 55) - 2026-10-19
+
+- ícone do Internet XP nas densidades padrão e versão redonda de launcher.
+- Versionamento, CI e documentação sincronizados; código do navegador não alterado.
+
+# Baixa Fácil 0.1.0-alpha.54 (versionCode 54) - 2026-10-19
+
+- `GeckoPromptHandler` passou a tratar `FilePrompt` com seletor SAF Android via `GeckoFilePicker`, incluindo seleção múltipla e cancelamento explícito.
+- `GeckoSitePermissions`: Android runtime grants para localização, câmera e microfone, prompt de consentimento separado por origem HTTPS; fontes de captura de tela/áudio interno recusadas.
+- `GeckoSession.ContentDelegate.onFullScreen`: vídeo HTML5 ocupa a tela, Voltar e transição para Downloads saem da tela cheia corretamente.
+- Introduzida regra pura `GeckoPickerPolicy` com teste Java local e verificação de integração pré-CI; Manifest declara recursos de hardware como opcionais.
+- Preservados motor HTTP de downloads, GeckoView 158, três ABIs e restrições de privacidade. Compilação real e testes de aparelho pendentes.
+
 # Baixa Fácil 0.1.0-alpha.53 (versionCode 53) - 2026-10-19
 
 - Proteção contra ciclo de recriação do navegador após `GeckoSession.ContentDelegate.onCrash/onKill`: até duas tentativas automáticas a cada 120 segundos; terceira falha exige ação explícita.

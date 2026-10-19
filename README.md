@@ -1,3 +1,23 @@
+## 0.1.0-alpha.56: ícone adaptativo, redondo e monocromático tematizável do Internet XP
+
+- Novo ícone de launcher importado do Internet XP do usuário.
+- `applicationId` e nome Baixa Fácil preservados; downloads e GeckoView sem alteração.
+- Build Android e teste físico pendentes.
+
+## 0.1.0-alpha.55: ícone do Internet XP nas densidades padrão e versão redonda de launcher
+
+- Novo ícone de launcher importado do Internet XP do usuário.
+- `applicationId` e nome Baixa Fácil preservados; downloads e GeckoView sem alteração.
+- Build Android e teste físico pendentes.
+
+## 0.1.0-alpha.54: compatibilidade GeckoView (arquivos, permissões e tela cheia)
+
+- Sites agora usam `ACTION_OPEN_DOCUMENT` para seleção simples/múltipla de arquivos por `content://`, sem acesso amplo ao armazenamento, sem captura direta nem envio de pastas. O seletor respeita tipos MIME básicos e trata cancelamento e encerramento.
+- Páginas HTTPS podem solicitar permissões individuais de câmera, microfone e localização pelo Android e por confirmação explícita da origem no GeckoView. Captura de tela/áudio interno, notificações de sites, DRM, acesso à rede local e permissões desconhecidas não são concedidas automaticamente.
+- Vídeo HTML5 pode entrar em tela cheia, ocultar barras do aplicativo e sair com Voltar; trocar para Downloads restaura a interface e não interrompe o motor de transferência.
+- Permanecem GeckoView 158, SDK 37.0, minSdk 29, targetSdk 34 e os três APKs por arquitetura. Limites: uploads por pastas, captura direta no input file e notificações web não são suportados.
+- Há validações locais, mas compilação Android e testes físicos da alpha.54 ainda não foram realizados aqui.
+
 ## 0.1.0-alpha.53: estabilidade do GeckoView e diagnóstico dos APKs
 
 Consulte `docs/TESTE_APARELHO_GECKOVIEW.md` para o roteiro de validação física.

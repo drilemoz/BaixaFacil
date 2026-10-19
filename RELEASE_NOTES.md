@@ -1,3 +1,27 @@
+# Baixa Fácil 0.1.0-alpha.56 (versionCode 56)
+
+- ícone adaptativo, redondo e monocromático tematizável do Internet XP.
+- Mantidos GeckoView 158, downloads e três APKs por arquitetura.
+- Build Android e aparência no aparelho ainda não confirmados.
+
+# Baixa Fácil 0.1.0-alpha.55 (versionCode 55)
+
+- ícone do Internet XP nas densidades padrão e versão redonda de launcher.
+- Mantidos GeckoView 158, downloads e três APKs por arquitetura.
+- Build Android e aparência no aparelho ainda não confirmados.
+
+# Baixa Fácil 0.1.0-alpha.54 (versionCode 54)
+
+**Compatibilidade GeckoView:** formulários web agora abrem o seletor de arquivos do Android (um ou vários), sem solicitar acesso geral ao armazenamento. Vídeos HTML5 podem usar a tela cheia, com saída por Voltar e restauração ao abrir Downloads.
+
+**Permissões:** câmera, microfone e localização somente após solicitação de site HTTPS e consentimento do usuário, com permissões Android quando necessárias. Outros acessos sensíveis não são liberados silenciosamente.
+
+**Não incluído:** seleção de pastas, captura direta pelo `input file`, notificações push/web, captura de tela ou áudio interno. Não altera download por cookies nem oferece DRM.
+
+**Verificação:** testes locais de integração e política MIME; build Android e execução em aparelho ainda pendentes. APKs ARM32/ARM64/x86_64 dependem do GitHub Actions.
+
+---
+
 # Baixa Fácil 0.1.0-alpha.53 (versionCode 53)
 
 **Estabilidade GeckoView:** recuperação automática limitada a duas tentativas durante 120 segundos. Se o processo de conteúdo continuar encerrando, o aplicativo oferece tentar manualmente, abrir o site no navegador externo ou voltar aos downloads. Sessão/cookies não são copiados para o motor HTTP.

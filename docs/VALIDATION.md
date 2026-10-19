@@ -1,3 +1,20 @@
+## 0.1.0-alpha.56: ícone adaptativo, redondo e monocromático tematizável do Internet XP
+
+- Validação local das referências de recursos, sintaxe de XML, integridade de bitmaps e versionamento.
+- Compilação Android e inspeção no launcher real pendentes.
+
+## 0.1.0-alpha.55: ícone do Internet XP nas densidades padrão e versão redonda de launcher
+
+- Validação local das referências de recursos, sintaxe de XML, integridade de bitmaps e versionamento.
+- Compilação Android e inspeção no launcher real pendentes.
+
+## 0.1.0-alpha.54: compatibilidade de sites GeckoView
+
+- Seleção SAF simples/múltipla via `GeckoFilePicker`, sem permissão de armazenamento geral; política MIME e `content://` exercitadas por Java/JDK local.
+- Revisão estrutural do Gecko PermissionDelegate, consentimento por origem HTTPS, `onRequestPermissionsResult`, botões da tela cheia e ciclo de vida; testes automatizados em `tools/test_gecko_sites.py`.
+- Checklist em `docs/TESTE_APARELHO_GECKOVIEW.md`. Os cenários de câmera, microfone, localização, seletor Android e vídeo HTML5 requerem aparelho/emulador e não foram executados neste ambiente.
+- Build Gradle/Android real pendente; preflight e testes mockados não comprovam compatibilidade ABI ou execução de bibliotecas Gecko.
+
 ## 0.1.0-alpha.53: tratamento de falhas Gecko e tamanho por ABI
 
 - Checklist de validação no aparelho: `docs/TESTE_APARELHO_GECKOVIEW.md`.

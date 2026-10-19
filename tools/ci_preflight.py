@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.53"
-CODE = "53"
+VERSION = "0.1.0-alpha.56"
+CODE = "56"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -16,6 +16,8 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "Launcher Internet XP adaptive/round/mono": subprocess.run([sys.executable, str(ROOT / "tools/test_launcher_branding.py")],check=False).returncode==0,
+    "GeckoView site permissions, file picker and fullscreen (alpha.54)": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_sites.py")],check=False).returncode==0,
     "ABI splits and publishing regression": subprocess.run([sys.executable, str(ROOT / "tools/test_abi_pipeline.py")], check=False).returncode == 0,
     "GeckoView crash recovery bounded (JDK real code test)": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_crash_policy.py")], check=False).returncode == 0
         and "onCrash(GeckoSession gecko){recoverGeckoCrash();}" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")

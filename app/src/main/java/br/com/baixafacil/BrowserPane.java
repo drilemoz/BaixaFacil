@@ -58,6 +58,12 @@ final class BrowserPane {
     private final Ui.Palette colors;
     final LinearLayout view;
     private GeckoBrowserView web;
+    private final GeckoSitePermissions sitePermissions;
+    private LinearLayout browserToolbar;
+    private LinearLayout bottomInfo;
+    private boolean videoFullscreen;
+    private boolean findWasVisible;
+    private boolean videosWasVisible;
     private EditText address;
     private ListPopupWindow suggestionsPopup;
     private boolean suppressSuggestions;
@@ -118,6 +124,7 @@ final class BrowserPane {
         this.host = host;
         this.colors = colors;
         adBlock = new AdBlockController(host);
+        sitePermissions=new GeckoSitePermissions(host,()->web==null?null:web.getUrl());
         view = Ui.vertical(host);
         view.setPadding(0,dp(4),0,0);
         view.setBackgroundColor(colors.background);
@@ -135,6 +142,7 @@ final class BrowserPane {
     }
     private void build(Bundle saved) {
         LinearLayout top = Ui.horizontal(host);
+        browserToolbar=top;
         LinearLayout row = Ui.horizontal(host);
         row.setBackground(Ui.shape(host,colors.surface,20));
         row.setPadding(dp(5),0,dp(4),0);
@@ -243,7 +251,8 @@ final class BrowserPane {
                 findCount.setText(total==0?"0/0":current+"/"+total);
             }
         });
-        session.setPromptDelegate(new GeckoPromptHandler(host));
+        session.setPromptDelegate(new GeckoPromptHandler(host,host.geckoFilePicker()));
+        session.setPermissionDelegate(sitePermissions);
         session.setNavigationDelegate(new GeckoSession.NavigationDelegate(){
             @Override public GeckoResult<AllowOrDeny> onLoadRequest(GeckoSession gecko,
                     GeckoSession.NavigationDelegate.LoadRequest request) {
@@ -318,6 +327,9 @@ final class BrowserPane {
             }
         });
         session.setContentDelegate(new GeckoSession.ContentDelegate(){
+            @Override public void onFullScreen(GeckoSession gecko,boolean fullScreen){
+                if(web!=null && gecko==web.session)setVideoFullscreen(fullScreen);
+            }
             @Override public void onTitleChange(GeckoSession gecko,String title){web.pageTitle(title);}
             @Override public void onContextMenu(GeckoSession gecko,int x,int y,
                     GeckoSession.ContentDelegate.ContextElement element){
@@ -345,7 +357,7 @@ final class BrowserPane {
         status=Ui.text(host,"Digite um endereço ou pesquise na web.",11,colors.muted,false);
         status.setSingleLine(true);status.setEllipsize(TextUtils.TruncateAt.END);
         status.setPadding(dp(19),0,dp(19),0);
-        LinearLayout bottomInfo=Ui.horizontal(host);
+        bottomInfo=Ui.horizontal(host);
         bottomInfo.addView(status,new LinearLayout.LayoutParams(0,dp(28),1));
         LinearLayout.LayoutParams bottomP=Ui.lp(host,-1,28,2);
         bottomP.leftMargin=0;bottomP.rightMargin=0;
@@ -608,7 +620,8 @@ final class BrowserPane {
         loginPopup=popup;
         popup.session.getSettings().setAllowJavascript(BrowserPrefs.javascript(host));
         popup.session.getSettings().setUseTrackingProtection(AdBlockController.savedTrackers(host));
-        popup.session.setPromptDelegate(new GeckoPromptHandler(host));
+        popup.session.setPromptDelegate(new GeckoPromptHandler(host,host.geckoFilePicker()));
+        // Permissões de mídia e localização são recusadas em popups: não herdar a origem da janela principal.
         popup.session.setNavigationDelegate(new GeckoSession.NavigationDelegate(){
             @Override public GeckoResult<AllowOrDeny> onLoadRequest(GeckoSession gecko,
                     GeckoSession.NavigationDelegate.LoadRequest request){
@@ -656,10 +669,38 @@ final class BrowserPane {
         return GeckoResult.fromValue(popup.session);
     }
 
+    /** A tela cheia é propriedade da GeckoSession; não altera o estado dos downloads. */
+    private void setVideoFullscreen(boolean enabled){
+        if(videoFullscreen==enabled)return;
+        videoFullscreen=enabled;
+        if(enabled){
+            findWasVisible=findBar.getVisibility()==View.VISIBLE;
+            videosWasVisible=videosButton!=null && videosButton.getVisibility()==View.VISIBLE;
+        }
+        browserToolbar.setVisibility(enabled?View.GONE:View.VISIBLE);
+        findBar.setVisibility(enabled?View.GONE:(findWasVisible?View.VISIBLE:View.GONE));
+        loading.setVisibility(enabled?View.GONE:View.INVISIBLE);
+        if(bottomInfo!=null)bottomInfo.setVisibility(enabled?View.GONE:View.VISIBLE);
+        if(videosButton!=null)videosButton.setVisibility(enabled?View.GONE:(videosWasVisible?View.VISIBLE:View.GONE));
+        host.setBrowserFullscreen(enabled);
+    }
+    boolean isVideoFullscreen(){return videoFullscreen;}
+    void exitVideoFullscreen(){
+        if(!videoFullscreen)return;
+        if(web!=null && !geckoProcessGone && web.session.isOpen())web.session.exitFullScreen();
+        setVideoFullscreen(false);
+    }
+    boolean onAndroidPermissionsResult(int code,String[] permissions,int[] grants){
+        return sitePermissions.onRequestPermissionsResult(code,permissions,grants);
+    }
+
     private void recoverGeckoCrash(){
         // Os dois callbacks podem chegar para a mesma sessão. Tratar somente uma vez.
         if(geckoProcessGone)return;
         geckoProcessGone=true;
+        setVideoFullscreen(false);
+        host.geckoFilePicker().cancel();
+        sitePermissions.cancel();
         lastNavigationProblem="Processo de conteúdo Gecko encerrado pelo Android.";
         AppEventLog.error(host,"Navegador","Processo de conteúdo Gecko encerrado.");
         cancelMediaScan();
@@ -1205,6 +1246,8 @@ final class BrowserPane {
             output.putString("BROWSER_GECKO_URL",web.getUrl());
     }
     void destroy(){
+        setVideoFullscreen(false);
+        sitePermissions.cancel();
         pageActive=false;cancelMediaScan();dismissAddressSuggestions();
         if(loginPopupDialog!=null)loginPopupDialog.dismiss();
         if(web!=null){

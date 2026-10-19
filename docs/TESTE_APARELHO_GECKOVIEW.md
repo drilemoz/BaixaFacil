@@ -1,4 +1,4 @@
-# Checklist de teste real: GeckoView / Alpha.53
+# Checklist de teste real: GeckoView / Alpha.54
 
 Os testes locais confirmam estrutura e regras, **não** substituem o teste do APK instalado.
 
@@ -14,3 +14,14 @@ Os testes locais confirmam estrutura e regras, **não** substituem o teste do AP
 10. Testar com Android 10+ e, se possível, em aparelho com 4 GB de RAM, verificando que DownloadEngine / TransferService não foram interrompidos quando o navegador foi fechado.
 
 Não registrar/capturar publicamente URLs de login, cookies, tokens, histórico privado, senhas ou dados de usuário em relatórios de erro.
+
+
+## Alpha.54: compatibilidade de páginas
+
+1. Em um formulário HTML HTTPS, selecionar um arquivo com `<input type="file">`, depois vários com `multiple` e confirmar que o site os recebe. Cancelar o seletor e repetir.
+2. Testar `accept="image/*"` e MIME múltiplos. Confirmar que o sistema não concede acesso geral ao armazenamento e não aceita URLs `file://`. Seleção de pastas e captura direta são não suportadas nesta versão.
+3. Em um vídeo HTML5, ativar tela cheia, verificar ocultação da barra superior/inferior, voltar pelo botão Voltar do Android e alternar para Downloads. Verificar restauração das barras e flags do sistema.
+4. Em sites HTTPS, solicitar câmera/microfone/localização, negar no Android e no site, depois conceder. Confirmar que a permissão do Android é solicitada somente quando requisitada pelo site e que uma origem HTTP é recusada. Não testar com dados pessoais.
+5. Verificar que solicitações de captura de tela, áudio interno, notificações de sites, acesso a terceiros/rede local e armazenamento persistente não ganham autorização silenciosa.
+6. Trocar de aplicativo durante o seletor e durante prompts de permissão; fechar o Baixa Fácil e confirmar ausência de travamentos/prompt pendente. Testar também popup com gesto.
+7. Medir RAM, tamanho dos três APKs e estabilidade nos aparelhos. Build real e teste físico ainda pendentes.
