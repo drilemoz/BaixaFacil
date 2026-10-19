@@ -129,3 +129,11 @@
 - O build deve usar `compileSdk { version = release(37) { minorApiLevel = 0 } }`, prevenindo busca pelo caminho inexistente `android-37`.
 - Testes estáticos não provam compilação real. Manter GeckoView 158 e versões de dependências; só corrigir Java se o novo log demonstrar o erro.
 - Próxima versão sequencial: 0.1.0-alpha.49 com versionCode 49.
+
+
+## Versão 0.1.0-alpha.49: separar comandos do SDK no GitHub Actions
+- O workflow Gerar APK 20 falhou antes do Gradle: o YAML `run:` dobrado concatenou `sdkmanager --install ...` com `test -s ...`, gerando `Warning: Failed to find package 'test'`.
+- Usar exclusivamente `run: |` com uma instrução por linha, `set -euo pipefail` e teste explícito do `android.jar`. Não usar escalar YAML dobrado para duas instruções de shell.
+- `python3 tools/test_sdk_workflow.py` valida separação, sintaxe e comportamento da etapa com um `sdkmanager` simulado, inclusive quando o JAR não existe. Incluir o teste no preflight; executar preflight antes da instalação no CI.
+- Manter GeckoView 158, AGP 9.1.1, Gradle 9.3.1, compileSdk 37.0, minSdk 29, targetSdk 34, Build Tools 36.0.0; sem alterações no motor HTTP ou navegador.
+- Próxima versão sequencial: 0.1.0-alpha.50 com versionCode 50.

@@ -1,3 +1,14 @@
+# Baixa Fácil 0.1.0-alpha.49 (versionCode 49)
+
+## Correção do workflow Gerar APK 20
+
+- A instalação da API 37.0 estava formatada como um bloco YAML `run:` dobrado. O GitHub Actions concatenou o comando de instalação e a expressão `test -s ...`, e o SDK Manager tentou localizar um pacote inexistente chamado `test`.
+- Corrigido para `run: |`, com comandos separados, parada em caso de falha e teste do arquivo `platforms/android-37.0/android.jar`.
+- Adicionado teste automatizado simulando o SDK Manager, executado pelo preflight antes do passo real de instalação.
+- Mantidas as configurações Android/GeckoView e os recursos da alpha.48.
+
+**Status:** verificações locais de código/configuração; sem compilação Android completa nem validação no aparelho.
+
 # Baixa Fácil 0.1.0-alpha.48 (versionCode 48)
 
 ## Correção do workflow Gerar APK 19

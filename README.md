@@ -1,3 +1,9 @@
+## 0.1.0-alpha.49: correção do passo de instalação do SDK no build 20
+
+O workflow **Gerar APK 20** falhou antes do Gradle: o YAML transformou duas linhas do `run:` da etapa de instalação em **um comando só**. O `sdkmanager` recebeu `test` como argumento e informou `Failed to find package 'test'`. Agora a etapa usa `run: |` e executa instalação e validação em linhas separadas, com `set -euo pipefail`. Um teste automatizado usa `sdkmanager` simulado e verifica caminhos de sucesso e de ausência do `android.jar`; o preflight executa antes da instalação real.
+
+Preservados GeckoView 158, SDK 37.0, AGP 9.1.1, Gradle 9.3.1, Build Tools 36.0.0, `minSdk 29`, `targetSdk 34` e funções do Baixa Fácil. **Ainda não há comprovação de compilação Android ou execução em celular.**
+
 ## 0.1.0-alpha.48: SDK Android 37.0 no GitHub Actions
 
 O workflow **Gerar APK 19** parou antes do Gradle: `sdkmanager` não encontrou `platforms;android-37`. A plataforma oficial é **`platforms;android-37.0`**. O CI instala o pacote correto e verifica o arquivo `android.jar`. A configuração `compileSdk { version = release(37) { minorApiLevel = 0 } }` usa explicitamente API 37.0, evitando resolver o nome inexistente `android-37`.

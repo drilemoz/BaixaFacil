@@ -1,3 +1,11 @@
+# Baixa Fácil 0.1.0-alpha.49 (versionCode 49) - 2026-10-19
+
+- Corrigido o workflow **Gerar APK 20**: `run:` dobrado concatenava `sdkmanager` com `test -s`, causando `Failed to find package 'test'` e saída 1 antes da compilação.
+- Instalação API 37.0 e validação do `android.jar` agora são comandos distintos no bloco literal YAML `run: |` com verificação de erro.
+- Adicionado teste automatizado da etapa com SDK Manager falso para verificar argumentos e falha quando falta a plataforma; o preflight roda antes da instalação no CI.
+- Sincronizados versionCode/versionName 49, Sobre, User-Agent, teste de publicação, documentação e metadados do workflow.
+- GeckoView, downloads e target/minSdk inalterados. Build Android e validação em dispositivo continuam pendentes.
+
 # Baixa Fácil 0.1.0-alpha.48 (versionCode 48) - 2026-10-19
 
 - Corrigido o erro comprovado do workflow **Gerar APK 19**: `Failed to find package 'platforms;android-37'`. O pacote correto é `platforms;android-37.0`.

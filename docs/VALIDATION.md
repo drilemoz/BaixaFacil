@@ -1,3 +1,17 @@
+## 0.1.0-alpha.49: etapa SDK corrigida (workflow Gerar APK 20)
+
+### Falha confirmada no log
+
+- Etapa `Instalar SDK API 37` executou `sdkmanager --install 'platforms;android-37.0' 'build-tools;36.0.0' test -s ...` na mesma linha, devido ao tratamento YAML do campo `run` sem bloco literal.
+- O SDK Manager produziu `Warning: Failed to find package 'test'` e a etapa terminou com exit code 1. O Gradle **não** foi executado e o log não contém erro de compilação Java.
+
+### Correção, prevenção e limitações
+
+- A etapa usa `run: |`, `set -euo pipefail` e comandos individuais para instalação e verificação do JAR da API 37.0.
+- `tools/test_sdk_workflow.py` verifica o script da etapa e executa cenários simulados de instalação bem-sucedida e ausência da plataforma; é acionado por `tools/ci_preflight.py` e este é executado antes da instalação real no workflow.
+- Executados localmente: **61 verificações** do preflight; testes simulados do SDK (sucesso e plataforma ausente); simulação de Release e falha com SHA-256 divergente; parse de **85 arquivos Java** sem erros sintáticos; parse YAML, XML/JSON e verificação JavaScript; integridade ZIP.
+- Testes estáticos, simulação do SDK e simulação de publicação **não** substituem compilação Android. Executar a CI e testar em aparelho.
+
 ## 0.1.0-alpha.48: nome do pacote Android SDK 37.0 (workflow Gerar APK 19)
 
 ### Falha confirmada nos logs
