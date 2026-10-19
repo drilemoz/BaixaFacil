@@ -1,3 +1,10 @@
+# Baixa Fácil 0.1.0-alpha.52 (versionCode 52) - 2026-10-19
+
+- **Build 23:** `:app:testDebugUnitTest`, `:app:assembleDebug` e `:app:assembleRelease` concluíram com `BUILD SUCCESSFUL`. Falha depois do build, em `collect_abi_apks.py`: `Bibliotecas nativas de x86 inválidas: set()`.
+- GeckoView 158 não inclui `lib/x86/libxul.so` (versão x86 32 bits descontinuada). Removido somente o split `x86` para evitar APK instalável sem o motor do navegador. Permanecem `armeabi-v7a`, `arm64-v8a` e `x86_64`, sem APK universal.
+- Coleta, publicação, verificações do CI e testes simulados ajustados para três APKs, exigindo `libxul.so` da ABI correta, assinatura, `aapt`, versionCode, versões e SHA-256 de cada arquivo.
+- Dependências, minSdk 29, targetSdk 34, SDK 37.0, GeckoView 158, funcionamento do navegador e motor de downloads preservados. Compilação real da alpha.52 e testes no aparelho pendentes.
+
 # Baixa Fácil 0.1.0-alpha.51 (versionCode 51) - 2026-10-19
 
 - Configurados quatro APKs independentes por ABI: armeabi-v7a, arm64-v8a, x86 e x86_64. APK universal desativado.

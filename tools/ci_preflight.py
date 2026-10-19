@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.51"
-CODE = "51"
+VERSION = "0.1.0-alpha.52"
+CODE = "52"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 

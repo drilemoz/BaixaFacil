@@ -1,3 +1,14 @@
+# Baixa Fácil 0.1.0-alpha.52 (versionCode 52)
+
+## APKs por arquitetura validados para GeckoView 158
+
+- Build 23 anterior comprovou compilação Debug e Release, além dos testes unitários; falha posterior identificou que x86 (32 bits) não possui bibliotecas nativas do GeckoView.
+- Três APKs: ARM 32 bits (`armeabi-v7a`), ARM 64 bits (`arm64-v8a`) e Intel/AMD 64 bits (`x86_64`). Nenhum APK universal ou x86 32 bits vazio.
+- CI e Release conferem nativos `libxul.so`, assinatura, pacote, versão e SHA-256 de cada arquivo.
+- GeckoView 158 e downloads preservados.
+
+**Status:** código-fonte corrigido. Geração de APK alpha.52, tamanho de cada APK e execução em dispositivos ainda pendentes.
+
 # Baixa Fácil 0.1.0-alpha.51 (versionCode 51)
 
 ## APKs menores separados por CPU

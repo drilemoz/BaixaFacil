@@ -1,3 +1,9 @@
+## 0.1.0-alpha.52: corrigida matriz de APKs GeckoView
+
+No **Gerar APK 23**, Gradle concluiu com sucesso a compilação de Debug/Release e os testes unitários; a coleta falhou porque o split `x86` de 32 bits não possuía `.so` do GeckoView 158 (`set()`). O Android permite criar esse APK vazio de bibliotecas, mas o navegador falharia ao executar. GeckoView 158 não oferece binários `x86` 32 bits; a última linha publicada nessa arquitetura é a 144.
+
+Agora geramos exclusivamente **três** APKs suportados (`armeabi-v7a`, `arm64-v8a`, `x86_64`). O coletor confere ABI única por APK e a presença explícita de `lib/<abi>/libxul.so`. O workflow e os testes de publicação verificam três assets e SHA-256, evitando APK universal e arquitetura incompleta. A Release alpha.52 requer novo build real, medição de tamanho e teste Android.
+
 ## 0.1.0-alpha.51: APKs separados por arquitetura (GeckoView)
 
 O GeckoView reúne bibliotecas nativas volumosas de quatro CPUs. A compilação agora produz **quatro APKs independentes**, um por ABI: `armeabi-v7a` (ARM 32 bits), `arm64-v8a` (ARM 64 bits), `x86` e `x86_64`; `universalApk false` evita o APK universal. Os quatro arquivos levam o mesmo `applicationId`, `versionCode 51` e a mesma versão, apropriados para instalação direta por arquitetura. A compilação precisa confirmar o tamanho real de cada pacote; nenhuma redução exata é garantida antecipadamente.

@@ -1,3 +1,9 @@
+## 0.1.0-alpha.52: corrigida matriz de APKs GeckoView
+
+O **Gerar APK 23** compilou Debug e Release com sucesso, inclusive os testes Java. A falha estava na validação do APK `x86` (32 bits), que não continha bibliotecas nativas do GeckoView 158. Por isso a versão atual publica **três APKs válidos**, separados por CPU: **ARM 32 bits** (`armeabi-v7a`), **ARM 64 bits** (`arm64-v8a`) e **x86 de 64 bits** (`x86_64`). Não é gerado APK universal nem x86 de 32 bits, e não misturamos bibliotecas de versões distintas do GeckoView.
+
+O publicador compara os três APKs da Release com os arquivos compilados por SHA-256, verifica assinatura/versões e recusa APKs sem `libxul.so` da ABI correspondente. **A alpha.52 ainda exige compilação pelo GitHub Actions; não são APKs pré-compilados neste ZIP.**
+
 ## 0.1.0-alpha.51: APKs separados por arquitetura (GeckoView)
 
 O GeckoView reúne bibliotecas nativas volumosas de quatro CPUs. A compilação agora produz **quatro APKs independentes**, um por ABI: `armeabi-v7a` (ARM 32 bits), `arm64-v8a` (ARM 64 bits), `x86` e `x86_64`; `universalApk false` evita o APK universal. Os quatro arquivos levam o mesmo `applicationId`, `versionCode 51` e a mesma versão, apropriados para instalação direta por arquitetura. A compilação precisa confirmar o tamanho real de cada pacote; nenhuma redução exata é garantida antecipadamente.

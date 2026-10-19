@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy the four Gradle-generated ABI APKs using output-metadata.json.
+"""Copy the three supported Gradle-generated ABI APKs using output-metadata.json.
 
 Avoid assuming Gradle's output file capitalization or order. Refuse universal,
 missing, stale, or incorrectly filtered APKs; validate their native libraries.
@@ -11,7 +11,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-ABIS = ('armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64')
+ABIS = ('armeabi-v7a', 'arm64-v8a', 'x86_64')
 
 
 def collect(root: Path, variant: str, version: str, code: int, output: Path) -> list[Path]:
@@ -28,7 +28,7 @@ def collect(root: Path, variant: str, version: str, code: int, output: Path) -> 
             raise ValueError('APK universal ou filtro inesperado na saída do Gradle')
         abi = filters[0].get('value')
         if abi not in ABIS or abi in by_abi:
-            raise ValueError(f'ABI desconhecida ou repetida: {abi}')
+            raise ValueError(f'ABI não suportada ou repetida: {abi}; permitido: {ABIS}')
         if e.get('versionCode') != code or e.get('versionName') != version:
             raise ValueError(f'Versão incorreta no metadata do APK {abi}')
         name = e.get('outputFile', '')
@@ -45,8 +45,8 @@ def collect(root: Path, variant: str, version: str, code: int, output: Path) -> 
         with zipfile.ZipFile(path) as archive:
             libs = {n.split('/')[1] for n in archive.namelist()
                     if n.startswith('lib/') and n.endswith('.so') and len(n.split('/')) >= 3}
-            if libs != {abi}:
-                raise ValueError(f'Bibliotecas nativas de {abi} inválidas: {libs}')
+            if libs != {abi} or f'lib/{abi}/libxul.so' not in archive.namelist():
+                raise ValueError(f'Bibliotecas nativas GeckoView para {abi} inválidas: {libs}; libxul.so obrigatória')
     output.mkdir(parents=True, exist_ok=True)
     if list(output.glob('*.apk')):
         raise ValueError('A pasta de destino não pode conter APKs antigos')

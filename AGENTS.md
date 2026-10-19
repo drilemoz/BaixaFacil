@@ -151,3 +151,9 @@
 - Testes localmente com APKs falsos validam lógica, não tamanho real ou execução no Android; novas falhas devem ser analisadas nos logs CI.
 - Não incluir universal APK nem subir ZIP para Artifacts; preservar minSdk 29, targetSdk 34, GeckoView 158 e proteção de Secrets.
 - Próxima versão sequencial: `0.1.0-alpha.52` (versionCode 52).
+
+## Versão 0.1.0-alpha.52: arquitetura nativa GeckoView real
+- No workflow Gerar APK 23, Debug, testes e Release compilaram; a coleta rejeitou `x86` sem .so (`set()`). GeckoView 158 não oferece ABI x86 32 bits.
+- `splits.abi`: permitir somente armeabi-v7a, arm64-v8a e x86_64. Proibir universal e APK x86 sem motor; exigir `lib/<ABI>/libxul.so` no coletor.
+- GitHub Actions publica três APKs e verifica `apksigner`, `aapt`, versões e SHA-256 após download. Testar x86 ausente, libxul.so faltante e extras na preflight.
+- Preservar assinatura e demais requisitos de segurança; próxima versão 0.1.0-alpha.53/versionCode 53.
