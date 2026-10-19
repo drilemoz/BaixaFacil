@@ -20,15 +20,11 @@ import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.webkit.CookieManager;
-import android.webkit.WebStorage;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Map;
-import java.net.URI;
 import java.util.Locale;
+import org.mozilla.geckoview.StorageController;
 
 /** Página de configurações: navegador, aparência, privacidade e links padrão. */
 public final class SettingsActivity extends Activity {
@@ -85,19 +81,19 @@ public final class SettingsActivity extends Activity {
         option("Histórico de navegação","Ver os últimos endereços visitados","menu",this::showHistory);
         option("Limpar dados do navegador","Cookies, cache e histórico locais","trash",this::confirmClear);
         option("Compatibilidade de login", "Cookies de terceiros: " + (BrowserPrefs.thirdPartyCookies(this) ? "ativados (menos privacidade)" : "bloqueados (padrão)"), "lock", this::chooseCookieCompatibility);
-        option("Cookies e sessões","Manter logins, excluir cookies e dados por origem","lock",()->{sessionSettingsPage=true;render();});
+        option("Cookies e sessões","Manter logins e limpar cookies e dados gerais","lock",()->{sessionSettingsPage=true;render();});
         downloadSwitch("Login em Custom Tabs",
             "Quando disponível, usa um navegador instalado para login Google e páginas incompatíveis. Sessões e downloads desse navegador são separados dos do Baixa Fácil.",
             CustomTabsBrowser.forLogin(this),CustomTabsBrowser::setForLogin);
 
         section("🛡 Bloqueio de anúncios");
-        option("Proteção", adBlockModeName(), "shield", this::chooseAdBlockMode);
-        downloadSwitch("Bloquear rastreadores", "Bloqueia domínios conhecidos de métricas e rastreamento.",
+        option("Filtro cosmético", adBlockModeName(), "shield", this::chooseAdBlockMode);
+        downloadSwitch("Bloquear rastreadores", "Ativa a proteção nativa contra rastreamento do GeckoView. Recarregue a página para aplicar.",
             AdBlockController.savedTrackers(this),AdBlockController::setTrackers);
         downloadSwitch("Ocultar anúncios na página", "Esconde banners reconhecidos com CSS local; exige JavaScript.",
             AdBlockController.savedCosmetic(this),AdBlockController::setCosmetic);
-        option("Atualizar listas de filtros", "EasyList + EasyPrivacy; atualização manual por HTTPS", "reload", this::updateAdLists);
-        TextView adTip=Ui.text(this,"Modo Forte é o padrão. O Extremo pode prejudicar vídeos, logins e páginas. No navegador use ⋮ para desativar por site. Alterações exigem recarregar a página.",12,palette.muted,false);
+        // As regras de domínio EasyList não são aplicadas pelo GeckoView sem integração webRequest.
+        TextView adTip=Ui.text(this,"GeckoView: proteção nativa de rastreamento e ocultação CSS básica. Regras de domínio EasyList/EasyPrivacy não são interceptadas nesta versão. Atualizar listas locais não altera o bloqueio de rede.",12,palette.muted,false);
         adTip.setPadding(dp(8),dp(10),dp(8),dp(5));list.addView(adTip);
 
         section("Vídeos e mídia");
@@ -141,89 +137,50 @@ public final class SettingsActivity extends Activity {
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
         option("Diagnóstico e alertas",AppEventLog.enabled(this)?"Captura local ativada":"Captura local desativada","alert",()->{diagnosticsPage=true;render();});
-        option("Sobre","Baixa Fácil 0.1.0-alpha.45","webdown",()->{
-            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.45\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
+        option("Sobre","Baixa Fácil 0.1.0-alpha.46","webdown",()->{
+            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.46\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
         });
     }
     private void renderSessionSettings(){
         section("Sessões e privacidade");
         downloadSwitch("Manter logins entre aberturas",
-            "Ativado: cookies e armazenamento da WebView permanecem conforme as regras do site. Desativado: na próxima abertura completa do aplicativo serão apagados todos os cookies e dados locais dos sites, sem apagar favoritos ou downloads.",
+            "Ativado: cookies e armazenamento do GeckoView persistem. Desativado: na próxima abertura completa do aplicativo, limpa cookies e dados dos sites. Não apaga favoritos nem downloads.",
             SessionPrefs.keepLogins(this),SessionPrefs::setKeepLogins);
-        option("Cookies armazenados",CookieManager.getInstance().hasCookies()?"Existem cookies na WebView (sem lista por site)":"Nenhum cookie detectado", "lock",this::showCookiesInfo);
-        option("Sites com dados locais","Consultar origens com armazenamento WebView e apagar individualmente","globe",this::showSiteStorage);
+        option("Cookies e armazenamento", "O GeckoView não expõe uma listagem completa dos cookies", "lock",this::showCookiesInfo);
+        option("Dados de sites", "Limpeza de dados locais de todos os sites", "globe",this::showSiteStorage);
         section("Limpeza manual");
-        option("Apagar todos os cookies","Encerra sessões baseadas em cookies, sem apagar histórico","trash",this::confirmClearCookiesOnly);
-        option("Apagar todo armazenamento web","Exclui dados locais dos sites; não remove cookies","trash",this::confirmClearStorageOnly);
+        option("Apagar todos os cookies", "Encerra sessões que dependem de cookies", "trash",this::confirmClearCookiesOnly);
+        option("Apagar armazenamento web", "Exclui armazenamento local; preserva cookies", "trash",this::confirmClearStorageOnly);
         TextView notice=Ui.text(this,
-            "A WebView não oferece listagem confiável de cookies por site nem exclusão individual completa. Apagar uma origem remove dados de WebStorage, mas pode não desconectar uma conta enquanto existirem cookies. Outros navegadores não são afetados.",
+            "Os dados do GeckoView são separados dos dados do WebView Android e dos navegadores externos. Esta versão não enumera cookies ou origens com dados locais. A limpeza de cookies e de dados pode ocorrer de forma assíncrona.",
             12,palette.muted,false);
         notice.setPadding(dp(8),dp(14),dp(8),dp(8));list.addView(notice);
     }
     private void showCookiesInfo(){
-        AppMenus.info(this,"Cookies da WebView",
-            (CookieManager.getInstance().hasCookies()?"Há cookies salvos nesta WebView. ":"Não foram detectados cookies. ")+
-            "Por segurança, o Baixa Fácil não lê nem mostra valores de sessão. O Android não oferece uma API para enumerar ou remover todos os cookies de um site específico.\n\n"+
-            "Cookies de terceiros permanecem bloqueados por padrão, a menos que você escolha permiti-los em Compatibilidade de login.",AppMenus.entries());
+        AppMenus.info(this,"Cookies do GeckoView",
+            "Por segurança, o aplicativo não enumera ou exibe valores de cookies. A API de armazenamento do GeckoView permite apagar dados por categoria, mas não fornece uma listagem completa dos cookies por site. Cookies de terceiros são bloqueados por padrão.",AppMenus.entries());
     }
     private void showSiteStorage(){
-        WebStorage.getInstance().getOrigins(origins->runOnUiThread(()->{
-            // A API WebStorage.getOrigins usa Map sem genéricos no callback.
-            // Nunca iterar o mapa bruto como Map.Entry<String, Origin> diretamente:
-            // o javac Android o expõe como Object e a compilação falha.
-            List<Map.Entry<String,WebStorage.Origin>> items=
-                WebStorageOrigins.checked(origins,WebStorage.Origin.class);
-            items.sort(Comparator.comparing(e->e.getKey().toLowerCase(Locale.ROOT)));
-            List<AppMenus.Entry> actions=AppMenus.entries();
-            for(int i=0;i<Math.min(35,items.size());i++){
-                Map.Entry<String,WebStorage.Origin> item=items.get(i);
-                URI url;
-                try{url=new URI(item.getKey());}catch(Exception ignored){continue;}
-                String displayHost=url.getHost();
-                long bytes=Math.max(0,item.getValue().getUsage());
-                actions.add(AppMenus.Entry.item(displayHost,"Dados locais: "+sizeForStorage(bytes)+" • "+url.getScheme().toUpperCase(Locale.ROOT),"globe",
-                    ()->confirmClearSiteStorage(item.getKey(),displayHost)));
-            }
-            if(items.size()>35)actions.add(AppMenus.Entry.note("Lista limitada aos primeiros 35 registros para manter o menu leve."));
-            AppMenus.info(this,"Dados locais por site",
-                items.isEmpty()?"Nenhuma origem com armazenamento local listada pela WebView. Cookies podem existir mesmo assim.":
-                    "Origem e espaço usado informados pelo Android. Toque para apagar somente o WebStorage da origem; cookies e cache continuam.",actions);
-        }));
+        AppMenus.info(this,"Dados locais do GeckoView",
+            "A listagem de origens e o tamanho ocupado por site não estão disponíveis nesta integração. Use ‘Apagar armazenamento web’ para remover dados locais de todos os sites. Os downloads e favoritos não são apagados.",AppMenus.entries());
     }
-    private String sizeForStorage(long bytes){
-        if(bytes<1024)return bytes+" B";
-        if(bytes<1024*1024)return (bytes/1024)+" KB";
-        return String.format(Locale.ROOT,"%.1f MB",bytes/1048576.0);
-    }
-    private void confirmClearSiteStorage(String origin,String host){
-        List<AppMenus.Entry> actions=AppMenus.entries();
-        actions.add(AppMenus.Entry.danger("Excluir dados desta origem","Mantém cookies, histórico e arquivos","trash",()->{
-            WebStorage.getInstance().deleteOrigin(origin);
-            Toast.makeText(this,"Dados locais excluídos para "+host,Toast.LENGTH_SHORT).show();
-            showSiteStorage();
-        }));
-        AppMenus.info(this,"Dados locais de "+host,
-            "Apaga o armazenamento local da origem exata (incluindo o protocolo), mas NÃO apaga cookies, cache, outros subdomínios nem arquivos baixados. Pode ser necessário recarregar a página.",actions);
+    private void clearGecko(long flags,String message){
+        GeckoEngine.get(this);
+        GeckoEngine.clear(flags,
+            ()->runOnUiThread(()->{Toast.makeText(this,message,Toast.LENGTH_LONG).show();render();}),
+            error->runOnUiThread(()->Toast.makeText(this,error,Toast.LENGTH_LONG).show()));
     }
     private void confirmClearCookiesOnly(){
         List<AppMenus.Entry> actions=AppMenus.entries();
-        actions.add(AppMenus.Entry.danger("Excluir todos os cookies","Pode encerrar logins em todos os sites","trash",()->{
-            CookieManager.getInstance().removeAllCookies(ok->runOnUiThread(()->{
-                CookieManager.getInstance().flush();
-                Toast.makeText(this,"Cookies removidos: "+(ok?"sim":"não havia cookies ou não houve alteração"),Toast.LENGTH_LONG).show();
-                render();
-            }));
-        }));
-        AppMenus.info(this,"Apagar cookies?","A exclusão vale para TODOS os sites do Baixa Fácil; não será possível recuperar sessões apagadas.",actions);
+        actions.add(AppMenus.Entry.danger("Excluir todos os cookies","Pode encerrar logins em todos os sites","trash",()->
+            clearGecko(StorageController.ClearFlags.COOKIES,"Cookies do GeckoView apagados")));
+        AppMenus.info(this,"Apagar cookies?","Esta operação afeta todos os sites abertos no Baixa Fácil e não pode ser desfeita.",actions);
     }
     private void confirmClearStorageOnly(){
         List<AppMenus.Entry> actions=AppMenus.entries();
-        actions.add(AppMenus.Entry.danger("Excluir dados web","Mantém cookies, favoritos e downloads","trash",()->{
-            WebStorage.getInstance().deleteAllData();
-            Toast.makeText(this,"Solicitada limpeza de armazenamento web",Toast.LENGTH_SHORT).show();
-            render();
-        }));
-        AppMenus.info(this,"Apagar armazenamento web?","Apaga dados locais de TODAS as origens registradas na WebView, mas não seus cookies ou arquivos baixados.",actions);
+        actions.add(AppMenus.Entry.danger("Excluir dados dos sites","Mantém cookies, favoritos e downloads","trash",()->
+            clearGecko(StorageController.ClearFlags.DOM_STORAGES,"Dados locais do GeckoView apagados")));
+        AppMenus.info(this,"Apagar armazenamento web?","Exclui armazenamento web de todos os sites no GeckoView, preservando cookies e downloads.",actions);
     }
 
     private String adBlockModeName(){
@@ -353,7 +310,7 @@ public final class SettingsActivity extends Activity {
                 Toast.makeText(this,"Opção alterada. Recarregue a página.",Toast.LENGTH_LONG).show();
             }));
         AppMenus.info(this,"Compatibilidade de login",
-            "Cookies de terceiros podem ajudar certos sites, mas permitem rastreamento entre origens e não garantem login no Facebook. O Google OAuth não é suportado em WebViews. Cookies do navegador externo nunca são importados.",rows);
+            "Cookies de terceiros podem ajudar certos sites, mas permitem rastreamento entre origens e não garantem login no Facebook. O Google OAuth pode bloquear navegadores incorporados. Cookies do navegador externo nunca são importados.",rows);
     }
 
     private interface SwitchSaver { void save(android.content.Context context, boolean checked); }
@@ -428,7 +385,7 @@ public final class SettingsActivity extends Activity {
         int selected=BrowserPrefs.textZoom(this);
         for(int zoom:new int[]{75,100,125,150}){
             rows.add(AppMenus.Entry.item(zoom+"%"+(selected==zoom?" • atual":""),
-                zoom==100?"Padrão":"Escala do texto da WebView","search",()->{
+                zoom==100?"Padrão":"Escala do texto do GeckoView","search",()->{
                     BrowserPrefs.setTextZoom(this,zoom);render();
                 }));
         }
@@ -527,12 +484,10 @@ public final class SettingsActivity extends Activity {
         List<AppMenus.Entry> rows=AppMenus.entries();
         rows.add(AppMenus.Entry.danger("Limpar agora","Apagar cookies, cache e histórico local","trash",()->{
             BrowserPrefs.requestClear(this);
-            CookieManager.getInstance().removeAllCookies(done->CookieManager.getInstance().flush());
-            WebStorage.getInstance().deleteAllData();
-            Toast.makeText(this,"Limpeza solicitada",Toast.LENGTH_SHORT).show();render();
+            clearGecko(StorageController.ClearFlags.ALL,"Dados do navegador GeckoView apagados");
         }));
         AppMenus.info(this,"Limpar dados do navegador?",
-            "Apaga cookies, cache e histórico da WebView. Favoritos, arquivos baixados e outros navegadores não serão afetados.",rows);
+            "Apaga cookies e dados web no GeckoView; o histórico de URLs do aplicativo é limpo na próxima abertura do navegador. Favoritos, arquivos baixados e outros navegadores não serão afetados.",rows);
     }
     private void chooseAppearance(){
         String[] options={"Sistema","Claro","Escuro AMOLED"};

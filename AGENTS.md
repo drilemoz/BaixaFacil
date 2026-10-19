@@ -112,3 +112,8 @@
 
 - Alpha.45: usar **fontes de vídeo** e não número de vídeos quando URLs HLS não são agrupáveis. Não associar thumb de CDN à página sem prova; prévia do player DOM deve ser marcada como **prévia da página**.
 - Alpha.45: HLS experimental somente VOD `#EXT-X-ENDLIST`, segmentos MPEG-TS sem proteção, sem `EXT-X-KEY`, DRM, byte-range, mapa fMP4 ou audio separado. Conferir sincronismo TS, limite de segmentos/tamanho, transporte HTTPS sem downgrade e cookies somente mesma origem. O destino é `.ts`, nunca `.mp4`; download interrompido reinicia do começo em retomada. Nunca publicar MediaStore parcial como concluído.
+
+## Versão 0.1.0-alpha.46: motor GeckoView
+- O navegador ativo usa `GeckoBrowserView`, `GeckoEngine` e `BrowserPane`, não `android.webkit.WebView`. Regras antigas de interceptação WebView não são aplicáveis até que sejam implementadas usando APIs do Gecko ou extensão compatível.
+- Ao trabalhar com GeckoView, preservar a regra de runtime único, não copiar cookies de sistemas Android WebView e validar a extensão `assets/baixafacil_gecko`.
+- A próxima versão é `0.1.0-alpha.47` com versionCode `47`.

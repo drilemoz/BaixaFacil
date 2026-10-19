@@ -4,7 +4,7 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.os.Debug;
 
-/** Snapshot sob demanda. PSS corresponde apenas ao processo do app, NÃO ao renderer WebView separado. */
+/** Snapshot sob demanda. PSS corresponde apenas ao processo do app, NÃO ao processo de conteúdo Gecko separado. */
 final class BrowserMemoryReport {
     private BrowserMemoryReport() {}
 
@@ -23,7 +23,7 @@ final class BrowserMemoryReport {
                 + "Memória Java utilizada no app: " + megabytes(javaHeapUsedBytes) + " MB\n"
                 + "PSS estimado do processo Baixa Fácil: " + megabytes(appPssBytes) + " MB\n"
                 + "Memória baixa sinalizada pelo Android: " + (systemLowMemory?"sim":"não") + "\n"
-                + "O PSS informado NÃO inclui necessariamente o processo separado da WebView ou uso de GPU.";
+                + "O PSS informado NÃO inclui necessariamente o processo separado do Gecko ou uso de GPU.";
         }
     }
 

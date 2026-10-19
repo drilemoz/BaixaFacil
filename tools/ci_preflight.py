@@ -4,8 +4,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.45"
-CODE = "45"
+VERSION = "0.1.0-alpha.46"
+CODE = "46"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -47,25 +47,13 @@ checks = {
         and all(x in read("app/src/main/java/br/com/baixafacil/DownloadCleanupPolicy.java")
             for x in ["Concluído", "Cancelado", "Falhou", "content://media/"])
         and "class DownloadCleanupPolicyTest" in read("app/src/test/java/br/com/baixafacil/DownloadCleanupPolicyTest.java"),
-    "WebStorage raw Map callback compiles safely": "WebStorageOrigins.checked(origins,WebStorage.Origin.class)" in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
-        and "for(Map.Entry<String,WebStorage.Origin> e:origins.entrySet())" not in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
-        and all(s in read("app/src/main/java/br/com/baixafacil/WebStorageOrigins.java")
-            for s in ["Map<?,?> raw", "valueType.isInstance", "instanceof String", "getRawQuery()==null", "getRawFragment()==null"])
-        and "acceptsRawMapFromAndroidCallbackWithoutGenericCast" in read("app/src/test/java/br/com/baixafacil/WebStorageOriginsTest.java"),
-    "browser memory policy and lifecycle": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        for x in ["pauseTimers()", "resumeTimers()", "cancelMediaScan()", "onMemoryPressure(int level)", "showPerformanceDiagnosis", "BrowserMemoryReport.capture", "BrowserPerformancePolicy.scheduleDelay"])
-        and all(x in read("app/src/main/java/br/com/baixafacil/MainActivity.java")
-        for x in ["onTrimMemory(int level)", "onLowMemory()", "browserPane.onMemoryPressure(level)"])
-        and "class BrowserPerformancePolicyTest" in read("app/src/test/java/br/com/baixafacil/BrowserPerformancePolicyTest.java"),
-    "Reels context matched to actual video": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["scheduleMediaScan(900)", "videoPreviewMeta", "playing", "findPreview", "decodeVideoFrame"]),
+    "GeckoView cookies and session storage": all(x in read("app/src/main/java/br/com/baixafacil/SessionPrefs.java") for x in ["StorageController.ClearFlags.SITE_DATA", "GeckoEngine.clear", "shouldClearAtStart"]) and all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["StorageController.ClearFlags.COOKIES", "StorageController.ClearFlags.DOM_STORAGES", "StorageController.ClearFlags.ALL"]),
+    "Gecko memory and lifecycle": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["web.setActive(false)", "web.setActive(true)", "cancelMediaScan()", "onMemoryPressure(int level)", "BrowserMemoryReport.capture", "BrowserPerformancePolicy.scheduleDelay"]) and "browserPane.onMemoryPressure(level)" in read("app/src/main/java/br/com/baixafacil/MainActivity.java"),
+    "Local media discovery extension": all(x in read("app/src/main/assets/baixafacil_gecko/media.js") for x in ["querySelectorAll(", "data.media.push", "data.media.push", "port.postMessage"]) and "scanPageVideos" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java"),
     "Safe video grouping across FB mirrors": all(x in read("app/src/main/java/br/com/baixafacil/VideoMenuModel.java") for x in ["canonicalHost", "mediaIdentity", "getRawQuery", "video_id"]),
     "Titles and active-video ranking tests": all(x in read("app/src/main/java/br/com/baixafacil/VideoPresentation.java") for x in ["cleanTitle", "sort", "mediaIdentity"])
         and all(x in read("app/src/test/java/br/com/baixafacil/VideoPresentationTest.java") for x in ["facebookMirrorSamePathDeduplicated", "playingVisibleVideoRanksFirst", "rejectsSensitiveOrGenericTitles"]),
-    "ChatGPT lightweight profile": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        for x in ["BrowserLoadPolicy.lightMode", "if (!pageActive || lightweightPage || memoryPressure) return null;", "if(!lightweightPage) applyCosmeticFilters", "scheduleMediaScan(1300)", "WebViewRenderProcessClient", "rendererUnresponsive"])
-        and "chatGptLight" in read("app/src/main/java/br/com/baixafacil/BrowserPrefs.java")
-        and "Compatibilidade com ChatGPT" in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
-        and "class BrowserLoadPolicyTest" in read("app/src/test/java/br/com/baixafacil/BrowserLoadPolicyTest.java"),
+    "ChatGPT lightweight Gecko profile": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["BrowserLoadPolicy.lightMode", "lightweightPage", "scheduleMediaScan(1300)", "!lightweightPage", "recoverGeckoCrash"]) and "chatGptLight" in read("app/src/main/java/br/com/baixafacil/BrowserPrefs.java"),
     "styled native menus": all(x in read("app/src/main/java/br/com/baixafacil/AppMenus.java") for x in ["class AppMenus", "static AlertDialog show", "static Entry section", "InputMethodManager"]),
     "dedicated video preferences": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["Vídeos e mídia", "renderVideoSettings", "VideoPrefs.autoScan", "VideoPrefs.showStreams", "VideoPrefs.showSources"]),
     "accurate video list": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["VideoMenuModel.display", "showVideoActions", "HLS/DASH", "ARQUIVOS"]),
@@ -93,8 +81,7 @@ checks = {
     "publication directly in Releases": "bash tools/publish_apk.sh" in workflow,
     "no ZIP Artifacts": "upload-artifact" not in workflow and "download-artifact" not in workflow,
     "unit test and Debug compile": ":app:testDebugUnitTest :app:assembleDebug" in workflow,
-    "session management": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["renderSessionSettings", "getOrigins(", "deleteOrigin(", "removeAllCookies", "Manter logins entre aberturas"])
-        and all(x in read("app/src/main/java/br/com/baixafacil/SessionPrefs.java") for x in ["shouldClearAtStart", "clearForNewSession", "deleteAllData", "removeAllCookies"]),
+    "Gecko session management": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["renderSessionSettings", "Manter logins entre aberturas", "clearGecko("]) and all(x in read("app/src/main/java/br/com/baixafacil/SessionPrefs.java") for x in ["shouldClearAtStart", "clearForNewSession", "StorageController.ClearFlags.SITE_DATA"]),
     "address suggestions": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["ListPopupWindow", "updateAddressSuggestions", "BrowserSuggestions.suggest", "dismissAddressSuggestions"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserSuggestions.java") for x in ["LoginWindowPolicy.hasLoginParameters", "AuthNavigation.isSensitiveLoginPage", "LIMIT=5"]),
     "APK version validation": all(x in workflow for x in ["aapt", "versionCode='" + CODE + "'", "versionName='" + VERSION + "'"]),
@@ -113,11 +100,7 @@ checks = {
         and "DownloadRestrictions.blocked(activity)" in read("app/src/main/java/br/com/baixafacil/TransferStarter.java")
         and "DownloadRestrictions.blocked(this)" in read("app/src/main/java/br/com/baixafacil/TransferJobService.java")
         and "class DownloadPolicyTest" in read("app/src/test/java/br/com/baixafacil/DownloadPolicyTest.java"),
-    "browser tools and desktop mode": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        for x in ["findAllAsync", "findNext", "setBuiltInZoomControls(true)", "setUseWideViewPort", "DesktopUserAgent.toDesktop", "showPageTools"])
-        and all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
-            for x in ["Modo computador", "Tamanho do texto"])
-        and "class DesktopUserAgentTest" in read("app/src/test/java/br/com/baixafacil/DesktopUserAgentTest.java"),
+    "Gecko browser tools and desktop mode": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["web.findAllAsync", "web.findNext", "setUserAgentMode", "setViewportMode", "showPageTools"]) and all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["Modo computador", "Tamanho do texto"]),
     "favorites validation": all(x in read("app/src/main/java/br/com/baixafacil/FavoriteRules.java")
         for x in ["MAX_FAVORITES = 60", "MAX_URL_LENGTH = 2048", "UrlTools.normalizeAddress", "MAX_TITLE_LENGTH = 80"])
         and "class FavoriteRulesTest" in read("app/src/test/java/br/com/baixafacil/FavoriteRulesTest.java"),
@@ -153,34 +136,18 @@ checks = {
         and "class AppEventLog" in read("app/src/main/java/br/com/baixafacil/AppEventLog.java")
         and "class DownloadDialogs" in read("app/src/main/java/br/com/baixafacil/DownloadDialogs.java")
         and 'android:name=".BaixaFacilApp"' in read("app/src/main/AndroidManifest.xml"),
-    "video direct-source detection": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        for x in ["VIDEO_SCAN_JS", "shouldInterceptRequest", "scanPageVideos", "showDetectedVideos", "Fontes (", "VideoLinks.isVideoCandidate"])
-        and all(x in read("app/src/main/java/br/com/baixafacil/VideoLinks.java")
-            for x in ["isVideoCandidate", "isManifest", "allowedHttpUrl", "MAX_VIDEO_URLS"])
-        and "class VideoLinksTest" in read("app/src/test/java/br/com/baixafacil/VideoLinksTest.java"),
+    "Gecko video direct-source detection": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["web.scanVideos", "scanPageVideos", "showDetectedVideos", "Fontes (", "VideoLinks.isVideoCandidate"]) and "class VideoLinksTest" in read("app/src/test/java/br/com/baixafacil/VideoLinksTest.java"),
     "alpha45 HLS VOD conservative support": all(x in read("app/src/main/java/br/com/baixafacil/HlsVodPlaylist.java") for x in ["#EXT-X-ENDLIST", "#EXT-X-KEY:", "#EXT-X-MAP:", "#EXT-X-BYTERANGE:", "MAX_SEGMENTS", "Segmento inválido"])
         and all(x in read("app/src/main/java/br/com/baixafacil/DownloadEngine.java") for x in ["transferHlsVod", "video/mp2t", "channel.truncate(0)", "IS_PENDING", "HLS_NAO_SUPORTADO"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["offerHlsDownload", "Fontes de vídeo", "Prévia do player", 'Ui.pill(host,"Baixar"'])
         and "class HlsVodPlaylistTest" in read("app/src/test/java/br/com/baixafacil/HlsVodPlaylistTest.java"),
     "documentation version code": "`versionCode`: `" + CODE + "`" in read("docs/VERSIONING.md")
         and "Próxima versão sequencial: `0.1.0-alpha." + str(int(CODE) + 1) + "`" in read("docs/VERSIONING.md"),
-    "login compatibility": "AuthNavigation.isGoogleOAuth" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        and "openInExternalBrowser" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        and "setAcceptThirdPartyCookies(web,appliedThirdPartyCookies)" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        and "thirdPartyCookies" in read("app/src/main/java/br/com/baixafacil/BrowserPrefs.java")
-        and "chooseCookieCompatibility" in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
-        and "class AuthNavigationTest" in read("app/src/test/java/br/com/baixafacil/AuthNavigationTest.java"),
-    "login popup safely integrated": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        for x in ["setSupportMultipleWindows(true)", "onCreateWindow", "LoginWindowPolicy.allowPopup", "setAllowFileAccess(false)", "setAcceptThirdPartyCookies(popup", "loginPopupDialog.dismiss()", "showLoginDiagnosis", "onReceivedHttpError", "WebView.getCurrentWebViewPackage"])
-        and all(x in read("app/src/main/java/br/com/baixafacil/LoginWindowPolicy.java")
-            for x in ["allowPopup", "safeWebAddress", "hasLoginParameters", "originForReport", "isSafeInternalFrame"])
-        and "class LoginWindowPolicyTest" in read("app/src/test/java/br/com/baixafacil/LoginWindowPolicyTest.java"),
+    "Gecko login compatibility": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["AuthNavigation.isGoogleOAuth", "openInExternalBrowser", "GeckoEngine.updatePreferences", "thirdPartyCookies"]) and "chooseCookieCompatibility" in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") and "class AuthNavigationTest" in read("app/src/test/java/br/com/baixafacil/AuthNavigationTest.java"),
+    "Gecko popup login separation": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["onNewSession", "LoginWindowPolicy.allowPopup", "loginPopupDialog.dismiss()", "showLoginDiagnosis", "onLoadError", "onExternalResponse"]) and "class LoginWindowPolicyTest" in read("app/src/test/java/br/com/baixafacil/LoginWindowPolicyTest.java"),
     "auth tokens excluded from history": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPrefs.java")
         for x in ["AuthNavigation.isSensitiveLoginPage", "LoginWindowPolicy.hasLoginParameters"]),
-    "AndroidX WebKit compatibility": "androidx.webkit:webkit:1.17.1" in app
-        and "WebKitCompat.optimize(options)" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        and "WebViewFeature.DOWNLOAD_FAVICONS_ENABLED" in read("app/src/main/java/br/com/baixafacil/WebKitCompat.java")
-        and "onRenderProcessGone" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java"),
+    "GeckoView dependency and bundled bridge": "org.mozilla.geckoview:geckoview:158.0.20261007201254" in app and "maven.mozilla.org/maven2" in read("settings.gradle") and "ensureBuiltIn(" in read("app/src/main/java/br/com/baixafacil/GeckoBrowserView.java") and "nativeMessagingFromContent" in read("app/src/main/assets/baixafacil_gecko/manifest.json") and "android.webkit.WebView" not in read("app/src/main/java/br/com/baixafacil/BrowserPane.java"),
     "Media3 player and secure classification": all(x in app for x in ["media3-exoplayer:1.11.1", "media3-ui:1.11.1", "media3-exoplayer-hls:1.11.1", "media3-exoplayer-dash:1.11.1"])
         and "class MediaPlayerActivity" in read("app/src/main/java/br/com/baixafacil/MediaPlayerActivity.java")
         and "class MediaSourcePolicy" in read("app/src/main/java/br/com/baixafacil/MediaSourcePolicy.java")
@@ -196,8 +163,7 @@ checks = {
         and all(x in read("app/src/main/java/br/com/baixafacil/AdBlockController.java")
         for x in ["adblock_seed.txt", "easylist.txt", "easyprivacy.txt", "setException", "updateNow", "setMode"])
         and "class AdBlockRulesTest" in read("app/src/test/java/br/com/baixafacil/AdBlockRulesTest.java"),
-    "adblock only web subresources": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
-        for x in ["!request.isForMainFrame()", '"GET".equalsIgnoreCase(request.getMethod())', "adBlock.shouldBlock", "applyCosmeticFilters", "showAdBlockMenu"]),
+    "Gecko native tracking protection and cosmetic rules": "setUseTrackingProtection(AdBlockController.savedTrackers(host))" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") and "web.cosmeticFilters()" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") and "bf-ad-css" in read("app/src/main/assets/baixafacil_gecko/media.js"),
     "adblock settings and per-site controls": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java")
         for x in ["chooseAdBlockMode", "updateAdLists", "Bloquear rastreadores", "Ocultar anúncios na página"]),
     "documentation": all(VERSION in read(x) for x in ["README.md", "RELEASE_NOTES.md", "docs/VERSIONING.md", "docs/VALIDATION.md"]),

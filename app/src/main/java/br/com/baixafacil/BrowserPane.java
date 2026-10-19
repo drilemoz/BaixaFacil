@@ -13,12 +13,9 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.os.Message;
 import android.os.SystemClock;
 import android.app.ActivityManager;
 import android.util.Base64;
-import android.content.pm.PackageInfo;
-import android.webkit.WebResourceResponse;
 import android.text.InputType;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -28,17 +25,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
-import android.webkit.CookieManager;
-import android.webkit.WebChromeClient;
-import android.webkit.WebResourceError;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebSettings;
-import android.webkit.WebStorage;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.webkit.RenderProcessGoneDetail;
-import android.webkit.WebViewRenderProcess;
-import android.webkit.WebViewRenderProcessClient;
 import android.widget.EditText;
 import android.widget.ListPopupWindow;
 import android.widget.BaseAdapter;
@@ -51,6 +37,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.net.URI;
+import org.mozilla.geckoview.GeckoSession;
+import org.mozilla.geckoview.GeckoSessionSettings;
+import org.mozilla.geckoview.GeckoResult;
+import org.mozilla.geckoview.AllowOrDeny;
+import org.mozilla.geckoview.WebRequestError;
+import org.mozilla.geckoview.WebResponse;
+import org.mozilla.geckoview.StorageController;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -59,12 +52,12 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
-/** Navegador embutido no host principal. A WebView não é destruída na troca de abas. */
+/** Navegador embutido no host principal. O GeckoView não é destruído na troca de abas. */
 final class BrowserPane {
     private final MainActivity host;
     private final Ui.Palette colors;
     final LinearLayout view;
-    private WebView web;
+    private GeckoBrowserView web;
     private EditText address;
     private ListPopupWindow suggestionsPopup;
     private boolean suppressSuggestions;
@@ -78,7 +71,8 @@ final class BrowserPane {
     private boolean appliedDesktop;
     private int appliedTextZoom;
     private boolean appliedThirdPartyCookies;
-    private WebView loginPopup;
+    private GeckoBrowserView loginPopup;
+    private boolean popupGestureAllowed;
     private AlertDialog loginPopupDialog;
     private String lastNavigationProblem = "Nenhuma falha registrada nesta sessão.";
     private int lastHttpStatus;
@@ -99,80 +93,8 @@ final class BrowserPane {
     private int lastProgressBucket=-1;
     private final AdBlockController adBlock;
 
-    // Executado somente quando a pessoa pede a busca ou após uma página terminar.
-    // Não injeta bridge JS nem lê cookies, tokens de sessão ou dados de outros frames.
-    private static final String VIDEO_SCAN_JS =
-        "(function(){" +
-        "try {" +
-        "var out={media:[],players:0,unsupported:0,pagePreview:null};" +
-        "var attemptedFrames=0;" +
-        "function safeText(x){return typeof x==='string'?x.replace(/\\s+/g,' ').trim().slice(0,105):'';}" +
-        "function bounds(el){" +
-        "if(!el)return {x:0,y:0,w:0,h:0,visible:false};" +
-        "try {" +
-        "var r=el.getBoundingClientRect();" +
-        "var w=Math.max(0,Math.round(r.width)),h=Math.max(0,Math.round(r.height));" +
-        "return {x:Math.round(r.left),y:Math.round(r.top),w:w,h:h," +
-        "visible:w>25&&h>25&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth};" +
-        "}catch(e){return {x:0,y:0,w:0,h:0,visible:false};}" +
-        "}" +
-        "function titleFor(v){" +
-        "if(!v)return '';" +
-        "var t=safeText(v.getAttribute('aria-label')||v.getAttribute('title')||'');" +
-        "if(t)return t;" +
-        "try{" +
-        "var block=v.closest('article,[role=\"article\"],[data-pagelet]');" +
-        "if(block){" +
-        "var heading=block.querySelector('[data-ad-preview=\"message\"],h1,h2,h3,[role=\"heading\"]');" +
-        "if(heading)return safeText(heading.textContent);" +
-        "}" +
-        "}catch(e){}" +
-        "return '';" +
-        "}" +
-        "function frameFor(v,rect){" +
-        "if(!v||!rect.visible||attemptedFrames>=3||v.readyState<2||!v.videoWidth||!v.videoHeight)return '';" +
-        "attemptedFrames++;" +
-        "try {" +
-        "var c=document.createElement('canvas');c.width=96;c.height=70;" +
-        "c.getContext('2d').drawImage(v,0,0,96,70);" +
-        "var data=c.toDataURL('image/jpeg',0.52);" +
-        "return data.length<18000?data:'';" +
-        "}catch(e){return '';}" +
-        "}" +
-        "function put(u,kind,mime,v){" +
-        "if(!u||typeof u!=='string')return;" +
-        "if(/^(blob:|data:|mediasource:)/i.test(u)){out.unsupported++;return;}" +
-        "if(out.media.length>=40||u.length>4096)return;" +
-        "var r=bounds(v), playing=!!(v&&!v.paused&&!v.ended&&v.readyState>=2);" +
-        "out.media.push({url:u,kind:kind,mime:mime||'',title:titleFor(v)," +
-        "playing:playing,visible:r.visible,x:r.x,y:r.y,w:r.w,h:r.h,frame:frameFor(v,r)});" +
-        "}" +
-        "var players=document.querySelectorAll('video');out.players=players.length;" +
-        "for(var i=0;i<players.length&&i<25;i++){" +
-        "var v=players[i];" +
-        "var vr=bounds(v);if(vr.visible){" +
-        "var active=!v.paused&&!v.ended&&v.readyState>=2;" +
-        "if(!out.pagePreview||active&&!out.pagePreview.playing){" +
-        "out.pagePreview={title:titleFor(v),playing:active,visible:true,x:vr.x,y:vr.y,w:vr.w,h:vr.h,frame:frameFor(v,vr)};" +
-        "}}" +
-        "put(v.currentSrc||v.src,'video',v.getAttribute('type'),v);" +
-        "var src=v.querySelectorAll('source');" +
-        "for(var j=0;j<src.length&&j<5;j++)put(src[j].src,'source',src[j].type,v);" +
-        "}" +
-        "var sources=document.querySelectorAll('source[type^=\"video/\"]');" +
-        "for(var k=0;k<sources.length&&k<20;k++){" +
-        "var node=sources[k];" +
-        "var owner=node.parentElement&&node.parentElement.tagName==='VIDEO'?node.parentElement:null;" +
-        "if(!owner)put(node.src,'source',node.type,null);" +
-        "}" +
-        "var links=document.querySelectorAll('a[href]');" +
-        "for(var l=0;l<links.length&&l<100;l++){" +
-        "var a=links[l];" +
-        "if(/\\.(mp4|m4v|webm|mov|ogv|3gp)(\\?|#|$)/i.test(a.href))put(a.href,'link','',null);" +
-        "}" +
-        "return JSON.stringify(out);" +
-        "} catch(e){return JSON.stringify({media:[],players:0,unsupported:0});}" +
-        "})()";
+    // A varredura de vídeos roda na extensão empacotada assets/baixafacil_gecko/media.js.
+    // Não executa código JavaScript arbitrário recebido de sites.
 
     private static final class PreviewMeta {
         final String title,frame;
@@ -300,204 +222,111 @@ final class BrowserPane {
         FrameLayout frame=new FrameLayout(host);
         frame.setBackgroundColor(colors.background);
         frame.setClipToPadding(false);
-        web=new WebView(host);
-        WebSettings options=web.getSettings();
-        standardUserAgent=options.getUserAgentString();
+        web=new GeckoBrowserView(host);
+        GeckoSession session=web.session;
+        standardUserAgent=GeckoSession.getDefaultUserAgent();
         appliedDesktop=BrowserPrefs.desktop(host);
         appliedTextZoom=BrowserPrefs.textZoom(host);
         appliedThirdPartyCookies=BrowserPrefs.thirdPartyCookies(host);
-        options.setSupportZoom(true);
-        options.setBuiltInZoomControls(true);
-        options.setDisplayZoomControls(false);
-        options.setUseWideViewPort(appliedDesktop);
-        options.setLoadWithOverviewMode(appliedDesktop);
-        options.setTextZoom(appliedTextZoom);
-        if(appliedDesktop)options.setUserAgentString(DesktopUserAgent.toDesktop(standardUserAgent));
-        options.setJavaScriptEnabled(BrowserPrefs.javascript(host));
-        options.setDomStorageEnabled(true);
-        options.setAllowFileAccess(false);
-        options.setAllowContentAccess(false);
-        options.setAllowFileAccessFromFileURLs(false);
-        options.setAllowUniversalAccessFromFileURLs(false);
-        options.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        options.setJavaScriptCanOpenWindowsAutomatically(false);
-        // Habilita popups somente com gesto do usuário; o onCreateWindow controla a janela filha.
-        options.setSupportMultipleWindows(true);
-        options.setSafeBrowsingEnabled(true);
-        WebKitCompat.optimize(options);
-        CookieManager.getInstance().setAcceptCookie(true);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(web,appliedThirdPartyCookies);
-        web.setFindListener((active,total,finished)->{
-            if(finished && findCount!=null && findBar.getVisibility()==View.VISIBLE)
-                findCount.setText(total==0?"0/0":(active+1)+"/"+total);
-        });
-        // Em feeds/Reels, a navegação pode trocar vídeos sem abrir outra página.
-        // Varredura após a rolagem, com debounce, sem rede nem loop de polling.
-        web.setOnScrollChangeListener((v,sx,sy,oldX,oldY)->{
-            if(sy!=oldY && VideoPrefs.autoScan(host))scheduleMediaScan(900);
-        });
-        web.setWebViewClient(new WebViewClient() {
-            @Override public boolean shouldOverrideUrlLoading(WebView w,WebResourceRequest request) {
-                String target=request.getUrl().toString();
-                if (request.isForMainFrame() && AuthNavigation.isGoogleOAuth(target)) {
-                    offerExternalGoogleLogin(target);
-                    return true;
-                }
-                if (target.equals(UrlTools.extract(target))) return false;
-                if (!request.isForMainFrame() && LoginWindowPolicy.isSafeInternalFrame(target)) return false;
-                if(request.isForMainFrame()) status.setText("Endereço bloqueado: apenas HTTP e HTTPS.");
-                return true;
+        session.getSettings().setAllowJavascript(BrowserPrefs.javascript(host));
+        session.getSettings().setUserAgentMode(appliedDesktop ?
+            GeckoSessionSettings.USER_AGENT_MODE_DESKTOP : GeckoSessionSettings.USER_AGENT_MODE_MOBILE);
+        session.getSettings().setViewportMode(appliedDesktop ?
+            GeckoSessionSettings.VIEWPORT_MODE_DESKTOP : GeckoSessionSettings.VIEWPORT_MODE_MOBILE);
+        session.getSettings().setUseTrackingProtection(AdBlockController.savedTrackers(host));
+        web.setFindListener(code -> {
+            if(findCount!=null && findBar.getVisibility()==View.VISIBLE) {
+                int current=code/10000, total=code%10000;
+                findCount.setText(total==0?"0/0":current+"/"+total);
             }
-            @Override public void onPageStarted(WebView w,String url,android.graphics.Bitmap icon) {
-                adBlock.setPage(url);
-                if (AuthNavigation.isGoogleOAuth(url)) {
-                    w.stopLoading();
+        });
+        session.setPromptDelegate(new GeckoPromptHandler(host));
+        session.setNavigationDelegate(new GeckoSession.NavigationDelegate(){
+            @Override public GeckoResult<AllowOrDeny> onLoadRequest(GeckoSession gecko,
+                    GeckoSession.NavigationDelegate.LoadRequest request) {
+                String url=request.uri;
+                if(AuthNavigation.isGoogleOAuth(url)){
                     offerExternalGoogleLogin(url);
-                    return;
+                    return GeckoResult.fromValue(AllowOrDeny.DENY);
                 }
+                if(!LoginWindowPolicy.safeWebAddress(url)){
+                    status.setText("Endereço bloqueado: apenas HTTP e HTTPS.");
+                    return GeckoResult.fromValue(AllowOrDeny.DENY);
+                }
+                // Janelas são tratadas por onNewSession; nunca permitir abertura automática.
+                if(request.target==GeckoSession.NavigationDelegate.TARGET_WINDOW_NEW){
+                    popupGestureAllowed=request.hasUserGesture;
+                    if(!popupGestureAllowed)return GeckoResult.fromValue(AllowOrDeny.DENY);
+                }
+                return GeckoResult.fromValue(AllowOrDeny.ALLOW);
+            }
+            @Override public void onLocationChange(GeckoSession gecko,String url,
+                    List<GeckoSession.PermissionDelegate.ContentPermission> permissions,Boolean gesture) {
+                web.currentUrl(url);
+                if(url!=null && url.equals(UrlTools.extract(url))){
+                    setAddressFromPage(url);showSecurity(url);BrowserPrefs.remember(host,url);
+                }
+            }
+            @Override public void onCanGoBack(GeckoSession gecko,boolean value){ web.backAvailable(value); }
+            @Override public void onCanGoForward(GeckoSession gecko,boolean value){ web.forwardAvailable(value); }
+            @Override public GeckoResult<GeckoSession> onNewSession(GeckoSession gecko,String uri){
+                return createLoginWindow(uri);
+            }
+            @Override public GeckoResult<String> onLoadError(GeckoSession gecko,String url,WebRequestError error){
+                lastNavigationProblem="Erro GeckoView: "+error.code;
+                AppEventLog.error(host,"Navegador","Falha GeckoView: código "+error.code);
+                status.setText("Falha ao abrir página ("+error.code+"). Consulte diagnóstico.");
+                return null; // Não libera páginas internas inseguras nem ignora TLS.
+            }
+        });
+        session.setProgressDelegate(new GeckoSession.ProgressDelegate(){
+            @Override public void onPageStart(GeckoSession gecko,String url){
+                adBlock.setPage(url);
                 lastHttpStatus=0;
                 lightweightPage=BrowserLoadPolicy.lightMode(url,BrowserPrefs.chatGptLight(host));
                 lastProgressBucket=-1;
                 lastAutomaticScanUptime=0;
                 rendererUnresponsive=false;
                 scanGeneration++;
-                if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);
-                pendingMediaScan=null;
-                synchronized(videoUrls){ videoUrls.clear(); }
-                synchronized(videoPreviewMeta){ videoPreviewMeta.clear(); }
-                mediaElements=0;
-                unsupportedMedia=0;
-                pageVideoPreview=null;
+                cancelMediaScan();
+                synchronized(videoUrls){videoUrls.clear();}
+                synchronized(videoPreviewMeta){videoPreviewMeta.clear();}
+                mediaElements=0; unsupportedMedia=0;pageVideoPreview=null;
                 updateVideosButton();
             }
-            @Override public WebResourceResponse shouldInterceptRequest(WebView w,WebResourceRequest request) {
-                // Em ChatGPT dispensar TODO processamento opcional em subrecursos: chat pesado e dinâmico.
-                // A WebView segue carregando normalmente; não alteramos respostas, cookies ou TLS.
-                if (!pageActive || lightweightPage || memoryPressure) return null;
-                // Não bloqueia documento principal, POST ou esquemas internos; evita quebrar login.
-                if (!request.isForMainFrame() && "GET".equalsIgnoreCase(request.getMethod())
-                        && adBlock.shouldBlock(request.getUrl().toString())) {
-                    return new WebResourceResponse("text/plain", "UTF-8",
-                            new java.io.ByteArrayInputStream(new byte[0]));
-                }
-                // Observação de vídeo ocorre apenas quando não foi bloqueado pelo filtro.
-                if (!request.isForMainFrame() && "GET".equalsIgnoreCase(request.getMethod())) {
-                    String candidate=request.getUrl().toString();
-                    if(MediaSourcePolicy.isDirect(candidate) || MediaSourcePolicy.isPlaylist(candidate)) {
-                        boolean added=false;
-                        synchronized(videoUrls) {
-                            if(!videoUrls.containsKey(candidate) && videoUrls.size()<VideoLinks.MAX_VIDEO_URLS) {
-                                videoUrls.put(candidate,MediaSourcePolicy.isPlaylist(candidate)?"stream":"direct");
-                                added=true;
-                            }
-                        }
-                        if(added)host.runOnUiThread(()->{
-                            updateVideosButton();
-                            if(web!=null && web.getUrl()!=null && web.getUrl().contains("facebook.com"))
-                                scheduleMediaScan(950);
-                        });
-                    }
-                }
-                return null;
-            }
-            @Override public void onPageFinished(WebView w,String url) {
-                if(!lightweightPage) applyCosmeticFilters(url);
-                if (url!=null && url.equals(UrlTools.extract(url))) {
-                    setAddressFromPage(url);
-                    showSecurity(url);
-                    BrowserPrefs.remember(host,url);
-                }
-                if (findBar.getVisibility()==View.VISIBLE && findInput.length()>0)
+            @Override public void onPageStop(GeckoSession gecko,boolean success){
+                String url=web.getUrl();
+                if(success && !lightweightPage)applyCosmeticFilters(url);
+                if(findBar.getVisibility()==View.VISIBLE && findInput.length()>0)
                     web.findAllAsync(findInput.getText().toString());
-                status.setText(lastHttpStatus>=400 ? "Erro HTTP "+lastHttpStatus+". Consulte ⋮ > Diagnóstico de login."
-                    : url!=null&&url.startsWith("http://") ? "Atenção: conexão HTTP sem criptografia."
-                    : AuthNavigation.isFacebookCheckpoint(url) ? "Verificação do Facebook: tente abrir no navegador externo pelo menu ⋮."
+                status.setText(!success?"A página não terminou de carregar. Consulte o diagnóstico."
+                    : url!=null&&url.startsWith("http://")?"Atenção: conexão HTTP sem criptografia."
+                    : AuthNavigation.isFacebookCheckpoint(url)?"Verificação do Facebook: use navegador externo se necessário."
                     : "Página pronta. Toque num arquivo para baixar.");
-                // O Facebook e outros sites podem carregar o player depois do HTML.
-                scheduleMediaScan(1300);
+                if(success)scheduleMediaScan(1300);
             }
-            @Override public boolean onRenderProcessGone(WebView w,RenderProcessGoneDetail detail) {
-                lastNavigationProblem="O processo da WebView foi encerrado; o navegador será recriado.";
-                AppEventLog.error(host,"Navegador","Renderizador WebView encerrado pelo Android.");
-                rendererUnresponsive=false;
-                ViewGroup parent=(ViewGroup)w.getParent();
-                if(parent!=null)parent.removeView(w);
-                w.destroy();
-                web=null;
-                if(loginPopupDialog!=null)loginPopupDialog.dismiss();
-                host.getWindow().getDecorView().post(()->{
-                    Toast.makeText(host,"A página parou. Reabrindo o navegador com segurança.",Toast.LENGTH_LONG).show();
-                    host.recreate();
-                });
-                return true;
-            }
-            @Override public void onReceivedError(WebView w,WebResourceRequest request,WebResourceError error) {
-                if (request.isForMainFrame()) {
-                    lastNavigationProblem="Erro de rede da WebView: "+error.getErrorCode();
-                    AppEventLog.error(host,"Navegador","Falha de carregamento da página: código "+error.getErrorCode());
-                    status.setText("Falha ao abrir página ("+error.getErrorCode()+"). Consulte ⋮ > Diagnóstico de login.");
-                }
-            }
-            @Override public void onReceivedHttpError(WebView w,WebResourceRequest request,WebResourceResponse response) {
-                if (request.isForMainFrame()) {
-                    lastHttpStatus=response.getStatusCode();
-                    lastNavigationProblem="Resposta HTTP da página: "+response.getStatusCode();
-                    if (response.getStatusCode() >= 400) {
-                        AppEventLog.warn(host,"Navegador","Resposta HTTP "+response.getStatusCode()+" da página principal.");
-                        status.setText("Site retornou HTTP "+response.getStatusCode()+". Consulte ⋮ > Diagnóstico de login.");
-                    }
-                }
-            }
-        });
-        // API 29+: observe travamentos reais do processo de renderização sem matar a sessão.
-        web.setWebViewRenderProcessClient(new WebViewRenderProcessClient() {
-            @Override public void onRenderProcessUnresponsive(WebView w,WebViewRenderProcess renderer) {
-                host.runOnUiThread(()->{
-                    if(web!=w || rendererUnresponsive)return;
-                    rendererUnresponsive=true;
-                    cancelMediaScan();
-                    lastNavigationProblem="A WebView ficou temporariamente sem responder; verifique memória do aparelho e atualize o componente.";
-                    AppEventLog.warn(host,"Navegador","Renderizador WebView sem resposta durante a navegação.");
-                    status.setText("Página pesada: a WebView não responde. Use ⋮ para abrir externamente.");
-                });
-            }
-            @Override public void onRenderProcessResponsive(WebView w,WebViewRenderProcess renderer) {
-                host.runOnUiThread(()->{
-                    if(web!=w)return;
-                    if(rendererUnresponsive)status.setText("A página voltou a responder.");
-                    rendererUnresponsive=false;
-                });
-            }
-        });
-        web.setWebChromeClient(new WebChromeClient(){
-            @Override public boolean onCreateWindow(WebView source, boolean isDialog, boolean isUserGesture, Message resultMsg) {
-                return createLoginWindow(isUserGesture,resultMsg);
-            }
-            @Override public void onProgressChanged(WebView w,int progress) {
-                // O progresso pode disparar dezenas de vezes em aplicativos SPA; evite refazer texto toda vez.
+            @Override public void onProgressChange(GeckoSession gecko,int progress){
                 int bucket=progress/10;
                 if(bucket==lastProgressBucket && progress!=100)return;
                 lastProgressBucket=bucket;
                 loading.setProgress(progress);
                 loading.setVisibility(progress>=100?View.INVISIBLE:View.VISIBLE);
-                if(progress<100) status.setText("Carregando página: "+(bucket*10)+"%");
+                if(progress<100)status.setText("Carregando página: "+(bucket*10)+"%");
             }
         });
-        // O menu usa somente a URL HTTP(S) que a WebView identificou no toque longo.
-        // Não executa JavaScript nem tenta decodificar blob:/data:.
-        web.setOnLongClickListener(v -> {
-            WebView.HitTestResult hit = web.getHitTestResult();
-            if (hit == null) return false;
-            int type = hit.getType();
-            if (type != WebView.HitTestResult.SRC_ANCHOR_TYPE
-                    && type != WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE
-                    && type != WebView.HitTestResult.IMAGE_TYPE) return false;
-            String target = hit.getExtra();
-            if (target == null || target.trim().isEmpty()) return false;
-            showLinkMenu(target.trim());
-            return true;
+        session.setContentDelegate(new GeckoSession.ContentDelegate(){
+            @Override public void onTitleChange(GeckoSession gecko,String title){web.pageTitle(title);}
+            @Override public void onContextMenu(GeckoSession gecko,int x,int y,
+                    GeckoSession.ContentDelegate.ContextElement element){
+                String target=element.linkUri!=null?element.linkUri:element.srcUri;
+                if(target!=null && !target.isEmpty())showLinkMenu(target);
+            }
+            @Override public void onExternalResponse(GeckoSession gecko,WebResponse response){
+                if(response.uri!=null)offerDownload(response.uri,standardUserAgent,-1);
+            }
+            @Override public void onCrash(GeckoSession gecko){recoverGeckoCrash();}
+            @Override public void onKill(GeckoSession gecko){recoverGeckoCrash();}
         });
-        web.setDownloadListener((url,agent,disposition,mime,length)->offerDownload(url,agent,length));
         frame.addView(web,new FrameLayout.LayoutParams(-1,-1));
         videosButton=Ui.pill(host,"Vídeos",colors.teal,colors.soft);
         videosButton.setTextSize(12);
@@ -519,15 +348,17 @@ final class BrowserPane {
         bottomP.leftMargin=0;bottomP.rightMargin=0;
         view.addView(bottomInfo,bottomP);
         if(SessionPrefs.shouldClearAtStart(host)) {
-            // Não restaura estado WebView antes da limpeza assíncrona de cookies e storage.
-            SessionPrefs.clearForNewSession(()->{
+            // Não abre páginas antes de concluir a limpeza de dados do GeckoView.
+            SessionPrefs.clearForNewSession(host,()->{
                 if(web!=null)navigate(BrowserPrefs.home(host));
             });
             return;
         }
-        if (saved != null) {
-            Bundle webState=saved.getBundle("BROWSER_WEB_STATE");
-            if (webState != null && web.restoreState(webState)!=null) return;
+        if(saved!=null){
+            String previous=saved.getString("BROWSER_GECKO_URL");
+            if(previous!=null && LoginWindowPolicy.safeWebAddress(previous)){
+                navigate(previous);return;
+            }
         }
         navigate(BrowserPrefs.home(host));
     }
@@ -613,19 +444,12 @@ final class BrowserPane {
     void pause(){
         pageActive=false;
         cancelMediaScan();
-        if(web!=null){
-            web.onPause();
-            // API global; este app mantém uma única WebView principal e fecha popups ao pausar.
-            web.pauseTimers();
-        }
-        // Persiste cookies já aceitos após a navegação, sem armazená-los no histórico do app.
-        CookieManager.getInstance().flush();
+        if(web!=null)web.setActive(false);
     }
     void resume(){
         if(web==null)return;
         pageActive=true;
-        web.resumeTimers();
-        web.onResume();
+        web.setActive(true);
         adBlock.loadPreferences();
         lightweightPage=BrowserLoadPolicy.lightMode(web.getUrl(),BrowserPrefs.chatGptLight(host));
         if(lightweightPage)cancelMediaScan();
@@ -654,22 +478,20 @@ final class BrowserPane {
         synchronized(videoPreviewMeta){videoPreviewMeta.clear();}
     }
     private void applyPagePreferences(boolean forceReload){
-        WebSettings settings=web.getSettings();
-        settings.setJavaScriptEnabled(BrowserPrefs.javascript(host));
+        if(web==null)return;
+        GeckoSessionSettings settings=web.session.getSettings();
+        settings.setAllowJavascript(BrowserPrefs.javascript(host));
+        settings.setUseTrackingProtection(AdBlockController.savedTrackers(host));
         int zoom=BrowserPrefs.textZoom(host);
-        if(appliedTextZoom!=zoom){settings.setTextZoom(zoom);appliedTextZoom=zoom;}
+        if(appliedTextZoom!=zoom){appliedTextZoom=zoom;forceReload=true;}
         boolean thirdParty=BrowserPrefs.thirdPartyCookies(host);
-        if(thirdParty!=appliedThirdPartyCookies){
-            appliedThirdPartyCookies=thirdParty;
-            CookieManager.getInstance().setAcceptThirdPartyCookies(web,thirdParty);
-            forceReload=true;
-        }
+        if(thirdParty!=appliedThirdPartyCookies){appliedThirdPartyCookies=thirdParty;forceReload=true;}
+        GeckoEngine.updatePreferences(host);
         boolean desktop=BrowserPrefs.desktop(host);
         if(desktop!=appliedDesktop){
             appliedDesktop=desktop;
-            settings.setUseWideViewPort(desktop);
-            settings.setLoadWithOverviewMode(desktop);
-            settings.setUserAgentString(desktop?DesktopUserAgent.toDesktop(standardUserAgent):standardUserAgent);
+            settings.setUserAgentMode(desktop ? GeckoSessionSettings.USER_AGENT_MODE_DESKTOP : GeckoSessionSettings.USER_AGENT_MODE_MOBILE);
+            settings.setViewportMode(desktop ? GeckoSessionSettings.VIEWPORT_MODE_DESKTOP : GeckoSessionSettings.VIEWPORT_MODE_MOBILE);
             forceReload=true;
         }
         if(forceReload && web.getUrl()!=null)web.reload();
@@ -681,19 +503,16 @@ final class BrowserPane {
         +"{display:none!important;visibility:hidden!important;}";
     private void applyCosmeticFilters(String url){
         if(web==null || lightweightPage || !BrowserPrefs.javascript(host)||!adBlock.shouldHideCosmetic(url))return;
-        // CSS estático local: não lê formulário, cookies, DOM pessoal nem elementos de login.
-        String script="(function(){try{var id='bf-ad-css';if(document.getElementById(id))return;"
-            +"var s=document.createElement('style');s.id=id;s.textContent=\""+AD_CSS+"\";"
-            +"(document.head||document.documentElement).appendChild(s);}catch(e){}})();";
-        web.evaluateJavascript(script,null);
+        // CSS fixo na extensão empacotada; não lê cookies nem credenciais.
+        web.cosmeticFilters();
     }
     private void showAdBlockMenu(){
         int mode=adBlock.mode();
         String[] names={"Desligado","Leve","Forte","Extremo"};
         String page=web==null?null:web.getUrl();
-        String summary="Proteção: "+names[mode]+" • "+adBlock.ruleCount()+" regras locais\n"
-            +"Bloqueios nesta sessão: "+AdBlockController.sessionBlocked()+"\n"
-            +"Neste site: "+(adBlock.isException(page)?"desativado":"ativo");
+        String summary="Modo cosmético salvo: "+names[mode]+" • "+adBlock.ruleCount()+" regras cadastradas (domínios não interceptados)\n"
+            +"Bloqueios de domínios por listas locais: não disponível no GeckoView\n"
+            +"Ocultação CSS neste site: "+(adBlock.isException(page)?"desativada":"ativa");
         List<AppMenus.Entry> rows=AppMenus.entries();
         rows.add(AppMenus.Entry.item("Abrir configurações","Intensidade, listas e rastreadores","settings",host::openSettings));
         rows.add(AppMenus.Entry.item(adBlock.isException(page)?"Ativar neste site":"Desativar neste site",
@@ -709,7 +528,7 @@ final class BrowserPane {
         rows.add(AppMenus.Entry.item("Favoritos","Abrir ou salvar sites","bookmark",this::showFavoriteTools));
         rows.add(AppMenus.Entry.item("Ferramentas da página","Localizar, zoom e modo computador","search",this::showDisplayTools));
         if(BrowserLoadPolicy.isChatGpt(web.getUrl()))
-            rows.add(AppMenus.Entry.item("Abrir ChatGPT no Chrome ou navegador","Alternativa se a WebView estiver lenta","globe",()->openInExternalBrowser(web.getUrl())));
+            rows.add(AppMenus.Entry.item("Abrir ChatGPT no Chrome ou navegador","Alternativa se o GeckoView estiver lento","globe",()->openInExternalBrowser(web.getUrl())));
         rows.add(AppMenus.Entry.item("Proteção e privacidade","Bloqueador e exceções do site","shield",this::showProtectionTools));
         rows.add(AppMenus.Entry.item("Login e diagnóstico","Compatibilidade, erros e ajuda","lock",this::showLoginTools));
         AppMenus.show(host,"Ferramentas do navegador","Escolha uma área para configurar ou utilizar.",rows);
@@ -740,8 +559,8 @@ final class BrowserPane {
     private void showDisplayTools(){
         List<AppMenus.Entry> rows=AppMenus.entries();
         rows.add(AppMenus.Entry.item("Localizar na página","Buscar palavras e navegar entre resultados","search",this::openFind));
-        rows.add(AppMenus.Entry.item("Aumentar zoom","Ampliar o conteúdo da página","search",()->{if(!web.zoomIn())Toast.makeText(host,"Zoom máximo",Toast.LENGTH_SHORT).show();}));
-        rows.add(AppMenus.Entry.item("Diminuir zoom","Reduzir o conteúdo da página","search",()->{if(!web.zoomOut())Toast.makeText(host,"Zoom mínimo",Toast.LENGTH_SHORT).show();}));
+        rows.add(AppMenus.Entry.item("Aumentar zoom","Ampliar o conteúdo da página","search",()->{changeTextZoom(10);}));
+        rows.add(AppMenus.Entry.item("Diminuir zoom","Reduzir o conteúdo da página","search",()->{changeTextZoom(-10);}));
         rows.add(AppMenus.Entry.item(BrowserPrefs.desktop(host)?"Desativar modo computador":"Ativar modo computador",
             "Alternar visualização desktop e celular","globe",()->{
                 BrowserPrefs.setDesktop(host,!BrowserPrefs.desktop(host));applyPagePreferences(false);
@@ -764,111 +583,84 @@ final class BrowserPane {
     }
     private void showLoginTools(){
         List<AppMenus.Entry> rows=AppMenus.entries();
-        rows.add(AppMenus.Entry.item("Diagnóstico do navegador","WebView, cookies e erros sem dados sensíveis","alert",this::showLoginDiagnosis));
-        rows.add(AppMenus.Entry.item("Desempenho e memória","RAM disponível, PSS do app e estado da WebView","settings",this::showPerformanceDiagnosis));
+        rows.add(AppMenus.Entry.item("Diagnóstico do navegador","GeckoView, privacidade e erros sem dados sensíveis","alert",this::showLoginDiagnosis));
+        rows.add(AppMenus.Entry.item("Desempenho e memória","RAM disponível, PSS do app e estado do GeckoView","settings",this::showPerformanceDiagnosis));
         rows.add(AppMenus.Entry.item("Ajuda com login","Google, Facebook e verificações","lock",this::showLoginHelp));
         rows.add(AppMenus.Entry.item("Abrir com Custom Tabs","Compatibilidade com login e navegador externo","globe",()->openCompatibleBrowser(web.getUrl())));
         rows.add(AppMenus.Entry.item("Escolher navegador externo","Alternativa caso Custom Tabs não esteja disponível","forward",()->openInExternalBrowser(web.getUrl())));
         AppMenus.show(host,"Login e diagnóstico","Ferramentas de compatibilidade e segurança.",rows);
     }
 
-    /** Popups de autenticação somente após gesto humano, com WebView isolada e sem JS bridge. */
-    private boolean createLoginWindow(boolean userGesture, Message resultMsg) {
-        if (!LoginWindowPolicy.allowPopup(userGesture, loginPopup != null) || resultMsg == null
-                || !(resultMsg.obj instanceof WebView.WebViewTransport)) {
-            if (status != null) status.setText("Janela automática bloqueada. Use ⋮ > Diagnóstico de login.");
-            return false;
+    /** Apenas janelas criadas por gesto e carregadas em GeckoSession separada. */
+    private GeckoResult<GeckoSession> createLoginWindow(String uri){
+        if(!LoginWindowPolicy.allowPopup(popupGestureAllowed,loginPopup!=null) ||
+                (uri!=null && !LoginWindowPolicy.safeWebAddress(uri))){
+            popupGestureAllowed=false;
+            return GeckoResult.fromValue(null);
         }
-        final WebView popup = new WebView(host);
-        loginPopup = popup;
-        WebSettings settings = popup.getSettings();
-        settings.setJavaScriptEnabled(BrowserPrefs.javascript(host));
-        settings.setDomStorageEnabled(true);
-        settings.setAllowFileAccess(false);
-        settings.setAllowContentAccess(false);
-        settings.setAllowFileAccessFromFileURLs(false);
-        settings.setAllowUniversalAccessFromFileURLs(false);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setSafeBrowsingEnabled(true);
-        WebKitCompat.optimize(settings);
-        settings.setJavaScriptCanOpenWindowsAutomatically(false);
-        settings.setSupportMultipleWindows(false);
-        CookieManager.getInstance().setAcceptThirdPartyCookies(popup,BrowserPrefs.thirdPartyCookies(host));
-        popup.setWebViewClient(new WebViewClient(){
-            @Override public boolean onRenderProcessGone(WebView w,RenderProcessGoneDetail detail){
-                if(loginPopupDialog!=null)loginPopupDialog.dismiss();
-                return true;
-            }
-            @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r) {
-                String url=r.getUrl().toString();
-                if(r.isForMainFrame() && AuthNavigation.isGoogleOAuth(url)){
+        popupGestureAllowed=false;
+        GeckoBrowserView popup=new GeckoBrowserView(host);
+        loginPopup=popup;
+        popup.session.getSettings().setAllowJavascript(BrowserPrefs.javascript(host));
+        popup.session.getSettings().setUseTrackingProtection(AdBlockController.savedTrackers(host));
+        popup.session.setPromptDelegate(new GeckoPromptHandler(host));
+        popup.session.setNavigationDelegate(new GeckoSession.NavigationDelegate(){
+            @Override public GeckoResult<AllowOrDeny> onLoadRequest(GeckoSession gecko,
+                    GeckoSession.NavigationDelegate.LoadRequest request){
+                if(AuthNavigation.isGoogleOAuth(request.uri)){
                     if(loginPopupDialog!=null)loginPopupDialog.dismiss();
-                    offerExternalGoogleLogin(url);
-                    return true;
+                    offerExternalGoogleLogin(request.uri);
+                    return GeckoResult.fromValue(AllowOrDeny.DENY);
                 }
-                return !LoginWindowPolicy.safeWebAddress(url);
+                return GeckoResult.fromValue(LoginWindowPolicy.safeWebAddress(request.uri)?AllowOrDeny.ALLOW:AllowOrDeny.DENY);
             }
-            @Override public void onPageStarted(WebView v,String url,android.graphics.Bitmap favicon){
-                if(AuthNavigation.isGoogleOAuth(url)){
-                    v.stopLoading();
-                    if(loginPopupDialog!=null)loginPopupDialog.dismiss();
-                    offerExternalGoogleLogin(url);
-                }
-            }
-            @Override public void onReceivedError(WebView v,WebResourceRequest r,WebResourceError error){
-                if(r.isForMainFrame()){
-                    lastNavigationProblem="Erro na janela de autenticação: "+error.getErrorCode();
-                    Toast.makeText(host,"A janela de login não carregou ("+error.getErrorCode()+")",Toast.LENGTH_LONG).show();
-                }
-            }
+            @Override public void onLocationChange(GeckoSession gecko,String url,
+                    List<GeckoSession.PermissionDelegate.ContentPermission> perms,Boolean gesture){popup.currentUrl(url);}
         });
-        popup.setWebChromeClient(new WebChromeClient(){
-            @Override public void onCloseWindow(WebView window){
+        popup.session.setContentDelegate(new GeckoSession.ContentDelegate(){
+            @Override public void onCloseRequest(GeckoSession gecko){
                 if(loginPopupDialog!=null)loginPopupDialog.dismiss();
             }
+            @Override public void onExternalResponse(GeckoSession gecko,WebResponse response){
+                if(response.uri!=null)offerDownload(response.uri,standardUserAgent,-1);
+            }
         });
-        LinearLayout content = Ui.vertical(host);
+        LinearLayout content=Ui.vertical(host);
         content.setPadding(dp(10),dp(8),dp(10),dp(4));
-        TextView hint = Ui.text(host,"Janela do site • autenticação",14,colors.text,true);
-        content.addView(hint,Ui.lp(host,-1,40,0));
-        FrameLayout container = new FrameLayout(host);
-        int height = Math.max(dp(260),Math.min(dp(530),
-                (int)(host.getResources().getDisplayMetrics().heightPixels*0.60f)));
+        content.addView(Ui.text(host,"Janela do site • autenticação",14,colors.text,true),Ui.lp(host,-1,40,0));
+        FrameLayout container=new FrameLayout(host);
+        int height=Math.max(dp(260),Math.min(dp(530),(int)(host.getResources().getDisplayMetrics().heightPixels*0.60f)));
         container.addView(popup,new FrameLayout.LayoutParams(-1,-1));
         content.addView(container,new LinearLayout.LayoutParams(-1,height));
-        AlertDialog dialog = new AlertDialog.Builder(host)
-            .setView(content)
+        AlertDialog dialog=new AlertDialog.Builder(host).setView(content)
             .setNegativeButton("Fechar",null)
             .setNeutralButton("Abrir no navegador",(d,w)->{
                 String target=popup.getUrl();
                 if(!LoginWindowPolicy.safeWebAddress(target))target=web.getUrl();
                 openInExternalBrowser(target);
             }).create();
-        loginPopupDialog = dialog;
+        loginPopupDialog=dialog;
         dialog.setOnDismissListener(d->{
-            if (loginPopup==popup)loginPopup=null;
-            if (loginPopupDialog==dialog)loginPopupDialog=null;
+            if(loginPopup==popup)loginPopup=null;
+            if(loginPopupDialog==dialog)loginPopupDialog=null;
             ViewGroup parent=(ViewGroup)popup.getParent();
             if(parent!=null)parent.removeView(popup);
-            popup.stopLoading();
-            popup.destroy();
+            popup.stopLoading();popup.destroyBrowser();
         });
-        try {
-            dialog.show();
-            WebView.WebViewTransport transport=(WebView.WebViewTransport)resultMsg.obj;
-            transport.setWebView(popup);
-            resultMsg.sendToTarget();
-            return true;
-        } catch(RuntimeException failure){
-            if(dialog.isShowing())dialog.dismiss();
-            else {
-                loginPopup=null;loginPopupDialog=null;
-                ViewGroup parent=(ViewGroup)popup.getParent();
-                if(parent!=null)parent.removeView(popup);
-                popup.destroy();
+        dialog.show();
+        return GeckoResult.fromValue(popup.session);
+    }
+
+    private void recoverGeckoCrash(){
+        lastNavigationProblem="Processo de conteúdo Gecko encerrado pelo Android.";
+        AppEventLog.error(host,"Navegador","Processo de conteúdo Gecko encerrado.");
+        if(loginPopupDialog!=null)loginPopupDialog.dismiss();
+        host.getWindow().getDecorView().post(()->{
+            if(!host.isFinishing()&&!host.isDestroyed()){
+                Toast.makeText(host,"O navegador parou. Reabrindo a página.",Toast.LENGTH_LONG).show();
+                host.recreate();
             }
-            return false;
-        }
+        });
     }
 
     private void showPerformanceDiagnosis(){
@@ -903,10 +695,9 @@ final class BrowserPane {
     }
 
     private void showLoginDiagnosis(){
-        PackageInfo current=WebView.getCurrentWebViewPackage();
-        String engine=current==null?"Não identificado":current.packageName+" (versão "+current.versionName+")";
+        String engine="GeckoView 158.0.20261007201254 (Mozilla)";
         String report="Baixa Fácil • diagnóstico de compatibilidade\n"
-            +"Motor WebView: "+engine+"\n"
+            +"Motor: "+engine+"\n"
             +"Origem atual: "+LoginWindowPolicy.originForReport(web.getUrl())+"\n"
             +"JavaScript: "+(BrowserPrefs.javascript(host)?"ativado":"desativado")+"\n"
             +"Cookies de terceiros: "+(BrowserPrefs.thirdPartyCookies(host)?"permitidos":"bloqueados")+"\n"
@@ -918,7 +709,7 @@ final class BrowserPane {
             +"Dados sensíveis como cookies, senhas, caminhos e parâmetros de URLs não são incluídos.";
         List<AppMenus.Entry> rows=AppMenus.entries();
         rows.add(AppMenus.Entry.item("Copiar diagnóstico","Sem cookies ou parâmetros de URL","copy",()->copyLinkText("Diagnóstico",report)));
-        rows.add(AppMenus.Entry.item("Atualizar WebView","Procurar a versão mais recente no sistema","reload",this::openWebViewUpdate));
+        rows.add(AppMenus.Entry.note("GeckoView está empacotado no APK. Atualize o Baixa Fácil para receber correções do motor."));
         AppMenus.info(host,"Diagnóstico do navegador",report,rows);
     }
 
@@ -928,30 +719,12 @@ final class BrowserPane {
         Toast.makeText(host,"Diagnóstico copiado sem dados de sessão",Toast.LENGTH_SHORT).show();
     }
 
-    private void openWebViewUpdate(){
-        PackageInfo current=WebView.getCurrentWebViewPackage();
-        if(current==null || current.packageName==null){
-            Toast.makeText(host,"Componente WebView não identificado",Toast.LENGTH_LONG).show();return;
-        }
-        String appId=current.packageName;
-        try {
-            host.startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("market://details?id="+appId)));
-        } catch(ActivityNotFoundException | SecurityException ignored){
-            try {
-                host.startActivity(new Intent(Intent.ACTION_VIEW,
-                    Uri.parse("https://play.google.com/store/apps/details?id="+appId)));
-            } catch(ActivityNotFoundException | SecurityException error){
-                Toast.makeText(host,"Não foi possível abrir a atualização da WebView",Toast.LENGTH_LONG).show();
-            }
-        }
-    }
-
     private void offerExternalGoogleLogin(String url) {
         if(googleLoginDialogVisible) return;
         googleLoginDialogVisible=true;
         AlertDialog dialog=new AlertDialog.Builder(host)
             .setTitle("Login do Google no navegador")
-            .setMessage("O Google não permite login OAuth dentro de uma WebView. Para proteger sua conta, abra a autenticação em um navegador compatível.\n\nA sessão do navegador externo é independente e não entra automaticamente no Baixa Fácil.")
+            .setMessage("Alguns provedores restringem OAuth em navegadores incorporados. Para proteger sua conta, abra a autenticação em um navegador compatível.\n\nA sessão do navegador externo é independente e não entra automaticamente no Baixa Fácil.")
             .setNegativeButton("Cancelar",null)
             .setPositiveButton("Abrir navegador",(d,w)->openLoginBrowser(url))
             .create();
@@ -962,11 +735,11 @@ final class BrowserPane {
     private void showLoginHelp() {
         List<AppMenus.Entry> rows=AppMenus.entries();
         rows.add(AppMenus.Entry.item("Abrir com Custom Tabs","Usar um navegador instalado para o login","globe",()->openCompatibleBrowser(web.getUrl())));
-        rows.add(AppMenus.Entry.item("Ver diagnóstico","WebView, cookies e falhas recentes","alert",this::showLoginDiagnosis));
+        rows.add(AppMenus.Entry.item("Ver diagnóstico","GeckoView, privacidade e falhas recentes","alert",this::showLoginDiagnosis));
         AppMenus.info(host,"Ajuda com login",
-            "Google: login OAuth não é compatível com WebView. Use o navegador externo.\n\n"
+            "Google OAuth pode rejeitar navegadores incorporados. Use o navegador externo.\n\n"
             + "Facebook: mantenha JavaScript ligado, desative o modo computador e tente a opção de cookies de terceiros somente se necessário (menos privacidade).\n\n"
-            + "A sessão externa não é importada. Nenhuma alteração garante que todos os sites aceitem login na WebView.",rows);
+            + "A sessão externa não é importada. Nem todos os sites aceitam login em navegadores incorporados.",rows);
     }
 
     private void openCompatibleBrowser(String url) {
@@ -1036,7 +809,7 @@ final class BrowserPane {
             return;
         }
         int generation=scanGeneration;
-        web.evaluateJavascript(VIDEO_SCAN_JS, value->{
+        web.scanVideos(value->{
             if(generation!=scanGeneration || !page.equals(web.getUrl()))return;
             try {
                 Object decoded=new JSONTokener(value).nextValue();
@@ -1239,8 +1012,8 @@ final class BrowserPane {
                 dialog.dismiss();
                 if(video.sources.size()>1)showVideoActions(video,number);
                 else if(video.kind==MediaSourcePolicy.Kind.HLS)
-                    offerHlsDownload(video.sources.get(0).url,web.getSettings().getUserAgentString());
-                else offerDownload(video.sources.get(0).url,web.getSettings().getUserAgentString(),-1);
+                    offerHlsDownload(video.sources.get(0).url,standardUserAgent);
+                else offerDownload(video.sources.get(0).url,standardUserAgent,-1);
             });
             LinearLayout.LayoutParams buttonP=new LinearLayout.LayoutParams(-2,dp(44));buttonP.leftMargin=dp(5);
             row.addView(download,buttonP);
@@ -1290,15 +1063,8 @@ final class BrowserPane {
     }
 
     private Bitmap captureVisiblePage(){
-        if(web==null || web.getWidth()<10 || web.getHeight()<10) return null;
-        try{
-            Bitmap snapshot=Bitmap.createBitmap(web.getWidth(),web.getHeight(),Bitmap.Config.RGB_565);
-            Canvas canvas=new Canvas(snapshot);
-            web.draw(canvas);
-            return snapshot;
-        }catch(OutOfMemoryError | RuntimeException ignored){
-            return null;
-        }
+        // GeckoView usa compositor separado; draw(Canvas) não captura a página com confiabilidade.
+        return null;
     }
 
     private Bitmap cropVisiblePreview(Bitmap snapshot,PreviewMeta meta){
@@ -1338,10 +1104,10 @@ final class BrowserPane {
             play.putExtra(MediaPlayerActivity.EXTRA_MEDIA_URL,source.url);
             host.startActivity(play);
         }));
-        if(direct)rows.add(AppMenus.Entry.item("Baixar arquivo","Salvar esta fonte pelo gerenciador","download",()->offerDownload(source.url,web.getSettings().getUserAgentString(),-1)));
+        if(direct)rows.add(AppMenus.Entry.item("Baixar arquivo","Salvar esta fonte pelo gerenciador","download",()->offerDownload(source.url,standardUserAgent,-1)));
         if(video.kind==MediaSourcePolicy.Kind.HLS)rows.add(AppMenus.Entry.item("Baixar HLS (TS)",
             "Somente vídeos finalizados sem DRM, em segmentos MPEG-TS","download",
-            ()->offerHlsDownload(source.url,web.getSettings().getUserAgentString())));
+            ()->offerHlsDownload(source.url,standardUserAgent)));
         rows.add(AppMenus.Entry.item("Copiar endereço","Copiar somente o link da fonte selecionada","copy",()->copyLink(source.url)));
         rows.add(AppMenus.Entry.item(video.sources.size()>1?"Escolher outra qualidade":"Voltar à lista",
             "Ver as outras fontes encontradas","back",()->{
@@ -1386,9 +1152,34 @@ final class BrowserPane {
         InputMethodManager imm=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
         if(imm!=null)imm.hideSoftInputFromWindow(findInput.getWindowToken(),0);
     }
-    void saveState(Bundle output){if(web!=null){Bundle b=new Bundle();web.saveState(b);output.putBundle("BROWSER_WEB_STATE",b);}}
-    void destroy(){pageActive=false;cancelMediaScan(); dismissAddressSuggestions(); if(loginPopupDialog!=null)loginPopupDialog.dismiss();if(web!=null){if(pendingMediaScan!=null)web.removeCallbacks(pendingMediaScan);pendingMediaScan=null;web.setDownloadListener(null);web.stopLoading(); ViewGroup parent=(ViewGroup)web.getParent();if(parent!=null)parent.removeView(web);web.destroy();web=null;} }
-    void clearLocalData(){closeFind();web.clearCache(true);web.clearHistory();navigate(BrowserPrefs.home(host));}
+    private void changeTextZoom(int change){
+        int next=Math.max(70,Math.min(180,BrowserPrefs.textZoom(host)+change));
+        BrowserPrefs.setTextZoom(host,next);
+        applyPagePreferences(true);
+        Toast.makeText(host,"Tamanho do texto: "+next+"%",Toast.LENGTH_SHORT).show();
+    }
+    void saveState(Bundle output){
+        // Somente URL validada; nunca serializar cookies, formulário ou dados de login no Bundle.
+        if(web!=null && LoginWindowPolicy.safeWebAddress(web.getUrl()))
+            output.putString("BROWSER_GECKO_URL",web.getUrl());
+    }
+    void destroy(){
+        pageActive=false;cancelMediaScan();dismissAddressSuggestions();
+        if(loginPopupDialog!=null)loginPopupDialog.dismiss();
+        if(web!=null){
+            web.stopLoading();
+            ViewGroup parent=(ViewGroup)web.getParent();
+            if(parent!=null)parent.removeView(web);
+            web.destroyBrowser();web=null;
+        }
+    }
+    void clearLocalData(){
+        closeFind();
+        if(web!=null)web.session.purgeHistory();
+        GeckoEngine.clear(StorageController.ClearFlags.ALL_CACHES,null,
+            msg -> host.runOnUiThread(()->Toast.makeText(host,msg,Toast.LENGTH_LONG).show()));
+        navigate(BrowserPrefs.home(host));
+    }
     private void copyAddress(){
         String url=address.getText().toString().trim();
         if(url.isEmpty()){Toast.makeText(host,"Nenhum endereço para copiar",Toast.LENGTH_SHORT).show();return;}
@@ -1410,7 +1201,7 @@ final class BrowserPane {
         if(supported){
             rows.add(AppMenus.Entry.item("Abrir link","Navegar nesta janela","globe",()->navigate(url)));
             rows.add(AppMenus.Entry.item("Copiar link","Copiar o endereço completo","copy",()->copyLink(url)));
-            rows.add(AppMenus.Entry.item("Baixar arquivo","Tentar transferir pelo gerenciador","download",()->offerDownload(url,web.getSettings().getUserAgentString(),-1)));
+            rows.add(AppMenus.Entry.item("Baixar arquivo","Tentar transferir pelo gerenciador","download",()->offerDownload(url,standardUserAgent,-1)));
             rows.add(AppMenus.Entry.item("Compartilhar link","Enviar para outro aplicativo","link",()->{
                 Intent share=new Intent(Intent.ACTION_SEND);
                 share.setType("text/plain");share.putExtra(Intent.EXTRA_TEXT,url);
@@ -1479,7 +1270,9 @@ final class BrowserPane {
             return;
         }
         String id=DownloadStore.create(host,url);
-        String cookies=CookieManager.getInstance().getCookie(url);
+        // A API pública do GeckoView não expõe cookies HTTP ao host.
+        // Não reutilizar CookieManager da WebView Android (origem/sessão diferentes).
+        String cookies=null;
         String referer=web.getUrl();
         if(!TransferHttp.sameOrigin(url,referer))referer=null;
         boolean started=TransferStarter.enqueue(host,id,url,cookies,agent,referer);

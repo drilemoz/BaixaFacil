@@ -2,8 +2,7 @@ package br.com.baixafacil;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.webkit.CookieManager;
-import android.webkit.WebStorage;
+import org.mozilla.geckoview.StorageController;
 
 /** Política local. Nunca enumera ou persiste valores de cookies. */
 final class SessionPrefs {
@@ -17,18 +16,17 @@ final class SessionPrefs {
     static void setKeepLogins(Context context,boolean keep){
         context.getSharedPreferences(FILE,Context.MODE_PRIVATE).edit().putBoolean(KEEP,keep).apply();
     }
-    /** Executa uma só vez por processo, antes do primeiro carregamento/restore da WebView. */
+    /** Executa uma só vez por processo, antes do primeiro carregamento GeckoView. */
     static synchronized boolean shouldClearAtStart(Context context){
         if(initializedThisProcess)return false;
         initializedThisProcess=true;
         return !keepLogins(context);
     }
-    static void clearForNewSession(Runnable done){
-        // Os dois armazenamentos podem manter a autenticação; o histórico/favoritos não são apagados.
-        WebStorage.getInstance().deleteAllData();
-        CookieManager.getInstance().removeAllCookies(success->{
-            CookieManager.getInstance().flush();
-            done.run();
-        });
+    static void clearForNewSession(Context context,Runnable done){
+        GeckoEngine.get(context);
+        GeckoEngine.clear(StorageController.ClearFlags.SITE_DATA,done,
+            error -> android.widget.Toast.makeText(context,
+                "Não foi possível limpar a sessão anterior; navegação suspensa para proteger seus dados.",
+                android.widget.Toast.LENGTH_LONG).show());
     }
 }

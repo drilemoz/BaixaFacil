@@ -1,3 +1,7 @@
+## 0.1.0-alpha.46: migração GeckoView
+
+Navegador integrado GeckoView (Firefox), sessão nativa, detector local de vídeos via WebExtension. Algumas funções dependentes de interceptação de rede do WebView não têm equivalente nesta versão. Consulte RELEASE_NOTES.md.
+
 # Validação 0.1.0-alpha.45
 
 ## Problema reproduzido na captura
