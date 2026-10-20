@@ -429,6 +429,7 @@ public class MainActivity extends Activity {
     public void showDownloads() {
         if(downloadsList==null||browserPane==null)return;
         browserPane.exitVideoFullscreen();
+        browserPane.handleAddressBack();
         downloadsVisible=true;
         downloadsList.setVisibility(View.VISIBLE);
         browserPane.view.setVisibility(View.GONE);
@@ -489,6 +490,7 @@ public class MainActivity extends Activity {
         if(browserPane!=null && browserPane.isVideoFullscreen()){
             browserPane.exitVideoFullscreen();return;
         }
+        if(browserPane!=null && browserPane.handleAddressBack())return;
         executeNavigation(MainNavigationPolicy.systemBack(
             downloadsVisible,selectingDownloads,browserPane!=null&&browserPane.canGoBack()));
     }

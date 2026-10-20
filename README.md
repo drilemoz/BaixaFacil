@@ -1,3 +1,10 @@
+## 0.1.0-alpha.60: edição de endereço na própria barra
+
+- Correção pedida após teste Android: **um único toque** no endereço ativa o `EditText` na mesma barra, seleciona o URL e solicita o teclado, sem `AlertDialog` ou segundo toque.
+- O painel de histórico, favoritos, link copiado e sites mais acessados **expande verticalmente abaixo da barra**, com rolagem limitada para preservar espaço da página e do teclado.
+- Na edição, a barra mostra pesquisa, microfone e QR; ao finalizar ou fechar volta ao favicon, domínio e ⋮. A tecla Ir navega e o Voltar do sistema fecha primeiro a edição.
+- Preservados GeckoView 158, assinaturas, três ABI, mídias, senhas, importação e compatibilidade de sites. Build Android e verificação de toque/teclado em aparelho pendentes.
+
 ## 0.1.0-alpha.59: navegador, mídia, senhas e importação
 
 - Barra normal simplificada (favicon HTTPS quando acessível, domínio e menu ⋮); remove os botões copiar, seta, ir e configurações da barra superior. O ⋮ abre um menu compacto ancorado.

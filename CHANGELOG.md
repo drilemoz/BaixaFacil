@@ -1,3 +1,9 @@
+# Baixa Fácil 0.1.0-alpha.60 (versionCode 60) - 2026-10-20
+
+- Corrigida a fricção de dois toques: endereço agora é editado diretamente na barra existente, com foco/seleção automática e IME após o primeiro toque.
+- Sugestões não usam janela modal; painel inline logo abaixo da barra com rolagem e altura limitada. Microfone, QR e colar mantidos, Voltar fecha edição antes do histórico.
+- Preservados dados de navegação, GeckoView 158, três APKs por ABI, versão e assinatura sincronizados. Compilação Gradle e testes UI reais pendentes.
+
 # Baixa Fácil 0.1.0-alpha.59 (versionCode 59) - 2026-10-20
 
 - Nova barra de navegação simplificada e editor de endereços vertical, frequentes, clipboard opt-in, voz e QR.

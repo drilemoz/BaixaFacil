@@ -2,6 +2,7 @@
 """Launcher resources contract: bitmaps, XML, adaptive, round and monochrome."""
 from pathlib import Path
 import struct
+import re
 from xml.etree import ElementTree as ET
 ROOT=Path(__file__).resolve().parents[1]
 RES=ROOT/'app/src/main/res'
@@ -12,7 +13,8 @@ assert application is not None
 assert application.attrib[ANDROID+'icon']=='@mipmap/ic_launcher'
 assert application.attrib[ANDROID+'roundIcon']=='@mipmap/ic_launcher_round'
 assert application.attrib[ANDROID+'label']=='Baixa Fácil'
-assert (ROOT/'docs/VERSIONING.md').read_text(encoding='utf-8').count('Próxima versão sequencial: `0.1.0-alpha.60`, `versionCode 60`') == 1
+version=int(re.search(r'(?m)^\s*versionCode\s+(\d+)\s*$', (ROOT/'app/build.gradle').read_text()).group(1))
+assert (ROOT/'docs/VERSIONING.md').read_text(encoding='utf-8').count(f'Próxima versão sequencial: `0.1.0-alpha.{version+1}`, `versionCode {version+1}`') == 1
 expected={'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}
 for density,side in expected.items():
     for variant in ('ic_launcher','ic_launcher_round'):

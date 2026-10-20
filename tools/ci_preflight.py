@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.59"
-CODE = "59"
+VERSION = "0.1.0-alpha.60"
+CODE = "60"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -110,6 +110,7 @@ checks = {
     "address suggestions": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["openAddressEditor", "updateAddressSuggestions", "BrowserSuggestions.suggest", "dismissAddressSuggestions", "BrowserTopSites.mostVisited", "addSuggestion", "clipboardUrl"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserSuggestions.java") for x in ["LoginWindowPolicy.hasLoginParameters", "AuthNavigation.isSensitiveLoginPage", "LIMIT=5"]),
     "browser editor and import parser regression": subprocess.run([sys.executable, str(ROOT / "tools/test_browser_redesign.py")], check=False).returncode==0,
+    "inline address first-tap regression": subprocess.run([sys.executable, str(ROOT / "tools/test_address_inline.py")], check=False).returncode==0,
     "redesigned browser permissions and media": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         for x in ["showCompactMenu", "openAddressEditor", "startVoiceSearch", "startQrScanner", "showDetectedImages", "handleBrowserActivityResult"])
         and "SitePermissionDialog.show" in read("app/src/main/java/br/com/baixafacil/GeckoSitePermissions.java")

@@ -199,3 +199,9 @@
 - QR usa câmera local com permissão explícita; voz depende de serviço Android; ambos só aceitam navegação após edição ou confirmação do usuário.
 - Scans automáticos permanecem leves, imagens apenas na busca manual, sem DRM, cookies ou nova transferência não solicitada.
 - Manter GeckoView 158, ABI ARM32/ARM64/x86_64, versionamento sequencial, assinatura e scripts de CI. Próxima versão `0.1.0-alpha.60`/versionCode 60.
+
+## Versão 0.1.0-alpha.60: endereço inline de toque único
+- Não criar `AlertDialog` no clique da barra de endereços. A `addressDisplay` alterna para `EditText` no mesmo `row`; solicitar o teclado na primeira interação, com URL selecionado.
+- Mostrar sugestões apenas no `addressPanel` incorporado à hierarquia do `BrowserPane.view`, abaixo da toolbar; manter altura limitada e rolagem. Não destruir a GeckoSession e não introduzir chamadas de rede ao digitar.
+- Voltar do sistema fecha a edição antes de navegar para página anterior; tecla Ir navega; troca de aba fecha teclado/editor. Não interferir na permissão do Android, câmera QR e retorno da pesquisa por voz.
+- Preservar GeckoView 158, ETP, dados e download engine, três ABI e Secrets de assinatura. Versão sequencial seguinte `0.1.0-alpha.61`/versionCode 61.

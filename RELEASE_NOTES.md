@@ -1,3 +1,9 @@
+# Baixa Fácil 0.1.0-alpha.60 (versionCode 60)
+
+**Barra de URL sem pop-up:** tocar no endereço abre imediatamente a edição na própria barra, selecionando o URL e solicitando o teclado. Sugestões, histórico, links copiados e sites frequentes surgem em painel que se expande para baixo, sem exigir segundo toque. O leitor QR e a voz ficam na barra durante edição; Voltar fecha primeiro a edição. Recursos e dados existentes preservados.
+
+**Validação:** testes estáticos da estrutura inline, parser HTML/CSV, pré-validação ABI, simulação de publicação e integridade do ZIP executados localmente. Ainda é preciso compilar e testar o APK no Android.
+
 # Baixa Fácil 0.1.0-alpha.59 (versionCode 59)
 
 **Navegador redesenhado:** barra de navegação com domínio/favicons e menu ⋮, editor de endereço com sugestões verticais, link do clipboard para colar, sites frequentes, voz, leitor QR, progresso GeckoView com porcentagem e botão flutuante de mídias/imagens.

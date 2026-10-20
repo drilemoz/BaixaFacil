@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verifica contratos da alpha.59 e exercita o parser real de importação com stubs JDK.
+"""Verifica contratos da alpha.60 e exercita o parser real de importação com stubs JDK.
 Não equivale a teste Android/GeckoView em aparelho.
 """
 from pathlib import Path

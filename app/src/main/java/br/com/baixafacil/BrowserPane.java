@@ -71,7 +71,10 @@ final class BrowserPane {
     private boolean findWasVisible;
     private boolean videosWasVisible;
     private EditText address;
-    private AlertDialog addressDialog;
+    private LinearLayout addressPanel;
+    private FrameLayout addressMenuButton;
+    private LinearLayout addressEditorActions;
+    private boolean addressEditing;
     private String editorClipboard;
     private LinearLayout suggestionRows;
     private TextView addressDisplay;
@@ -177,15 +180,76 @@ final class BrowserPane {
         addressDisplay.setClickable(true);addressDisplay.setFocusable(true);
         addressDisplay.setOnClickListener(v->openAddressEditor());
         row.addView(addressDisplay,new LinearLayout.LayoutParams(0,dp(48),1));
+        // O próprio campo da barra vira EditText no primeiro toque: sem janela ou segundo clique.
+        address=new EditText(host);
+        address.setSingleLine(true);address.setSelectAllOnFocus(true);address.setTextSize(14);
+        address.setTextColor(colors.text);address.setHintTextColor(colors.muted);
+        address.setHint("Pesquisar ou digitar um URL");address.setBackgroundColor(Color.TRANSPARENT);
+        address.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
+        address.setImeOptions(EditorInfo.IME_ACTION_GO);
+        address.setPadding(dp(5),0,dp(2),0);
+        address.setVisibility(View.GONE);
+        row.addView(address,new LinearLayout.LayoutParams(0,dp(48),1));
+        addressEditorActions=Ui.horizontal(host);
+        addressEditorActions.addView(iconButton("mic","Pesquisar por voz",40,this::startVoiceSearch),
+            new LinearLayout.LayoutParams(dp(40),dp(44)));
+        addressEditorActions.addView(iconButton("qr","Escanear código QR",40,this::startQrScanner),
+            new LinearLayout.LayoutParams(dp(40),dp(44)));
+        addressEditorActions.setVisibility(View.GONE);
+        row.addView(addressEditorActions,new LinearLayout.LayoutParams(-2,dp(44)));
+        address.setOnEditorActionListener((v,action,event)->{
+            if(action==EditorInfo.IME_ACTION_GO || action==EditorInfo.IME_ACTION_SEARCH){
+                navigate(address.getText().toString());return true;
+            }
+            return false;
+        });
+        address.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence v,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence v,int start,int before,int count){
+                if(addressEditing)updateAddressSuggestions();
+            }
+            @Override public void afterTextChanged(Editable e){}
+        });
         securityIcon.setClickable(true);securityIcon.setContentDescription("Informações de segurança da página");
-        securityIcon.setOnClickListener(v->showConnectionInfo());
+        securityIcon.setOnClickListener(v->{
+            if(addressEditing){
+                address.requestFocus();
+                InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
+                if(keyboard!=null)keyboard.showSoftInput(address,InputMethodManager.SHOW_IMPLICIT);
+            }else showConnectionInfo();
+        });
         top.addView(row,new LinearLayout.LayoutParams(0,dp(48),1));
-        FrameLayout more=iconButton("more","Menu do navegador",44,()->showCompactMenu());
-        top.addView(more,new LinearLayout.LayoutParams(dp(44),dp(44)));
+        addressMenuButton=iconButton("more","Menu do navegador",44,()->showCompactMenu());
+        top.addView(addressMenuButton,new LinearLayout.LayoutParams(dp(44),dp(44)));
         LinearLayout.LayoutParams topP=Ui.lp(host,-1,48,0);
         topP.leftMargin=dp(12);topP.rightMargin=dp(12);
         view.addView(top,topP);
         showSecurity(BrowserPrefs.home(host));
+
+        // Lista embutida abaixo da barra, expandindo o layout em vez de abrir AlertDialog.
+        addressPanel=Ui.vertical(host);
+        addressPanel.setBackground(Ui.shape(host,colors.surface,19));
+        addressPanel.setPadding(dp(10),dp(6),dp(10),dp(10));
+        LinearLayout header=Ui.horizontal(host);
+        TextView label=Ui.text(host,"Sugestões e sites acessados",12,colors.muted,true);
+        label.setGravity(Gravity.CENTER_VERTICAL);
+        header.addView(label,new LinearLayout.LayoutParams(0,dp(44),1));
+        TextView close=Ui.pill(host,"Fechar",colors.text,colors.soft);
+        close.setGravity(Gravity.CENTER);
+        close.setOnClickListener(v->dismissAddressSuggestions());
+        header.addView(close,new LinearLayout.LayoutParams(dp(80),dp(44)));
+        addressPanel.addView(header,new LinearLayout.LayoutParams(-1,dp(44)));
+        ScrollView scroll=new ScrollView(host);
+        scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);
+        suggestionRows=Ui.vertical(host);
+        suggestionRows.setPadding(dp(2),0,dp(2),dp(5));
+        scroll.addView(suggestionRows,new ScrollView.LayoutParams(-1,-2));
+        // Altura limitada para manter o site e o teclado utilizáveis em telas pequenas.
+        addressPanel.addView(scroll,new LinearLayout.LayoutParams(-1,dp(215)));
+        addressPanel.setVisibility(View.GONE);
+        LinearLayout.LayoutParams panelP=Ui.lp(host,-1,-2,5);
+        panelP.leftMargin=dp(12);panelP.rightMargin=dp(12);
+        view.addView(addressPanel,panelP);
 
         findBar = Ui.horizontal(host);
         findBar.setPadding(dp(7),0,dp(5),0);
@@ -415,7 +479,23 @@ final class BrowserPane {
         if(parent!=null)parent.setVisibility(value>=100?View.GONE:View.VISIBLE);
     }
     private void dismissAddressSuggestions() {
-        if(addressDialog!=null){addressDialog.dismiss();addressDialog=null;}
+        if(!addressEditing)return;
+        addressEditing=false;
+        InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
+        if(keyboard!=null)keyboard.hideSoftInputFromWindow(address.getWindowToken(),0);
+        address.clearFocus();
+        address.setVisibility(View.GONE);
+        addressEditorActions.setVisibility(View.GONE);
+        addressDisplay.setVisibility(View.VISIBLE);
+        addressMenuButton.setVisibility(View.VISIBLE);
+        addressPanel.setVisibility(View.GONE);
+        editorClipboard=null;
+        showSecurity(web==null?BrowserPrefs.home(host):web.getUrl());
+    }
+    boolean handleAddressBack(){
+        if(!addressEditing)return false;
+        dismissAddressSuggestions();
+        return true;
     }
     private String shownHost(String url) {
         try{
@@ -427,63 +507,35 @@ final class BrowserPane {
     }
     private void setAddressFromPage(String url) {
         if(addressDisplay!=null)addressDisplay.setText(shownHost(url));
-        if(address!=null && addressDialog==null)address.setText(url==null?"":url);
+        // Não sobrescrever a pesquisa que está sendo digitada durante um redirecionamento.
+        if(address!=null && !addressEditing)address.setText(url==null?"":url);
     }
     private void openAddressEditor(){
-        if(addressDialog!=null && addressDialog.isShowing())return;
-        LinearLayout shell=Ui.vertical(host);
-        shell.setBackground(Ui.shape(host,colors.surface,24));
-        shell.setPadding(dp(15),dp(16),dp(15),dp(12));
-        LinearLayout search=Ui.horizontal(host);
-        search.setBackground(Ui.shape(host,colors.soft,19));
-        search.setPadding(dp(9),0,dp(5),0);
-        search.addView(Ui.icon(host,"search",colors.muted,20),new LinearLayout.LayoutParams(dp(26),dp(26)));
-        address=new EditText(host);
-        address.setSingleLine(true);address.setSelectAllOnFocus(true);address.setTextSize(14);
-        address.setTextColor(colors.text);address.setHintTextColor(colors.muted);
-        address.setHint("Pesquisar ou digitar um URL");address.setBackgroundColor(Color.TRANSPARENT);
-        address.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
-        address.setImeOptions(EditorInfo.IME_ACTION_GO);
-        address.setPadding(dp(5),0,dp(4),0);
+        if(addressEditing){
+            address.requestFocus();
+            return;
+        }
+        addressEditing=true;
         String current=web==null?"":web.getUrl();
         address.setText(current==null?"":current);
-        search.addView(address,new LinearLayout.LayoutParams(0,dp(52),1));
-        search.addView(iconButton("mic","Pesquisar por voz",40,this::startVoiceSearch),
-            new LinearLayout.LayoutParams(dp(40),dp(44)));
-        search.addView(iconButton("qr","Escanear código QR",40,this::startQrScanner),
-            new LinearLayout.LayoutParams(dp(40),dp(44)));
-        shell.addView(search,new LinearLayout.LayoutParams(-1,dp(52)));
-        ScrollView scroll=new ScrollView(host);
-        scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);
-        editorClipboard=clipboardUrl();
-        suggestionRows=Ui.vertical(host);
-        suggestionRows.setPadding(dp(2),dp(10),dp(2),dp(5));
-        scroll.addView(suggestionRows,new ScrollView.LayoutParams(-1,-2));
-        shell.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        TextView cancel=Ui.pill(host,"Fechar",colors.text,colors.soft);
-        LinearLayout.LayoutParams cp=Ui.lp(host,-2,42,8);cp.gravity=Gravity.END;
-        shell.addView(cancel,cp);
-        AlertDialog dialog=new AlertDialog.Builder(host).setView(shell).create();
-        addressDialog=dialog;
-        cancel.setOnClickListener(v->dismissAddressSuggestions());
-        dialog.setOnDismissListener(d->{if(addressDialog==dialog){addressDialog=null;address=null;suggestionRows=null;editorClipboard=null;}});
-        address.setOnEditorActionListener((v,action,event)->{
-            if(action==EditorInfo.IME_ACTION_GO || action==EditorInfo.IME_ACTION_SEARCH){navigate(address.getText().toString());return true;}
-            return false;
-        });
-        address.addTextChangedListener(new TextWatcher(){
-            @Override public void beforeTextChanged(CharSequence v,int a,int b,int c){}
-            @Override public void onTextChanged(CharSequence v,int a,int b,int c){updateAddressSuggestions();}
-            @Override public void afterTextChanged(Editable e){}
-        });
-        dialog.show();
-        if(dialog.getWindow()!=null){
-            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-            dialog.getWindow().setLayout(host.getResources().getDisplayMetrics().widthPixels*96/100,
-                Math.min(dp(530),host.getResources().getDisplayMetrics().heightPixels*65/100));
-        }
+        addressDisplay.setVisibility(View.GONE);
+        address.setVisibility(View.VISIBLE);
+        addressEditorActions.setVisibility(View.VISIBLE);
+        securityIcon.removeAllViews();
+        securityIcon.addView(Ui.icon(host,"search",colors.muted,22),
+            new FrameLayout.LayoutParams(dp(24),dp(24),Gravity.CENTER));
+        addressMenuButton.setVisibility(View.GONE);
+        addressPanel.setVisibility(View.VISIBLE);
+        editorClipboard=clipboardUrl(); // Somente depois do toque; sem leitura constante.
         updateAddressSuggestions();
+        // Uma única interação seleciona o URL e apresenta o teclado.
+        address.requestFocus();
+        address.selectAll();
+        address.post(()->{
+            if(!addressEditing)return;
+            InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
+            if(keyboard!=null)keyboard.showSoftInput(address,InputMethodManager.SHOW_IMPLICIT);
+        });
     }
     private void addSuggestion(String url,String title,String kind){
         LinearLayout row=Ui.horizontal(host);row.setPadding(dp(9),dp(8),dp(4),dp(8));
@@ -514,8 +566,13 @@ final class BrowserPane {
         suggestionRows.addView(row,itemP);
     }
     private void setEditorText(String text){
-        if(address==null)return;
+        if(!addressEditing)openAddressEditor();
         address.setText(text);address.setSelection(address.length());address.requestFocus();
+        address.post(()->{
+            if(!addressEditing)return;
+            InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
+            if(keyboard!=null)keyboard.showSoftInput(address,InputMethodManager.SHOW_IMPLICIT);
+        });
     }
     private void updateAddressSuggestions(){
         if(suggestionRows==null||address==null)return;
@@ -572,6 +629,7 @@ final class BrowserPane {
             ". O ícone não garante a identidade ou a segurança do conteúdo.",AppMenus.entries());
     }
     private void showSecurity(String url){
+        if(addressEditing)return; // Não substituir a lupa enquanto o usuário digita.
         securityIcon.removeAllViews();
         ImageView favicon=new ImageView(host);
         favicon.setImageDrawable(host.getDrawable(android.R.drawable.ic_menu_compass));
@@ -581,10 +639,6 @@ final class BrowserPane {
     void navigate(String input){
         String url=BrowserPrefs.destination(host,input);
         if(url==null){Toast.makeText(host,"Endereço inválido ou não suportado",Toast.LENGTH_SHORT).show();return;}
-        if(address!=null){
-            InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
-            if(keyboard!=null)keyboard.hideSoftInputFromWindow(address.getWindowToken(),0);
-        }
         dismissAddressSuggestions();setAddressFromPage(url);showSecurity(url);
         if(web!=null)web.loadUrl(url);
     }
@@ -1487,7 +1541,10 @@ final class BrowserPane {
         if(request==VOICE_REQUEST){
             if(result==Activity.RESULT_OK && data!=null){
                 ArrayList<String> values=data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-                if(values!=null && !values.isEmpty())setEditorText(values.get(0));
+                if(values!=null && !values.isEmpty()){
+                    if(!addressEditing)openAddressEditor();
+                    setEditorText(values.get(0));
+                }
             }
             return true;
         }
@@ -1506,6 +1563,8 @@ final class BrowserPane {
         catch(ActivityNotFoundException e){Toast.makeText(host,"Reconhecimento de voz não disponível neste aparelho",Toast.LENGTH_LONG).show();}
     }
     private void startQrScanner(){
+        InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
+        if(keyboard!=null)keyboard.hideSoftInputFromWindow(address.getWindowToken(),0);
         if(host.checkSelfPermission(Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED){
             host.requestPermissions(new String[]{Manifest.permission.CAMERA},QR_CAMERA_REQUEST);return;
         }
@@ -1535,7 +1594,7 @@ final class BrowserPane {
                 if(value==null)return;
                 dialog.dismiss();
                 if(value.equals(UrlTools.extract(value))){
-                    if(address==null)openAddressEditor();
+                    if(!addressEditing)openAddressEditor();
                     setEditorText(value);
                 }
                 else Toast.makeText(host,"QR lido. Somente links HTTP/HTTPS válidos são aceitos.",Toast.LENGTH_LONG).show();

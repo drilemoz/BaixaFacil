@@ -1,3 +1,10 @@
+## 0.1.0-alpha.60: editor inline de endereço
+
+- Contrato automático verifica o toque único em `addressDisplay`, `EditText` no mesmo `row` da barra, painel de sugestões incorporado ao `view` após toolbar (não `AlertDialog`), IME no foco e fechamento via Voltar do Android.
+- Preflight, parser de importação e mock ABI/publicação devem passar antes do GitHub Actions.
+- **Teste manual necessário:** no celular, tocar uma única vez no domínio do Google, verificar seleção do URL/teclado sem diálogo; digitar e conferir sugestões empilhadas abaixo; colar, mic/QR, tecla Ir, voltar/fechar; alternar para Downloads e voltar sem campo travado. Testar com teclado SwiftKey e temas escuro/claro.
+- **Não verificado no ambiente local:** compilação Android, comportamento de IME e GeckoView em aparelhos.
+
 ## 0.1.0-alpha.59: redesenho do navegador e integrações
 
 - Inspeção dos módulos reais `BrowserPane`, `BrowserPrefs`, `GeckoEngine`, `GeckoPromptHandler`, `GeckoSitePermissions`, mídia WebExtension e fluxo de versão/publicação.
