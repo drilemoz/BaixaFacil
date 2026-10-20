@@ -1,3 +1,11 @@
+# Baixa Fácil 0.1.0-alpha.59 (versionCode 59)
+
+**Navegador redesenhado:** barra de navegação com domínio/favicons e menu ⋮, editor de endereço com sugestões verticais, link do clipboard para colar, sites frequentes, voz, leitor QR, progresso GeckoView com porcentagem e botão flutuante de mídias/imagens.
+
+**Formulários e senhas:** seleção de opções agrupadas, consentimento para salvar logins e cofre cifrado com Android Keystore; importação manual de favoritos HTML e senhas CSV. Dados de outros navegadores não são acessados sem exportação do usuário. Permissões do site usam janelas com tema do app.
+
+**Segurança:** somente fontes HTTP(S) expostas pela página, sem contornar DRM, sem sincronizar cookies, sem enviar favicons a serviços de terceiros. Nenhum teste Android real concluído neste ambiente; testar compilação, leitura QR, permissões, sessões e login antes do uso como navegador principal.
+
 # Baixa Fácil 0.1.0-alpha.58 (versionCode 58)
 
 **Correção da geração dos APKs:** o workflow 27 compilou a versão anterior, mas não publicou os arquivos porque a etapa de separação por arquitetura validava `versionCode 56` em vez de 57. A nova versão corrige o código esperado para 58 e adiciona testes de sincronização do comando do workflow.

@@ -1,3 +1,11 @@
+## 0.1.0-alpha.59: redesenho do navegador e integrações
+
+- Inspeção dos módulos reais `BrowserPane`, `BrowserPrefs`, `GeckoEngine`, `GeckoPromptHandler`, `GeckoSitePermissions`, mídia WebExtension e fluxo de versão/publicação.
+- Preflight atualizado para refletir o editor de endereço, novo menu, permissões, cofre de senhas e mídia; conservar a regressão do workflow 27 na linha executável real do coletor.
+- Testar em GitHub Actions: três APKs com GeckoView 158, dependência ZXing e interação de leitura QR, serviços de voz, cofre AES-GCM, login/autofill, HTML/CVS e diferenças de tema.
+- Testar em aparelho: menu não ocupar tela, teclado e colagem, QR (permissão/cancelamento), busca manual de imagem/vídeo, popup de consentimento de site, login com autorização, HTTP localhost, tela cheia, favoritos e sites frequentes.
+- Limites: favicons PNG/ICO por HTTPS mesmo domínio (outros provedores e `http://127.0.0.1` exibem ícone padrão). Varredura de imagens inclui apenas elementos acessíveis do DOM. Não importa cookies nem gerencia credenciais privadas de outros apps.
+
 ## 0.1.0-alpha.58: correção do coletor de APKs (workflow 27)
 
 - Evidência no log: `BUILD SUCCESSFUL in 36s` (47 tarefas) em `:app:assembleRelease`, seguido de `Separação por ABI: Versão incorreta no metadata do APK armeabi-v7a`.

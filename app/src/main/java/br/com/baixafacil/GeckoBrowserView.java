@@ -60,15 +60,16 @@ final class GeckoBrowserView extends GeckoView {
     }
     void clearMatches(){findTerm="";session.getFinder().clear();}
     void cosmeticFilters(){sendCommand("cosmetic");}
-    void scanVideos(Consumer<String> response){
+    void scanVideos(boolean includeImages,Consumer<String> response){
         scanCallback=response;
         if(contentPort==null){response.accept("{}");scanCallback=null;return;}
-        sendCommand("scan");
+        sendCommand("scan",includeImages);
     }
-    private void sendCommand(String name){
+    private void sendCommand(String name){sendCommand(name,false);}
+    private void sendCommand(String name,boolean images){
         if(contentPort==null)return;
         JSONObject message=new JSONObject();
-        try{message.put("type",name);contentPort.postMessage(message);}catch(Exception ignored){}
+        try{message.put("type",name);message.put("includeImages",images);contentPort.postMessage(message);}catch(Exception ignored){}
     }
     private void attachExtension(){
         GeckoEngine.get(getContext()).getWebExtensionController().ensureBuiltIn(

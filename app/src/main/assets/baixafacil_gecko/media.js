@@ -3,8 +3,8 @@
   const port = browser.runtime.connectNative('baixafacil');
   const supported = /^https?:\/\//i;
   const normalize = value => typeof value === 'string' && supported.test(value) && value.length <= 4096 ? value : '';
-  function scan() {
-    const data = { media: [], players: 0, unsupported: 0 };
+  function scan(includeImages) {
+    const data = { media: [], images: [], players: 0, unsupported: 0 };
     try {
       const videos = [...document.querySelectorAll('video')].slice(0, 25);
       data.players = videos.length;
@@ -20,6 +20,19 @@
         for (const source of [...video.querySelectorAll('source')].slice(0, 5))
           add(source.src, 'source', source.type);
       }
+      if (includeImages) {
+        for (const picture of [...document.querySelectorAll('img')].slice(0, 100)) {
+          const src = picture.currentSrc || picture.src;
+          const safe = normalize(src);
+          if (safe && data.images.length < 60 && !data.images.includes(safe))
+            data.images.push(safe);
+        }
+        for (const link of [...document.querySelectorAll('a[href]')].slice(0, 100)) {
+          const href = normalize(link.href);
+          if (href && /\.(png|jpe?g|webp|gif|avif)(\?|#|$)/i.test(href) &&
+              data.images.length < 60 && !data.images.includes(href)) data.images.push(href);
+        }
+      }
       for (const link of [...document.querySelectorAll('a[href]')].slice(0, 100))
         if (/\.(mp4|m4v|webm|mov|ogv|3gp|m3u8|mpd)(\?|#|$)/i.test(link.href))
           add(link.href, 'link', '');
@@ -28,7 +41,7 @@
   }
   port.onMessage.addListener(msg => {
     if (!msg || typeof msg.type !== 'string') return;
-    if (msg.type === 'scan') port.postMessage({ type:'scan', data:scan() });
+    if (msg.type === 'scan') port.postMessage({ type:'scan', data:scan(Boolean(msg.includeImages)) });
     if (msg.type === 'cosmetic') {
       if (document.getElementById('bf-ad-css')) return;
       const css = document.createElement('style');

@@ -1,3 +1,14 @@
+## 0.1.0-alpha.59: navegador, mídia, senhas e importação
+
+- Barra normal simplificada (favicon HTTPS quando acessível, domínio e menu ⋮); remove os botões copiar, seta, ir e configurações da barra superior. O ⋮ abre um menu compacto ancorado.
+- Nova janela de pesquisa/URL com microfone, leitor QR com câmera em modal, link seguro da área de transferência para colar, resultados verticais (título, URL, copiar) e sites frequentes com contagem real, sem inventar visitas anteriores.
+- Progresso de carregamento GeckoView exibido com barra + porcentagem (estimativa de carregamento), sem misturar com percentual de download.
+- Botão flutuante Mídia abre busca manual de imagens e fontes de vídeo da página; recursos protegidos/DRM permanecem indisponíveis. Varredura automática limitada a vídeos para reduzir consumo.
+- Permissões de mídia, localização e autoplay sonoro passam a usar modal temático consistente, com bloqueio como padrão; autorizações Android continuam usando o sistema.
+- Formulários HTML com opções agrupadas deixam de ser recusados; integração de login GeckoView com consentimento e armazenamento AES-GCM via Android Keystore; lista para exclusão de senhas. Importações manuais HTML de favoritos e CSV de senhas (somente origens HTTPS, até 400 KB).
+- QR: ZXing integrado para leitura local; voz: reconhecedor disponibilizado pelo Android (pode usar serviço externo). Em ambos os casos não há navegação automática de conteúdo não validado.
+- Permanecem GeckoView 158, ETP, download engine, três ABIs, assinatura e API 37.0. Necessário validar compilação Android, permissões e os fluxos no aparelho.
+
 ## 0.1.0-alpha.58: correção do validador de APK por ABI
 
 - Correção do workflow **Gerar APK 27**: a alpha.57 compilou Debug/Release, mas o coletor de APKs recebeu por engano `--code 56`, rejeitando os metadados válidos do Gradle. A alpha.58 passa `--code 58`.

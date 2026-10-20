@@ -75,15 +75,13 @@ final class GeckoSitePermissions implements GeckoSession.PermissionDelegate {
         GeckoResult<Integer> result=new GeckoResult<>();
         pendingContent.add(result);
         String request=perm.permission==PERMISSION_GEOLOCATION?"localização":"reprodução automática com som";
-        AlertDialog dialog=new AlertDialog.Builder(host)
-            .setTitle("Permissão do site")
-            .setMessage("Permitir "+request+" para "+origin(perm.uri)+"?\n\nA autorização é controlada pelo GeckoView; o Android pode pedir uma permissão adicional.")
-            .setPositiveButton("Permitir",(d,w)->finishContent(result,ContentPermission.VALUE_ALLOW))
-            .setNegativeButton("Bloquear",(d,w)->finishContent(result,ContentPermission.VALUE_DENY))
-            .setOnCancelListener(d->finishContent(result,ContentPermission.VALUE_DENY)).create();
+        AlertDialog dialog=SitePermissionDialog.show(host,"Permissão do site",origin(perm.uri),
+            "O site solicita "+request+". O Android poderá exigir uma permissão adicional.",
+            ()->finishContent(result,ContentPermission.VALUE_ALLOW),
+            ()->finishContent(result,ContentPermission.VALUE_DENY),
+            ()->dialogs.removeIf(x->!x.isShowing()));
         dialogs.add(dialog);
-        dialog.setOnDismissListener(d->dialogs.remove(dialog));
-        dialog.show();perm.notifyShown();
+        perm.notifyShown();
         return result;
     }
     private void finishContent(GeckoResult<Integer> result,int value){
@@ -108,12 +106,12 @@ final class GeckoSitePermissions implements GeckoSession.PermissionDelegate {
         }
         pendingMedia.add(callback);
         String capability=(camera!=null?"câmera":"")+(camera!=null&&microphone!=null?" e ":"")+(microphone!=null?"microfone":"");
-        AlertDialog dialog=new AlertDialog.Builder(host).setTitle("Permitir acesso à mídia?")
-            .setMessage("O site "+origin(uri)+" solicita acesso a "+capability+". Permitir somente para esta solicitação?")
-            .setPositiveButton("Permitir",(d,w)->{if(pendingMedia.remove(callback))callback.grant(camera,microphone);})
-            .setNegativeButton("Bloquear",(d,w)->{if(pendingMedia.remove(callback))callback.reject();})
-            .setOnCancelListener(d->{if(pendingMedia.remove(callback))callback.reject();}).create();
-        dialogs.add(dialog);dialog.setOnDismissListener(d->dialogs.remove(dialog));dialog.show();
+        AlertDialog dialog=SitePermissionDialog.show(host,"Permitir acesso à mídia?",origin(uri),
+            "Este site pede acesso a "+capability+". Permitir somente para esta solicitação?",
+            ()->{if(pendingMedia.remove(callback))callback.grant(camera,microphone);},
+            ()->{if(pendingMedia.remove(callback))callback.reject();},
+            ()->dialogs.removeIf(x->!x.isShowing()));
+        dialogs.add(dialog);
     }
     void cancel(){
         if(pendingAndroid!=null){Callback callback=pendingAndroid;pendingAndroid=null;requestedAndroid=null;callback.reject();}

@@ -161,7 +161,10 @@ public final class BrowserPrefs {
         prefs(c).edit().putString(KEY_FAVORITES, json.toString()).apply();
     }
 
-    public static void requestClear(Context c) { prefs(c).edit().remove(KEY_HISTORY).putBoolean(KEY_CLEAR,true).apply(); }
+    public static void requestClear(Context c) {
+        prefs(c).edit().remove(KEY_HISTORY).putBoolean(KEY_CLEAR,true).apply();
+        BrowserTopSites.clear(c);
+    }
     public static boolean consumeClearRequest(Context c) {
         boolean clear = prefs(c).getBoolean(KEY_CLEAR,false);
         if (clear) prefs(c).edit().putBoolean(KEY_CLEAR,false).apply();

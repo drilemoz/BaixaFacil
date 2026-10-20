@@ -191,3 +191,11 @@
 - O workflow 27 da alpha.57 compilou Debug e Release, mas falhou **depois** com `Versão incorreta no metadata do APK armeabi-v7a` porque a chamada `collect_abi_apks.py` passava `--code 56`, divergente do Gradle `versionCode 57`.
 - Alpha.58/versionCode 58: sincronizar `--code 58` com Gradle e `aapt`. `ci_preflight.py` e `test_abi_pipeline.py` devem verificar o argumento da linha executável real no workflow e falhar se houver divergência, não só conferir a versão do APK.
 - Preservar bibliotecas nativas do GeckoView, três ABI e políticas de assinatura. Próxima versão `0.1.0-alpha.59`/versionCode 59.
+
+## Versão 0.1.0-alpha.59: barra, importação e credenciais
+- Editor de URL é acionado tocando no domínio, mantendo ícone e ⋮ apenas. URLs HTTP/HTTPS validadas antes de navegar; clipboard lido sob ação do usuário.
+- `BrowserTopSites` armazena visitas/títulos sem inventar histórico e segue limpeza; não guardar URLs de login, token ou parâmetro OAuth.
+- `SecureLoginStore` cifra credenciais apenas para origens HTTPS usando Android Keystore e AES-GCM, sem backup. Nenhum login do GeckoView pode ser salvo sem confirmação. Preferências antigas e cookies não podem ser invalidados na migração.
+- QR usa câmera local com permissão explícita; voz depende de serviço Android; ambos só aceitam navegação após edição ou confirmação do usuário.
+- Scans automáticos permanecem leves, imagens apenas na busca manual, sem DRM, cookies ou nova transferência não solicitada.
+- Manter GeckoView 158, ABI ARM32/ARM64/x86_64, versionamento sequencial, assinatura e scripts de CI. Próxima versão `0.1.0-alpha.60`/versionCode 60.

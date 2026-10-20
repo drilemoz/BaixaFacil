@@ -1,3 +1,11 @@
+# Baixa Fácil 0.1.0-alpha.59 (versionCode 59) - 2026-10-20
+
+- Nova barra de navegação simplificada e editor de endereços vertical, frequentes, clipboard opt-in, voz e QR.
+- Favicon local por domínio HTTPS, progresso GeckoView com percentual e menu ⋮ compacto.
+- Botão flutuante de mídia com imagens e vídeos, diálogos de permissão tematizados, correção de opções agrupadas em formulários.
+- Cofre de senhas no Android Keystore/AES-GCM com integração GeckoView e importação manual de HTML/CSV.
+- Documentação, preflight, scripts de ABI, versionCode e release alinhados; execução Android real pendente.
+
 # Baixa Fácil 0.1.0-alpha.58 (versionCode 58) - 2026-10-19
 
 - Corrigido o parâmetro `--code` do coletor de APKs no GitHub Actions (57 esperado na alpha.57, 56 passado indevidamente). Agora a alpha.58 passa 58.

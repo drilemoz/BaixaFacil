@@ -26,7 +26,12 @@ import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
-import android.widget.ListPopupWindow;
+import android.widget.PopupWindow;
+import android.graphics.drawable.ColorDrawable;
+import android.content.pm.PackageManager;
+import android.Manifest;
+import android.speech.RecognizerIntent;
+import android.content.res.ColorStateList;
 import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -66,7 +71,18 @@ final class BrowserPane {
     private boolean findWasVisible;
     private boolean videosWasVisible;
     private EditText address;
-    private ListPopupWindow suggestionsPopup;
+    private AlertDialog addressDialog;
+    private String editorClipboard;
+    private LinearLayout suggestionRows;
+    private TextView addressDisplay;
+    private TextView progressLabel;
+    private final java.util.LinkedHashMap<String,String> imageUrls=new java.util.LinkedHashMap<>();
+    private PopupWindow toolsPopup;
+    private com.journeyapps.barcodescanner.DecoratedBarcodeView qrCamera;
+    private AlertDialog qrDialog;
+    private static final int QR_CAMERA_REQUEST=6456;
+    private static final int VOICE_REQUEST=6457;
+    private static final int IMPORT_REQUEST=6458;
     private boolean suppressSuggestions;
     private TextView status;
     private ProgressBar loading;
@@ -105,6 +121,7 @@ final class BrowserPane {
     private boolean geckoRecoveryDialogVisible;
     private int lastProgressBucket=-1;
     private final AdBlockController adBlock;
+    private final FaviconLoader favicons=new FaviconLoader();
 
     // A varredura de vídeos roda na extensão empacotada assets/baixafacil_gecko/media.js.
     // Não executa código JavaScript arbitrário recebido de sites.
@@ -152,38 +169,19 @@ final class BrowserPane {
         row.setPadding(dp(5),0,dp(4),0);
         securityIcon=new FrameLayout(host);
         row.addView(securityIcon,new LinearLayout.LayoutParams(dp(32),dp(44)));
-        address=new EditText(host);
-        address.setSingleLine(true);address.setSelectAllOnFocus(true);
-        address.setTextSize(14); address.setTextColor(colors.text);address.setHintTextColor(colors.muted);
-        address.setHint("Pesquisar ou digitar endereço");
-        address.setBackgroundColor(Color.TRANSPARENT);
-        address.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        address.setImeOptions(EditorInfo.IME_ACTION_GO);
-        address.setPadding(0,0,dp(3),0);
-        address.setOnFocusChangeListener((v,focused)->{
-            if(focused)updateAddressSuggestions();
-            else dismissAddressSuggestions();
-        });
-        address.addTextChangedListener(new TextWatcher(){
-            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
-            @Override public void onTextChanged(CharSequence s,int start,int before,int count){
-                if(!suppressSuggestions)updateAddressSuggestions();
-            }
-            @Override public void afterTextChanged(Editable e){}
-        });
-        address.setOnEditorActionListener((v,a,event)->{
-            if (a==EditorInfo.IME_ACTION_GO) { navigate(address.getText().toString()); return true; }
-            return false;
-        });
-        row.addView(address,new LinearLayout.LayoutParams(0,dp(48),1));
-        row.addView(iconButton("copy","Copiar endereço",34,this::copyAddress),new LinearLayout.LayoutParams(dp(34),dp(44)));
-        row.addView(iconButton("chevron","Histórico recente",32,this::showHistory),new LinearLayout.LayoutParams(dp(32),dp(44)));
-        row.addView(iconButton("forward","Abrir endereço",38,()->navigate(address.getText().toString())),new LinearLayout.LayoutParams(dp(38),dp(44)));
+        addressDisplay=Ui.text(host,"Pesquisar ou digitar endereço",14,colors.text,true);
+        addressDisplay.setSingleLine(true);
+        addressDisplay.setEllipsize(TextUtils.TruncateAt.END);
+        addressDisplay.setPadding(dp(5),0,0,0);
+        addressDisplay.setContentDescription("Editar endereço ou pesquisar");
+        addressDisplay.setClickable(true);addressDisplay.setFocusable(true);
+        addressDisplay.setOnClickListener(v->openAddressEditor());
+        row.addView(addressDisplay,new LinearLayout.LayoutParams(0,dp(48),1));
+        securityIcon.setClickable(true);securityIcon.setContentDescription("Informações de segurança da página");
+        securityIcon.setOnClickListener(v->showConnectionInfo());
         top.addView(row,new LinearLayout.LayoutParams(0,dp(48),1));
-        top.addView(iconButton("more","Ferramentas da página",44,this::showPageTools),new LinearLayout.LayoutParams(dp(44),dp(44)));
-        LinearLayout.LayoutParams settingsP = new LinearLayout.LayoutParams(dp(44),dp(44));
-        settingsP.leftMargin = dp(2);
-        top.addView(iconButton("settings","Configurações",44,host::openSettings),settingsP);
+        FrameLayout more=iconButton("more","Menu do navegador",44,()->showCompactMenu());
+        top.addView(more,new LinearLayout.LayoutParams(dp(44),dp(44)));
         LinearLayout.LayoutParams topP=Ui.lp(host,-1,48,0);
         topP.leftMargin=dp(12);topP.rightMargin=dp(12);
         view.addView(top,topP);
@@ -232,7 +230,17 @@ final class BrowserPane {
         loading.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(colors.background));
         LinearLayout.LayoutParams loadP=Ui.lp(host,-1,3,4);
         loadP.leftMargin=dp(12);loadP.rightMargin=dp(12);
-        view.addView(loading,loadP);
+        LinearLayout progressRow=Ui.horizontal(host);
+        progressRow.setPadding(dp(13),0,dp(13),0);
+        progressRow.addView(loading,new LinearLayout.LayoutParams(0,dp(5),1));
+        progressLabel=Ui.text(host,"0%",11,colors.muted,true);
+        progressLabel.setGravity(Gravity.END|Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams labelParams=new LinearLayout.LayoutParams(dp(45),dp(24));
+        labelParams.leftMargin=dp(8);
+        progressRow.addView(progressLabel,labelParams);
+        progressRow.setTag("bf_progress_row");
+        progressRow.setVisibility(View.GONE);
+        view.addView(progressRow,new LinearLayout.LayoutParams(-1,dp(24)));
 
         FrameLayout frame=new FrameLayout(host);
         frame.setBackgroundColor(colors.background);
@@ -283,6 +291,7 @@ final class BrowserPane {
                 web.currentUrl(url);
                 if(url!=null && url.equals(UrlTools.extract(url))){
                     setAddressFromPage(url);showSecurity(url);BrowserPrefs.remember(host,url);
+                    BrowserTopSites.record(host,url);
                 }
             }
             @Override public void onCanGoBack(GeckoSession gecko,boolean value){ web.backAvailable(value); }
@@ -316,9 +325,11 @@ final class BrowserPane {
                 scanGeneration++;
                 cancelMediaScan();
                 synchronized(videoUrls){videoUrls.clear();}
+                synchronized(imageUrls){imageUrls.clear();}
                 synchronized(videoPreviewMeta){videoPreviewMeta.clear();}
                 mediaElements=0; unsupportedMedia=0;pageVideoPreview=null;
                 updateVideosButton();
+                setLoadingProgress(0);
             }
             @Override public void onPageStop(GeckoSession gecko,boolean success){
                 String url=web.getUrl();
@@ -329,22 +340,27 @@ final class BrowserPane {
                     : url!=null&&url.startsWith("http://")?"Atenção: conexão HTTP sem criptografia."
                     : AuthNavigation.isFacebookCheckpoint(url)?"Verificação do Facebook: use navegador externo se necessário."
                     : "Página pronta. Toque num arquivo para baixar.");
-                if(success)scheduleMediaScan(1300);
+                setLoadingProgress(100);
+                if(success){
+                    BrowserTopSites.setTitle(host,url,web.getTitle());
+                    scheduleMediaScan(1300);
+                }
             }
             @Override public void onProgressChange(GeckoSession gecko,int progress){
-                int bucket=progress/10;
-                if(bucket==lastProgressBucket && progress!=100)return;
-                lastProgressBucket=bucket;
-                loading.setProgress(progress);
-                loading.setVisibility(progress>=100?View.INVISIBLE:View.VISIBLE);
-                if(progress<100)status.setText("Carregando página: "+(bucket*10)+"%");
+                if(progress==lastProgressBucket)return;
+                lastProgressBucket=progress;
+                setLoadingProgress(progress);
+                if(progress<100)status.setText("Carregando página: "+progress+"%");
             }
         });
         session.setContentDelegate(new GeckoSession.ContentDelegate(){
             @Override public void onFullScreen(GeckoSession gecko,boolean fullScreen){
                 if(web!=null && gecko==web.session)setVideoFullscreen(fullScreen);
             }
-            @Override public void onTitleChange(GeckoSession gecko,String title){web.pageTitle(title);}
+            @Override public void onTitleChange(GeckoSession gecko,String title){
+                web.pageTitle(title);
+                BrowserTopSites.setTitle(host,web.getUrl(),title);
+            }
             @Override public void onContextMenu(GeckoSession gecko,int x,int y,
                     GeckoSession.ContentDelegate.ContextElement element){
                 String target=element.linkUri!=null?element.linkUri:element.srcUri;
@@ -357,13 +373,13 @@ final class BrowserPane {
             @Override public void onKill(GeckoSession gecko){recoverGeckoCrash();}
         });
         frame.addView(web,new FrameLayout.LayoutParams(-1,-1));
-        videosButton=Ui.pill(host,"Vídeos",colors.teal,colors.soft);
+        videosButton=Ui.pill(host,"◉ Mídia",colors.teal,colors.surface);
         videosButton.setTextSize(12);
         videosButton.setPadding(dp(12),0,dp(12),0);
         videosButton.setMinHeight(dp(40));
-        videosButton.setVisibility(View.GONE);
-        videosButton.setContentDescription("Abrir vídeos encontrados nesta página");
-        videosButton.setOnClickListener(v->showDetectedVideos());
+        videosButton.setVisibility(View.VISIBLE);
+        videosButton.setContentDescription("Buscar imagens e vídeos na página atual");
+        videosButton.setOnClickListener(v->scanPageVideos(true));
         FrameLayout.LayoutParams videoP=new FrameLayout.LayoutParams(-2,dp(40),Gravity.END|Gravity.BOTTOM);
         videoP.rightMargin=dp(14);videoP.bottomMargin=dp(14);
         frame.addView(videosButton,videoP);
@@ -391,79 +407,186 @@ final class BrowserPane {
         }
         navigate(BrowserPrefs.home(host));
     }
-    private void dismissAddressSuggestions(){
-        if(suggestionsPopup!=null && suggestionsPopup.isShowing())suggestionsPopup.dismiss();
+    private void setLoadingProgress(int progress) {
+        if(loading==null)return;
+        int value=Math.max(0,Math.min(100,progress));
+        loading.setProgress(value);progressLabel.setText(value+"%");
+        View parent=(View)loading.getParent();
+        if(parent!=null)parent.setVisibility(value>=100?View.GONE:View.VISIBLE);
     }
-    private void setAddressFromPage(String url){
-        if(address.hasFocus())return;
-        suppressSuggestions=true;
-        address.setText(url);
-        suppressSuggestions=false;
+    private void dismissAddressSuggestions() {
+        if(addressDialog!=null){addressDialog.dismiss();addressDialog=null;}
+    }
+    private String shownHost(String url) {
+        try{
+            URI u=new URI(url);String hostname=u.getHost();
+            if(hostname==null)return "Pesquisar ou digitar endereço";
+            int port=u.getPort();
+            return hostname+(port>=0?":"+port:"");
+        }catch(Exception ignored){return "Pesquisar ou digitar endereço";}
+    }
+    private void setAddressFromPage(String url) {
+        if(addressDisplay!=null)addressDisplay.setText(shownHost(url));
+        if(address!=null && addressDialog==null)address.setText(url==null?"":url);
+    }
+    private void openAddressEditor(){
+        if(addressDialog!=null && addressDialog.isShowing())return;
+        LinearLayout shell=Ui.vertical(host);
+        shell.setBackground(Ui.shape(host,colors.surface,24));
+        shell.setPadding(dp(15),dp(16),dp(15),dp(12));
+        LinearLayout search=Ui.horizontal(host);
+        search.setBackground(Ui.shape(host,colors.soft,19));
+        search.setPadding(dp(9),0,dp(5),0);
+        search.addView(Ui.icon(host,"search",colors.muted,20),new LinearLayout.LayoutParams(dp(26),dp(26)));
+        address=new EditText(host);
+        address.setSingleLine(true);address.setSelectAllOnFocus(true);address.setTextSize(14);
+        address.setTextColor(colors.text);address.setHintTextColor(colors.muted);
+        address.setHint("Pesquisar ou digitar um URL");address.setBackgroundColor(Color.TRANSPARENT);
+        address.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
+        address.setImeOptions(EditorInfo.IME_ACTION_GO);
+        address.setPadding(dp(5),0,dp(4),0);
+        String current=web==null?"":web.getUrl();
+        address.setText(current==null?"":current);
+        search.addView(address,new LinearLayout.LayoutParams(0,dp(52),1));
+        search.addView(iconButton("mic","Pesquisar por voz",40,this::startVoiceSearch),
+            new LinearLayout.LayoutParams(dp(40),dp(44)));
+        search.addView(iconButton("qr","Escanear código QR",40,this::startQrScanner),
+            new LinearLayout.LayoutParams(dp(40),dp(44)));
+        shell.addView(search,new LinearLayout.LayoutParams(-1,dp(52)));
+        ScrollView scroll=new ScrollView(host);
+        scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);
+        editorClipboard=clipboardUrl();
+        suggestionRows=Ui.vertical(host);
+        suggestionRows.setPadding(dp(2),dp(10),dp(2),dp(5));
+        scroll.addView(suggestionRows,new ScrollView.LayoutParams(-1,-2));
+        shell.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        TextView cancel=Ui.pill(host,"Fechar",colors.text,colors.soft);
+        LinearLayout.LayoutParams cp=Ui.lp(host,-2,42,8);cp.gravity=Gravity.END;
+        shell.addView(cancel,cp);
+        AlertDialog dialog=new AlertDialog.Builder(host).setView(shell).create();
+        addressDialog=dialog;
+        cancel.setOnClickListener(v->dismissAddressSuggestions());
+        dialog.setOnDismissListener(d->{if(addressDialog==dialog){addressDialog=null;address=null;suggestionRows=null;editorClipboard=null;}});
+        address.setOnEditorActionListener((v,action,event)->{
+            if(action==EditorInfo.IME_ACTION_GO || action==EditorInfo.IME_ACTION_SEARCH){navigate(address.getText().toString());return true;}
+            return false;
+        });
+        address.addTextChangedListener(new TextWatcher(){
+            @Override public void beforeTextChanged(CharSequence v,int a,int b,int c){}
+            @Override public void onTextChanged(CharSequence v,int a,int b,int c){updateAddressSuggestions();}
+            @Override public void afterTextChanged(Editable e){}
+        });
+        dialog.show();
+        if(dialog.getWindow()!=null){
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+            dialog.getWindow().setLayout(host.getResources().getDisplayMetrics().widthPixels*96/100,
+                Math.min(dp(530),host.getResources().getDisplayMetrics().heightPixels*65/100));
+        }
+        updateAddressSuggestions();
+    }
+    private void addSuggestion(String url,String title,String kind){
+        LinearLayout row=Ui.horizontal(host);row.setPadding(dp(9),dp(8),dp(4),dp(8));
+        row.setBackground(Ui.shape(host,colors.soft,14));
+        ImageView ico=new ImageView(host);
+        ico.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        ico.setImageDrawable(host.getDrawable(android.R.drawable.ic_menu_compass));
+        row.addView(ico,new LinearLayout.LayoutParams(dp(34),dp(34)));
+        favicons.load(host,url,ico);
+        LinearLayout labels=Ui.vertical(host);
+        TextView name=Ui.text(host,title==null||title.trim().isEmpty()?shownHost(url):title,14,colors.text,true);
+        name.setSingleLine(true);name.setEllipsize(TextUtils.TruncateAt.END);labels.addView(name);
+        TextView path=Ui.text(host,url,11,colors.muted,false);
+        path.setSingleLine(true);path.setEllipsize(TextUtils.TruncateAt.END);labels.addView(path);
+        LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(0,-2,1);pp.leftMargin=dp(12);
+        row.addView(labels,pp);
+        if(!"Colar".equals(kind)){
+            row.addView(iconButton("copy","Copiar "+url,43,()->copyLink(url)),
+                new LinearLayout.LayoutParams(dp(43),dp(43)));
+        }else{
+            TextView paste=Ui.text(host,"Colar",13,colors.teal,true);
+            paste.setPadding(dp(5),0,dp(5),0);
+            row.addView(paste);paste.setOnClickListener(v->setEditorText(url));
+        }
+        labels.setOnClickListener(v->{if("Colar".equals(kind))setEditorText(url);else navigate(url);});
+        ico.setOnClickListener(v->{if("Colar".equals(kind))setEditorText(url);else navigate(url);});
+        LinearLayout.LayoutParams itemP=Ui.lp(host,-1,-2,5);
+        suggestionRows.addView(row,itemP);
+    }
+    private void setEditorText(String text){
+        if(address==null)return;
+        address.setText(text);address.setSelection(address.length());address.requestFocus();
     }
     private void updateAddressSuggestions(){
-        if(address==null||!address.hasFocus()||suppressSuggestions)return;
+        if(suggestionRows==null||address==null)return;
+        suggestionRows.removeAllViews();
         String term=address.getText().toString().trim();
-        if(term.isEmpty()) {dismissAddressSuggestions();return;}
-        java.util.List<BrowserSuggestions.Candidate> candidates=new ArrayList<>();
-        for(BrowserPrefs.Favorite favorite:BrowserPrefs.favorites(host))
-            candidates.add(new BrowserSuggestions.Candidate(favorite.url,favorite.title,true));
-        for(String previous:BrowserPrefs.history(host))
-            candidates.add(new BrowserSuggestions.Candidate(previous,"",false));
-        java.util.List<BrowserSuggestions.Item> items=BrowserSuggestions.suggest(term,candidates);
-        if(items.isEmpty()){dismissAddressSuggestions();return;}
-        if(suggestionsPopup==null){
-            suggestionsPopup=new ListPopupWindow(host);
-            suggestionsPopup.setAnchorView(address);
-            suggestionsPopup.setModal(false);
-            suggestionsPopup.setBackgroundDrawable(Ui.shape(host,colors.surface,14));
-            suggestionsPopup.setOnItemClickListener((parent,view,index,id)->{
-                BrowserSuggestions.Item selected=(BrowserSuggestions.Item)parent.getItemAtPosition(index);
-                dismissAddressSuggestions();
-                navigate(selected.url);
-            });
+        String pasted=editorClipboard;
+        if(pasted!=null && !pasted.equals(term)){
+            section("Área de transferência");
+            addSuggestion(pasted,"Link que você copiou","Colar");
         }
-        suggestionsPopup.setAdapter(new BaseAdapter(){
-            @Override public int getCount(){return items.size();}
-            @Override public Object getItem(int position){return items.get(position);}
-            @Override public long getItemId(int position){return position;}
-            @Override public android.view.View getView(int position,android.view.View convert,android.view.ViewGroup parent){
-                BrowserSuggestions.Item item=items.get(position);
-                LinearLayout row=Ui.horizontal(host);
-                row.setPadding(dp(12),dp(8),dp(10),dp(8));
-                row.addView(Ui.icon(host,item.favorite?"bookmark":"globe",colors.teal,20),
-                    new LinearLayout.LayoutParams(dp(24),dp(24)));
-                LinearLayout labels=Ui.vertical(host);
-                TextView name=Ui.text(host,item.title,14,colors.text,true);
-                name.setSingleLine(true);name.setEllipsize(TextUtils.TruncateAt.END);
-                labels.addView(name);
-                labels.addView(Ui.text(host,item.host+(item.favorite?" • Favorito":" • Histórico"),11,colors.muted,false));
-                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-2,1);lp.leftMargin=dp(10);
-                row.addView(labels,lp);
-                row.setMinimumHeight(dp(52));
-                return row;
+        java.util.LinkedHashSet<String> added=new java.util.LinkedHashSet<>();
+        if(!term.isEmpty()){
+            section("Endereços e sugestões");
+            java.util.List<BrowserSuggestions.Candidate> candidates=new ArrayList<>();
+            for(BrowserPrefs.Favorite f:BrowserPrefs.favorites(host))candidates.add(new BrowserSuggestions.Candidate(f.url,f.title,true));
+            for(String h:BrowserPrefs.history(host))candidates.add(new BrowserSuggestions.Candidate(h,BrowserTopSites.title(host,h),false));
+            for(BrowserSuggestions.Item item:BrowserSuggestions.suggest(term,candidates)){
+                if(added.add(item.url))addSuggestion(item.url,item.title,"Histórico");
             }
-        });
-        suggestionsPopup.setWidth(Math.min(host.getResources().getDisplayMetrics().widthPixels-dp(24),dp(450)));
-        suggestionsPopup.setHeight(-2);
-        suggestionsPopup.show();
+        }
+        section("Sites mais acessados");
+        for(BrowserTopSites.Site site:BrowserTopSites.mostVisited(host,12)){
+            if(added.add(site.url))addSuggestion(site.url,site.title,"Frequente");
+        }
+        if(added.isEmpty()){
+            for(BrowserPrefs.Favorite item:BrowserPrefs.favorites(host)){
+                if(added.add(item.url))addSuggestion(item.url,item.title,"Favorito");
+            }
+        }
+        if(added.isEmpty())suggestionRows.addView(Ui.text(host,
+            "Os sites visitados aparecerão aqui, um abaixo do outro.",13,colors.muted,false),Ui.lp(host,-1,-2,9));
     }
-
-    private void showSecurity(String url) {
+    private void section(String text){
+        TextView label=Ui.text(host,text,12,colors.muted,true);
+        label.setPadding(dp(8),dp(8),0,dp(3));
+        suggestionRows.addView(label);
+    }
+    private String clipboardUrl(){
+        try{
+            ClipboardManager cb=(ClipboardManager)host.getSystemService(Activity.CLIPBOARD_SERVICE);
+            if(cb==null || !cb.hasPrimaryClip())return null;
+            ClipData clip=cb.getPrimaryClip();
+            if(clip==null||clip.getItemCount()==0)return null;
+            CharSequence text=clip.getItemAt(0).coerceToText(host);
+            String value=text==null?"":text.toString().trim();
+            return value.length()<4096 && value.equals(UrlTools.extract(value))?value:null;
+        }catch(Exception ignored){return null;}
+    }
+    private void showConnectionInfo(){
+        String url=web==null?null:web.getUrl();
+        String site=shownHost(url);
+        AppMenus.info(host,"Segurança da página",
+            (url!=null && url.startsWith("https://")?"Conexão HTTPS com ":"Conexão sem HTTPS com ")+site+
+            ". O ícone não garante a identidade ou a segurança do conteúdo.",AppMenus.entries());
+    }
+    private void showSecurity(String url){
         securityIcon.removeAllViews();
-        boolean https = url!=null&&url.startsWith("https://");
-        securityIcon.addView(Ui.icon(host,https?"lock":"alert",https?colors.teal:colors.warn,19),
-            new FrameLayout.LayoutParams(dp(20),dp(20),Gravity.CENTER));
+        ImageView favicon=new ImageView(host);
+        favicon.setImageDrawable(host.getDrawable(android.R.drawable.ic_menu_compass));
+        securityIcon.addView(favicon,new FrameLayout.LayoutParams(dp(23),dp(23),Gravity.CENTER));
+        favicons.load(host,url,favicon);
     }
-    void navigate(String input) {
+    void navigate(String input){
         String url=BrowserPrefs.destination(host,input);
-        if(url==null) { Toast.makeText(host,"Endereço inválido ou não suportado",Toast.LENGTH_SHORT).show(); return; }
-        dismissAddressSuggestions();
-        suppressSuggestions=true;address.setText(url);suppressSuggestions=false;
-        showSecurity(url);
-        InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
-        if (keyboard!=null) keyboard.hideSoftInputFromWindow(address.getWindowToken(),0);
-        address.clearFocus();
-        web.loadUrl(url);
+        if(url==null){Toast.makeText(host,"Endereço inválido ou não suportado",Toast.LENGTH_SHORT).show();return;}
+        if(address!=null){
+            InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
+            if(keyboard!=null)keyboard.hideSoftInputFromWindow(address.getWindowToken(),0);
+        }
+        dismissAddressSuggestions();setAddressFromPage(url);showSecurity(url);
+        if(web!=null)web.loadUrl(url);
     }
     void goBack(){if(web.canGoBack()) web.goBack();}
     void goForward(){if(web.canGoForward()) web.goForward();}
@@ -567,21 +690,40 @@ final class BrowserPane {
             }));
         AppMenus.show(host,"Bloqueador de anúncios",summary,rows);
     }
-    private void showPageTools(){
-        List<AppMenus.Entry> rows=AppMenus.entries();
-        rows.add(AppMenus.Entry.item("Vídeos e mídia","Vídeos encontrados, reprodução e opções","play",this::showVideoTools));
-        rows.add(AppMenus.Entry.item("Favoritos","Abrir ou salvar sites","bookmark",this::showFavoriteTools));
-        rows.add(AppMenus.Entry.item("Ferramentas da página","Localizar, zoom e modo computador","search",this::showDisplayTools));
-        if(BrowserLoadPolicy.isChatGpt(web.getUrl()))
-            rows.add(AppMenus.Entry.item("Abrir ChatGPT no Chrome ou navegador","Alternativa se o GeckoView estiver lento","globe",()->openInExternalBrowser(web.getUrl())));
-        rows.add(AppMenus.Entry.item("Proteção e privacidade","Bloqueador e exceções do site","shield",this::showProtectionTools));
-        rows.add(AppMenus.Entry.item("Login e diagnóstico","Compatibilidade, erros e ajuda","lock",this::showLoginTools));
-        AppMenus.show(host,"Ferramentas do navegador","Escolha uma área para configurar ou utilizar.",rows);
+    private void showCompactMenu(){
+        if(toolsPopup!=null && toolsPopup.isShowing()){toolsPopup.dismiss();return;}
+        LinearLayout list=Ui.vertical(host);
+        list.setPadding(dp(7),dp(8),dp(7),dp(8));
+        list.setBackground(Ui.shape(host,colors.surface,17));
+        PopupWindow pop=new PopupWindow(list,dp(264),-2,true);
+        toolsPopup=pop;
+        pop.setBackgroundDrawable(Ui.shape(host,colors.surface,17));
+        pop.setOutsideTouchable(true);pop.setElevation(dp(9));
+        addMenuRow(list,"Favoritos","bookmark",this::showFavoriteTools,pop);
+        addMenuRow(list,"Histórico","reload",this::showHistory,pop);
+        addMenuRow(list,"Ferramentas da página","search",this::showDisplayTools,pop);
+        addMenuRow(list,"Proteção e privacidade","shield",this::showProtectionTools,pop);
+        addMenuRow(list,"Senhas e importação","lock",this::showPasswordsAndImport,pop);
+        addMenuRow(list,"Login e diagnóstico","alert",this::showLoginTools,pop);
+        addMenuRow(list,"Configurações","settings",host::openSettings,pop);
+        if(browserToolbar!=null)pop.showAsDropDown(browserToolbar,-dp(20),dp(1),Gravity.END);
     }
+    private void addMenuRow(LinearLayout list,String title,String symbol,Runnable run,PopupWindow pop){
+        LinearLayout item=Ui.horizontal(host);item.setGravity(Gravity.CENTER_VERTICAL);
+        item.setPadding(dp(12),dp(3),dp(6),dp(3));
+        item.addView(Ui.icon(host,symbol,colors.text,21),new LinearLayout.LayoutParams(dp(25),dp(25)));
+        TextView text=Ui.text(host,title,14,colors.text,false);
+        LinearLayout.LayoutParams label=new LinearLayout.LayoutParams(0,-1,1);label.leftMargin=dp(12);
+        item.addView(text,label);
+        item.setClickable(true);item.setFocusable(true);
+        item.setOnClickListener(v->{pop.dismiss();run.run();});
+        list.addView(item,new LinearLayout.LayoutParams(-1,dp(48)));
+    }
+    private void showPageTools(){showCompactMenu();}
     private void showVideoTools(){
         List<AppMenus.Entry> rows=AppMenus.entries();
-        rows.add(AppMenus.Entry.item("Vídeos encontrados","Abrir a lista organizada por formato","play",this::showDetectedVideos));
-        rows.add(AppMenus.Entry.item("Procurar nesta página","Atualizar a detecção de vídeos","search",()->scanPageVideos(true)));
+        rows.add(AppMenus.Entry.item("Imagens e vídeos encontrados","Fontes de mídia desta página","play",this::showDetectedMedia));
+        rows.add(AppMenus.Entry.item("Procurar nesta página","Atualizar a detecção de mídias","search",()->scanPageVideos(true)));
         rows.add(AppMenus.Entry.item("Configurações de vídeos","Detecção, streaming e arquivos diretos","settings",host::openVideoSettings));
         AppMenus.show(host,"Vídeos e mídia","Somente conteúdos disponíveis na página; sem contornar DRM ou login.",rows);
     }
@@ -707,7 +849,9 @@ final class BrowserPane {
         }
         browserToolbar.setVisibility(enabled?View.GONE:View.VISIBLE);
         findBar.setVisibility(enabled?View.GONE:(findWasVisible?View.VISIBLE:View.GONE));
-        loading.setVisibility(enabled?View.GONE:View.INVISIBLE);
+        View progressParent=(View)loading.getParent();
+        if(progressParent!=null)progressParent.setVisibility(enabled?View.GONE:
+            loading.getProgress()<100?View.VISIBLE:View.GONE);
         if(bottomInfo!=null)bottomInfo.setVisibility(enabled?View.GONE:View.VISIBLE);
         if(videosButton!=null)videosButton.setVisibility(enabled?View.GONE:(videosWasVisible?View.VISIBLE:View.GONE));
         host.setBrowserFullscreen(enabled);
@@ -719,6 +863,11 @@ final class BrowserPane {
         setVideoFullscreen(false);
     }
     boolean onAndroidPermissionsResult(int code,String[] permissions,int[] grants){
+        if(code==QR_CAMERA_REQUEST){
+            if(grants!=null && grants.length>0 && grants[0]==PackageManager.PERMISSION_GRANTED)showQrScanner();
+            else Toast.makeText(host,"Câmera não autorizada",Toast.LENGTH_SHORT).show();
+            return true;
+        }
         return sitePermissions.onRequestPermissionsResult(code,permissions,grants);
     }
 
@@ -902,8 +1051,10 @@ final class BrowserPane {
         if(videosButton==null)return;
         int count;
         synchronized(videoUrls){count=VideoMenuModel.display(videoUrls,VideoPrefs.showStreams(host),VideoPrefs.showSources(host)).size();}
-        videosButton.setText(count>0?"Fontes ("+count+")":"Vídeos");
-        videosButton.setVisibility(count>0?View.VISIBLE:View.GONE);
+        int images;
+        synchronized(imageUrls){images=imageUrls.size();}
+        videosButton.setText(count+images>0?"◉ Mídia ("+(count+images)+")":"◉ Mídia");
+        videosButton.setVisibility(View.VISIBLE);
     }
 
     private void scanPageVideos(boolean showResult) {
@@ -919,7 +1070,7 @@ final class BrowserPane {
             return;
         }
         int generation=scanGeneration;
-        web.scanVideos(value->{
+        web.scanVideos(showResult,value->{
             if(generation!=scanGeneration || !page.equals(web.getUrl()))return;
             try {
                 Object decoded=new JSONTokener(value).nextValue();
@@ -932,6 +1083,16 @@ final class BrowserPane {
                     pagePreview.optInt("w"),pagePreview.optInt("h"),
                     pagePreview.optBoolean("playing"),pagePreview.optBoolean("visible"),
                     pagePreview.optString("frame"));
+                if(showResult){
+                    JSONArray imageItems=result.optJSONArray("images");
+                    synchronized(imageUrls){
+                        imageUrls.clear();
+                        if(imageItems!=null)for(int i=0;i<imageItems.length() && imageUrls.size()<60;i++){
+                            String img=imageItems.optString(i);
+                            if(img!=null && img.equals(UrlTools.extract(img))) imageUrls.put(img,img);
+                        }
+                    }
+                }
                 JSONArray found=result.optJSONArray("media");
                 if(found!=null)for(int i=0;i<found.length();i++) {
                     JSONObject obj=found.optJSONObject(i);
@@ -944,7 +1105,7 @@ final class BrowserPane {
                 if(showResult)Toast.makeText(host,"Não foi possível analisar esta página",Toast.LENGTH_SHORT).show();
             }
             updateVideosButton();
-            if(showResult)showDetectedVideos();
+            if(showResult)showDetectedMedia();
         });
     }
 
@@ -995,6 +1156,33 @@ final class BrowserPane {
         showDetectedVideosDialog(VideoPresentation.sort(videos,contexts));
     }
 
+    private void showDetectedMedia(){
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        int imageCount;
+        synchronized(imageUrls){imageCount=imageUrls.size();}
+        rows.add(AppMenus.Entry.item("Vídeos e streams","Ver fontes e opções de reprodução","play",this::showDetectedVideos));
+        rows.add(AppMenus.Entry.item("Imagens ("+imageCount+")","Ver imagens disponíveis nesta página","file",this::showDetectedImages));
+        rows.add(AppMenus.Entry.item("Buscar novamente","Atualizar a varredura da página","search",()->scanPageVideos(true)));
+        AppMenus.show(host,"Imagens e mídias","Somente fontes acessíveis no documento atual; não contorna DRM.",rows);
+    }
+    private void showDetectedImages(){
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        synchronized(imageUrls){
+            int i=0;
+            for(String url:imageUrls.keySet()){
+                final String chosen=url;final int index=++i;
+                rows.add(AppMenus.Entry.item("Imagem "+index,shownHost(url),"file",()->{
+                    List<AppMenus.Entry> actions=AppMenus.entries();
+                    actions.add(AppMenus.Entry.item("Baixar imagem","Arquivo HTTP/HTTPS público","download",()->offerDownload(chosen,standardUserAgent,-1)));
+                    actions.add(AppMenus.Entry.item("Abrir imagem","Abrir no navegador","globe",()->navigate(chosen)));
+                    actions.add(AppMenus.Entry.item("Copiar link","Endereço da imagem","copy",()->copyLink(chosen)));
+                    AppMenus.show(host,"Imagem "+index,chosen,actions);
+                }));
+            }
+        }
+        if(rows.isEmpty())rows.add(AppMenus.Entry.note("Nenhuma imagem HTTP/HTTPS encontrada. Carregue a página e tente novamente."));
+        AppMenus.show(host,"Imagens da página","Fontes encontradas na varredura manual.",rows);
+    }
     private void showDetectedVideosDialog(List<VideoMenuModel.Video> videos){
         final Ui.Palette p=new Ui.Palette(host);
         final int d=dp(1);
@@ -1277,6 +1465,9 @@ final class BrowserPane {
         setVideoFullscreen(false);
         sitePermissions.cancel();
         pageActive=false;cancelMediaScan();dismissAddressSuggestions();
+        if(qrDialog!=null)qrDialog.dismiss();
+        if(toolsPopup!=null)toolsPopup.dismiss();
+        favicons.shutdown();
         if(loginPopupDialog!=null)loginPopupDialog.dismiss();
         if(web!=null){
             if(!geckoProcessGone)web.stopLoading();
@@ -1292,21 +1483,121 @@ final class BrowserPane {
             msg -> host.runOnUiThread(()->Toast.makeText(host,msg,Toast.LENGTH_LONG).show()));
         navigate(BrowserPrefs.home(host));
     }
-    private void copyAddress(){
-        String url=address.getText().toString().trim();
-        if(url.isEmpty()){Toast.makeText(host,"Nenhum endereço para copiar",Toast.LENGTH_SHORT).show();return;}
-        ClipboardManager cb=(ClipboardManager)host.getSystemService(Activity.CLIPBOARD_SERVICE);
-        if(cb!=null){cb.setPrimaryClip(ClipData.newPlainText("Endereço",url));Toast.makeText(host,"Endereço copiado",Toast.LENGTH_SHORT).show();}
-    }
-    private void showHistory() {
-        List<String> items=BrowserPrefs.history(host);
-        List<AppMenus.Entry> rows=AppMenus.entries();
-        for(String url:items){
-            String domain=Uri.parse(url).getHost();
-            rows.add(AppMenus.Entry.item(domain==null?"Site":"Abrir "+domain,"Página visitada","globe",()->navigate(url)));
+    boolean handleBrowserActivityResult(int request,int result,Intent data){
+        if(request==VOICE_REQUEST){
+            if(result==Activity.RESULT_OK && data!=null){
+                ArrayList<String> values=data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                if(values!=null && !values.isEmpty())setEditorText(values.get(0));
+            }
+            return true;
         }
-        AppMenus.show(host,"Histórico recente",items.isEmpty()?"Nenhuma página recente.":"Toque para abrir a página.",rows);
+        if(request==IMPORT_REQUEST){
+            if(result==Activity.RESULT_OK && data!=null && data.getData()!=null)importFromDocument(data.getData());
+            return true;
+        }
+        return false;
     }
+    private void startVoiceSearch(){
+        Intent intent=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"pt-BR");
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,"Diga uma pesquisa ou endereço");
+        try{host.startActivityForResult(intent,VOICE_REQUEST);}
+        catch(ActivityNotFoundException e){Toast.makeText(host,"Reconhecimento de voz não disponível neste aparelho",Toast.LENGTH_LONG).show();}
+    }
+    private void startQrScanner(){
+        if(host.checkSelfPermission(Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED){
+            host.requestPermissions(new String[]{Manifest.permission.CAMERA},QR_CAMERA_REQUEST);return;
+        }
+        showQrScanner();
+    }
+    private void showQrScanner(){
+        if(qrDialog!=null&&qrDialog.isShowing())return;
+        LinearLayout body=Ui.vertical(host);body.setPadding(dp(15),dp(16),dp(15),dp(12));
+        body.setBackground(Ui.shape(host,colors.surface,24));
+        TextView title=Ui.text(host,"Escanear QR Code",19,colors.text,true);
+        body.addView(title,Ui.lp(host,-1,-2,0));
+        body.addView(Ui.text(host,"Centralize o código na câmera. Só endereços HTTP/HTTPS serão abertos.",12,colors.muted,false),Ui.lp(host,-1,-2,8));
+        qrCamera=new com.journeyapps.barcodescanner.DecoratedBarcodeView(host);
+        body.addView(qrCamera,new LinearLayout.LayoutParams(-1,dp(280)));
+        TextView cancel=Ui.pill(host,"Cancelar",colors.text,colors.soft);
+        LinearLayout.LayoutParams p=Ui.lp(host,-2,44,10);p.gravity=Gravity.END;body.addView(cancel,p);
+        AlertDialog dialog=new AlertDialog.Builder(host).setView(body).create();
+        qrDialog=dialog;
+        cancel.setOnClickListener(v->dialog.dismiss());
+        dialog.setOnDismissListener(d->{if(qrCamera!=null){qrCamera.pause();qrCamera=null;}qrDialog=null;});
+        dialog.show();
+        if(dialog.getWindow()!=null){dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout(host.getResources().getDisplayMetrics().widthPixels*94/100,-2);}
+        qrCamera.decodeSingle(new com.journeyapps.barcodescanner.BarcodeCallback(){
+            @Override public void barcodeResult(com.journeyapps.barcodescanner.BarcodeResult result){
+                String value=result==null?null:result.getText();
+                if(value==null)return;
+                dialog.dismiss();
+                if(value.equals(UrlTools.extract(value))){
+                    if(address==null)openAddressEditor();
+                    setEditorText(value);
+                }
+                else Toast.makeText(host,"QR lido. Somente links HTTP/HTTPS válidos são aceitos.",Toast.LENGTH_LONG).show();
+            }
+            @Override public void possibleResultPoints(java.util.List<com.google.zxing.ResultPoint> points){}
+        });
+        qrCamera.resume();
+    }
+    private void showPasswordsAndImport(){
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.item("Senhas salvas","Ver e excluir logins protegidos no aparelho","lock",this::manageSavedLogins));
+        rows.add(AppMenus.Entry.item("Importar favoritos HTML","Arquivo exportado de outro navegador","bookmark",()->chooseImport("text/html")));
+        rows.add(AppMenus.Entry.item("Importar senhas CSV","Importação sensível, exige confirmação","lock",()->{
+            DownloadDialogs.confirm(host,"Importar senhas?",
+                "O arquivo CSV contém senhas em texto claro. Escolha apenas um arquivo confiável e exclua a cópia original com segurança após importar.",
+                "Proteção","Android Keystore","Origem","Arquivo escolhido manualmente",
+                "Destino","Armazenamento cifrado do Baixa Fácil","Não importa cookies ou sessões.",false,()->chooseImport("text/*"));
+        }));
+        AppMenus.show(host,"Senhas e importação","Sem acesso automático aos dados privados de outros navegadores.",rows);
+    }
+    private void chooseImport(String type){
+        Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.setType(type);intent.addCategory(Intent.CATEGORY_OPENABLE);
+        try{host.startActivityForResult(intent,IMPORT_REQUEST);}catch(ActivityNotFoundException e){Toast.makeText(host,"Seletor de arquivos indisponível",Toast.LENGTH_LONG).show();}
+    }
+    private void importFromDocument(Uri uri){
+        try(java.io.InputStream in=host.getContentResolver().openInputStream(uri)){
+            if(in==null)return;
+            java.io.ByteArrayOutputStream output=new java.io.ByteArrayOutputStream();
+            byte[] buffer=new byte[8192];int read;
+            while((read=in.read(buffer))!=-1){
+                if(output.size()+read>400_000)throw new IllegalArgumentException("Arquivo maior que 400 KB");
+                output.write(buffer,0,read);
+            }
+            byte[] bytes=output.toByteArray();
+            if(bytes.length>400_000)throw new IllegalArgumentException("Arquivo maior que 400 KB");
+            String content=new String(bytes,java.nio.charset.StandardCharsets.UTF_8);
+            String name=uri.getLastPathSegment();
+            if(content.toLowerCase(java.util.Locale.ROOT).contains("<a ")||content.toLowerCase(java.util.Locale.ROOT).contains("<dt><a")){
+                int count=BrowserImport.importBookmarks(host,content);
+                Toast.makeText(host,count+" favoritos importados",Toast.LENGTH_LONG).show();
+            }else{
+                int count=BrowserImport.importLogins(host,content);
+                Toast.makeText(host,count+" senhas importadas de CSV",Toast.LENGTH_LONG).show();
+            }
+        }catch(Exception err){Toast.makeText(host,"Importação falhou: arquivo inválido ou não suportado",Toast.LENGTH_LONG).show();}
+    }
+    private void manageSavedLogins(){
+        java.util.List<org.mozilla.geckoview.Autocomplete.LoginEntry> entries=SecureLoginStore.load(host);
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        for(org.mozilla.geckoview.Autocomplete.LoginEntry login:entries){
+            rows.add(AppMenus.Entry.danger("Excluir "+login.username,login.origin,"trash",()->{
+                new AlertDialog.Builder(host).setTitle("Excluir senha?")
+                    .setMessage("Excluir a senha de "+login.username+" em "+login.origin+"?")
+                    .setPositiveButton("Excluir",(d,w)->{SecureLoginStore.delete(host,login.guid);manageSavedLogins();})
+                    .setNegativeButton("Cancelar",(d,w)->{}).show();
+            }));
+        }
+        if(rows.isEmpty())rows.add(AppMenus.Entry.note("Nenhuma senha armazenada neste aplicativo."));
+        AppMenus.show(host,"Senhas salvas","As senhas nunca são exibidas nesta lista.",rows);
+    }
+    private void showHistory(){openAddressEditor();}
     private void showLinkMenu(String url) {
         boolean supported = url.equals(UrlTools.extract(url));
         List<AppMenus.Entry> rows=AppMenus.entries();

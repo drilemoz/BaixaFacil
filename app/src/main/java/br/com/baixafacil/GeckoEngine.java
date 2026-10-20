@@ -18,6 +18,7 @@ final class GeckoEngine {
             settings.setFontSizeFactor(BrowserPrefs.textZoom(context) / 100f);
             applyProtection(settings, context);
             runtime = GeckoRuntime.create(context.getApplicationContext(), settings);
+            runtime.setAutocompleteStorageDelegate(new SecureLoginStore(context));
         }
         return runtime;
     }

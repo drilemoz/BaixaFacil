@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.58"
-CODE = "58"
+VERSION = "0.1.0-alpha.59"
+CODE = "59"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -107,8 +107,17 @@ checks = {
     "no ZIP Artifacts": "upload-artifact" not in workflow and "download-artifact" not in workflow,
     "unit test and Debug compile": ":app:testDebugUnitTest :app:assembleDebug" in workflow,
     "Gecko session management": all(x in read("app/src/main/java/br/com/baixafacil/SettingsActivity.java") for x in ["renderSessionSettings", "Manter logins entre aberturas", "clearGecko("]) and all(x in read("app/src/main/java/br/com/baixafacil/SessionPrefs.java") for x in ["shouldClearAtStart", "clearForNewSession", "StorageController.ClearFlags.SITE_DATA"]),
-    "address suggestions": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["ListPopupWindow", "updateAddressSuggestions", "BrowserSuggestions.suggest", "dismissAddressSuggestions"])
+    "address suggestions": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["openAddressEditor", "updateAddressSuggestions", "BrowserSuggestions.suggest", "dismissAddressSuggestions", "BrowserTopSites.mostVisited", "addSuggestion", "clipboardUrl"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserSuggestions.java") for x in ["LoginWindowPolicy.hasLoginParameters", "AuthNavigation.isSensitiveLoginPage", "LIMIT=5"]),
+    "browser editor and import parser regression": subprocess.run([sys.executable, str(ROOT / "tools/test_browser_redesign.py")], check=False).returncode==0,
+    "redesigned browser permissions and media": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        for x in ["showCompactMenu", "openAddressEditor", "startVoiceSearch", "startQrScanner", "showDetectedImages", "handleBrowserActivityResult"])
+        and "SitePermissionDialog.show" in read("app/src/main/java/br/com/baixafacil/GeckoSitePermissions.java")
+        and 'data.images.push' in read("app/src/main/assets/baixafacil_gecko/media.js"),
+    "encrypted login vault": all(x in read("app/src/main/java/br/com/baixafacil/SecureLoginStore.java")
+        for x in ["AndroidKeyStore", "AES/GCM/NoPadding", "secureOrigin", "onLoginFetch", "onLoginSave"])
+        and "setAutocompleteStorageDelegate" in read("app/src/main/java/br/com/baixafacil/GeckoEngine.java")
+        and "onLoginSelect" in read("app/src/main/java/br/com/baixafacil/GeckoPromptHandler.java"),
     "APK version validation": all(x in workflow for x in ["aapt", "versionCode='" + CODE + "'", "versionName='" + VERSION + "'"]),
     "signature verification": "apksigner" in workflow,
     "code User-Agent version": "BaixaFacil/" + VERSION in service,
@@ -161,7 +170,7 @@ checks = {
         and "class AppEventLog" in read("app/src/main/java/br/com/baixafacil/AppEventLog.java")
         and "class DownloadDialogs" in read("app/src/main/java/br/com/baixafacil/DownloadDialogs.java")
         and 'android:name=".BaixaFacilApp"' in read("app/src/main/AndroidManifest.xml"),
-    "Gecko video direct-source detection": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["web.scanVideos", "scanPageVideos", "showDetectedVideos", "Fontes (", "VideoLinks.isVideoCandidate"]) and "class VideoLinksTest" in read("app/src/test/java/br/com/baixafacil/VideoLinksTest.java"),
+    "Gecko video direct-source detection": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["web.scanVideos", "scanPageVideos", "showDetectedVideos", "◉ Mídia", "VideoLinks.isVideoCandidate", "showDetectedMedia"]) and "class VideoLinksTest" in read("app/src/test/java/br/com/baixafacil/VideoLinksTest.java"),
     "alpha45 HLS VOD conservative support": all(x in read("app/src/main/java/br/com/baixafacil/HlsVodPlaylist.java") for x in ["#EXT-X-ENDLIST", "#EXT-X-KEY:", "#EXT-X-MAP:", "#EXT-X-BYTERANGE:", "MAX_SEGMENTS", "Segmento inválido"])
         and all(x in read("app/src/main/java/br/com/baixafacil/DownloadEngine.java") for x in ["transferHlsVod", "video/mp2t", "channel.truncate(0)", "IS_PENDING", "HLS_NAO_SUPORTADO"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["offerHlsDownload", "Fontes de vídeo", "Prévia do player", 'Ui.pill(host,"Baixar"'])

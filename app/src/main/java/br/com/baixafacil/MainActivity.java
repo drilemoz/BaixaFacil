@@ -469,6 +469,7 @@ public class MainActivity extends Activity {
     @Override protected void onActivityResult(int request,int result,Intent data){
         super.onActivityResult(request,result,data);
         if(geckoPicker!=null && geckoPicker.onActivityResult(request,result,data))return;
+        if(browserPane!=null && browserPane.handleBrowserActivityResult(request,result,data))return;
         if(request==1001 && result==RESULT_OK && data!=null){
             String url=data.getStringExtra("open_url");
             if(url!=null&&browserPane!=null){showBrowser();browserPane.navigate(url);}

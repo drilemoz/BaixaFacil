@@ -105,6 +105,8 @@ public final class Ui {
                 case "paste": rect(target,5,5,19,22,2); rect(target,9,2,15,7,1); lines(target,9,14,11,16,16,11); break;
                 case "globe": circle(target,12,12,9); lines(target,3,12,21,12); target.drawOval(new RectF(8,3,16,21),pen); break;
                 case "webdown": circle(target,9,10,6); lines(target,3,10,15,10); target.drawOval(new RectF(6,4,12,16),pen); lines(target,17,11,17,18); lines(target,14,15,17,18,20,15); lines(target,12,20,22,20); break;
+                case "mic": target.drawRoundRect(new RectF(9,3,15,15),3,3,pen);target.drawArc(new RectF(6,8,18,20),0,180,false,pen);lines(target,12,20,12,23);break;
+                case "qr": lines(target,3,10,3,3,10,3);lines(target,14,3,21,3,21,10);lines(target,3,14,3,21,10,21);lines(target,14,21,21,21,21,14);rect(target,8,8,16,16,0);break;
                 case "settings": lines(target,4,6,20,6); lines(target,4,12,20,12); lines(target,4,18,20,18); circle(target,9,6,2.5f); circle(target,16,12,2.5f); circle(target,10,18,2.5f); break;
                 case "search": circle(target,10,10,6);lines(target,14.5f,14.5f,21,21); break;
                 case "filter": lines(target,3,5,21,5,14,13,14,19,10,21,10,13,3,5); break;
