@@ -1,3 +1,11 @@
+# Baixa Fácil 0.1.0-alpha.58 (versionCode 58)
+
+**Correção da geração dos APKs:** o workflow 27 compilou a versão anterior, mas não publicou os arquivos porque a etapa de separação por arquitetura validava `versionCode 56` em vez de 57. A nova versão corrige o código esperado para 58 e adiciona testes de sincronização do comando do workflow.
+
+**Sem alteração funcional:** navegador GeckoView, bloqueio ETP, downloads, proteções de sessão, suporte ARM32/ARM64/x86_64 e regras de assinatura continuam inalterados.
+
+**Validação:** compilação e testes da alpha.57 concluíram no workflow 27; coleta/publicação da alpha.58 exigem novo GitHub Actions.
+
 # Baixa Fácil 0.1.0-alpha.57 (versionCode 57)
 
 **Proteção nativa no GeckoView:** os perfis de anúncios passam a configurar ETP padrão ou rigorosa. O modo Extremo habilita proteção social rigorosa e limpeza de parâmetros conhecidos. A contagem de bloqueios vem do motor, sem armazenar endereços.

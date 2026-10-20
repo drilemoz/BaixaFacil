@@ -1,3 +1,11 @@
+## 0.1.0-alpha.58: correção do coletor de APKs (workflow 27)
+
+- Evidência no log: `BUILD SUCCESSFUL in 36s` (47 tarefas) em `:app:assembleRelease`, seguido de `Separação por ABI: Versão incorreta no metadata do APK armeabi-v7a`.
+- Causa verificada: a alpha.57 tinha `versionCode 57` no Gradle e nas checagens `aapt`, mas o workflow chamava `collect_abi_apks.py ... --code 56`. Não há evidência de problema nas bibliotecas do GeckoView ou ETP nessa falha.
+- Correção alpha.58: todas as validações usam code 58; testes e preflight conferem o argumento `--code` da própria linha executada no CI.
+- Execuções locais: `tools/ci_preflight.py`, `tools/test_abi_pipeline.py`, `tools/test_publish_mock.sh`, testes Python/shell sintáticos e integridade do ZIP (registrar resultados da execução).
+- Não foram executados neste ambiente: build Gradle/Android completo da alpha.58, coleta de APKs Android reais, publicação GitHub Release e testes físicos do navegador.
+
 ## 0.1.0-alpha.57: perfis ETP nativos do GeckoView
 
 - `tools/test_gecko_protection.py` compila a lógica real de perfis com Java 17, testa a matriz modo/rastreadores/cookies, inspeciona o vínculo ao GeckoRuntimeSettings e os callbacks `ContentBlocking.Delegate`.

@@ -1,3 +1,9 @@
+## 0.1.0-alpha.58: correção do validador de APK por ABI
+
+- Correção do workflow **Gerar APK 27**: a alpha.57 compilou Debug/Release, mas o coletor de APKs recebeu por engano `--code 56`, rejeitando os metadados válidos do Gradle. A alpha.58 passa `--code 58`.
+- `tools/ci_preflight.py` e `tools/test_abi_pipeline.py` agora conferem a **linha executável real** do coletor de APKs e o `versionCode`, além de validar Gradle e nomes de Release.
+- Mantidos GeckoView 158, perfis de proteção ETP, três APKs ARM32/ARM64/x86_64, motor HTTP, SDK 37.0 e política de assinatura. Novo workflow precisa comprovar coleta e publicação.
+
 ## 0.1.0-alpha.57: proteção GeckoView por perfis ETP
 
 - Configurações: perfis **Desligado / Leve / Forte / Extremo** agora configuram Enhanced Tracking Protection nativa. A mudança é aplicada ao voltar ao navegador e recarrega a página.

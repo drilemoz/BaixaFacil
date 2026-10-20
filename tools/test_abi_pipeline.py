@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for GeckoView 158 native ABIs and strict Gradle APK collector."""
 import json
+import re
 import tempfile
 import zipfile
 from pathlib import Path
@@ -14,8 +15,15 @@ assert ABIS == ('armeabi-v7a','arm64-v8a','x86_64')
 assert all(x in gradle for x in ('enable true', 'reset()', 'universalApk false',
               "include 'armeabi-v7a', 'arm64-v8a', 'x86_64'"))
 assert "'x86', 'x86_64'" not in gradle
-assert 'versionCode 57' in gradle and "versionName '0.1.0-alpha.57'" in gradle
+assert 'versionCode 58' in gradle and "versionName '0.1.0-alpha.58'" in gradle
 assert 'tools/collect_abi_apks.py' in yaml and 'apk_dir=dist' in yaml
+# Workflow 27 regression: code 56 passed to collector for alpha.57; javac/assembleRelease
+# succeeded but publishing was rejected. The real command must track current Gradle code.
+collector_commands = re.findall(r'(?m)^\s*python3 tools/collect_abi_apks\.py[^\n]*$', yaml)
+assert len(collector_commands) == 1, collector_commands
+assert re.search(r'--code\s+58\s+--output\s+dist\s*$', collector_commands[0]), collector_commands[0]
+assert not re.search(r'--code\s+57\s+--output\s+dist\s*$', collector_commands[0])
+
 assert 'for abi in armeabi-v7a arm64-v8a x86_64; do' in yaml
 assert 'APK_DIR:' in yaml and 'APK_FILE:' not in yaml
 assert '--pattern "Baixa-Facil-v${VERSION}-*.apk"' in publish
@@ -36,17 +44,17 @@ with tempfile.TemporaryDirectory() as td:
     for abi in ABIS:
         name=make_apk(abi)
         els.append({'filters':[{'filterType':'ABI','value':abi}],
-                    'versionCode':57,'versionName':'0.1.0-alpha.57','outputFile':name})
+                    'versionCode':58,'versionName':'0.1.0-alpha.58','outputFile':name})
     meta={'variantName':'debug','applicationId':'br.com.baixafacil','elements':els}
     metadata_file=directory/'output-metadata.json'
     def write_meta(): metadata_file.write_text(json.dumps(meta),encoding='utf-8')
-    def rejects(tag,code=56):
+    def rejects(tag,code=57):
         write_meta()
-        try: collect(root,'debug','0.1.0-alpha.57',code,root/tag)
+        try: collect(root,'debug','0.1.0-alpha.58',code,root/tag)
         except ValueError: return
         raise AssertionError(f'{tag}: collector accepted invalid APK')
     write_meta()
-    paths=collect(root,'debug','0.1.0-alpha.57',57,root/'dist')
+    paths=collect(root,'debug','0.1.0-alpha.58',58,root/'dist')
     assert len(paths)==3 and all(p.is_file() for p in paths)
     assert all(p.name.endswith(f'{abi}.apk') for p,abi in zip(paths,ABIS))
     rejects('bad_version',code=52)
@@ -56,7 +64,7 @@ with tempfile.TemporaryDirectory() as td:
     meta['elements'][1]['filters'][0]['value']='arm64-v8a'
     # Unsupported x86 even if Gradle produces an APK (the build 23 failure)
     x86={'filters':[{'filterType':'ABI','value':'x86'}],
-         'versionCode':57,'versionName':'0.1.0-alpha.57',
+         'versionCode':58,'versionName':'0.1.0-alpha.58',
          'outputFile':make_apk('x86',libpath=False)}
     meta['elements'].append(x86)
     rejects('bad_x86')

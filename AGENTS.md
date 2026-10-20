@@ -186,3 +186,8 @@
 - ETP requer comportamento de cookies compatível: quando ligado, preferências sem compatibilidade usam `ACCEPT_FIRST_PARTY_AND_ISOLATE_OTHERS` (cookies de terceiros isolados por origem, não completamente recusados). Se usuário permitir terceiros por compatibilidade (`ACCEPT_ALL`), ETP é explicitamente suspenso. Jamais mascarar essa decisão.
 - Exceções por site continuam só para o CSS; não anunciar como exceção da rede GeckoView. Listas EasyList/EasyPrivacy são locais e não interceptam requisições. Contagem deve vir exclusivamente de `onContentBlocked`, sem logging de URLs/tokens.
 - Preservar Safe Browsing, GeckoView 158, download engine, minSdk 29, targetSdk 34, compileSdk 37.0, três ABI e ícone Internet XP; próxima versão 0.1.0-alpha.58 / versionCode 58.
+
+## Versão 0.1.0-alpha.58: correção ABI após workflow 27
+- O workflow 27 da alpha.57 compilou Debug e Release, mas falhou **depois** com `Versão incorreta no metadata do APK armeabi-v7a` porque a chamada `collect_abi_apks.py` passava `--code 56`, divergente do Gradle `versionCode 57`.
+- Alpha.58/versionCode 58: sincronizar `--code 58` com Gradle e `aapt`. `ci_preflight.py` e `test_abi_pipeline.py` devem verificar o argumento da linha executável real no workflow e falhar se houver divergência, não só conferir a versão do APK.
+- Preservar bibliotecas nativas do GeckoView, três ABI e políticas de assinatura. Próxima versão `0.1.0-alpha.59`/versionCode 59.

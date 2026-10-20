@@ -1,3 +1,10 @@
+# Baixa Fácil 0.1.0-alpha.58 (versionCode 58) - 2026-10-19
+
+- Corrigido o parâmetro `--code` do coletor de APKs no GitHub Actions (57 esperado na alpha.57, 56 passado indevidamente). Agora a alpha.58 passa 58.
+- Testes de pré-validação e pipeline ABI passaram a inspecionar a chamada executável efetiva no YAML, prevenindo divergência entre Gradle, coletor, metadados e pacote.
+- Preservados GeckoView 158, ETP, privacidade, motor HTTP, três ABI, assinatura estável/fallback Debug e validações `aapt`, `apksigner` e SHA-256.
+- Workflow 27: :app:assembleRelease bem-sucedido; erro exclusivamente na coleta de APK por ABI. Novo build e publicação pendentes.
+
 # Baixa Fácil 0.1.0-alpha.57 (versionCode 57) - 2026-10-19
 
 - Perfis GeckoView ETP: Desligado, Leve (padrão), Forte (rigoroso) e Extremo (rigoroso com proteção social e limpeza de parâmetros).

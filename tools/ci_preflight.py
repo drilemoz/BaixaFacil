@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.57"
-CODE = "57"
+VERSION = "0.1.0-alpha.58"
+CODE = "58"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -16,6 +16,10 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "ABI collector receives exact Gradle versionCode": (
+        len(re.findall(r"(?m)^\s*python3 tools/collect_abi_apks\.py[^\n]*$", workflow)) == 1
+        and bool(re.search(r"(?m)^\s*python3 tools/collect_abi_apks\.py[^\n]*\s--code\s+" + CODE + r"\s+--output\s+dist\s*$", workflow))
+    ),
     "GeckoView native ETP profiles and event counters": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_protection.py")],check=False).returncode==0,
     "Launcher Internet XP adaptive/round/mono": subprocess.run([sys.executable, str(ROOT / "tools/test_launcher_branding.py")],check=False).returncode==0,
     "GeckoView site permissions, file picker and fullscreen (alpha.54)": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_sites.py")],check=False).returncode==0,
