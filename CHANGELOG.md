@@ -1,3 +1,10 @@
+# Baixa Fácil 0.1.0-alpha.61 (versionCode 61) - 2026-10-20
+
+- Novo fluxo de gestão de credenciais: lista ordenada, detalhes sem revelar senhas, exclusão individual ou total com confirmação temática.
+- Exclusão protegida contra estado ilegível do Keystore. Corrigido risco de sobrescrever cofre inacessível após falha na descriptografia.
+- Importador CSV suporta vírgulas/aspas e quebras de linha em campos citados, com limites e rejeição de formato inconsistente.
+- Alinhado versionCode, pipeline de publicação dos três APKs, metadados e documentação.
+
 # Baixa Fácil 0.1.0-alpha.60 (versionCode 60) - 2026-10-20
 
 - Corrigida a fricção de dois toques: endereço agora é editado diretamente na barra existente, com foco/seleção automática e IME após o primeiro toque.

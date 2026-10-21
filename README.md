@@ -1,3 +1,11 @@
+## 0.1.0-alpha.61: gerenciador seguro de credenciais
+
+- Gerenciador de senhas agora mostra contas por site e usuário, com detalhes não sensíveis, cópia do nome de usuário e exclusão individual ou total com confirmação personalizada.
+- Antes de operações destrutivas, o cofre AES-GCM é conferido; caso o Android Keystore não consiga descriptografá-lo, os dados existentes não são sobrescritos.
+- Importação CSV aceita campos com aspas, vírgulas e múltiplas linhas (até 400 KB e 500 registros) e rejeita entradas CSV malformadas.
+- Senhas nunca são mostradas em tela, notificações, histórico ou logs. Não há exportação em texto claro, nem leitura automática de outros navegadores.
+- Preserva o editor de URL inline sem pop-up da alpha.60 e o motor GeckoView 158.
+
 ## 0.1.0-alpha.60: edição de endereço na própria barra
 
 - Correção pedida após teste Android: **um único toque** no endereço ativa o `EditText` na mesma barra, seleciona o URL e solicita o teclado, sem `AlertDialog` ou segundo toque.

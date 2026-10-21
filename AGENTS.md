@@ -205,3 +205,9 @@
 - Mostrar sugestões apenas no `addressPanel` incorporado à hierarquia do `BrowserPane.view`, abaixo da toolbar; manter altura limitada e rolagem. Não destruir a GeckoSession e não introduzir chamadas de rede ao digitar.
 - Voltar do sistema fecha a edição antes de navegar para página anterior; tecla Ir navega; troca de aba fecha teclado/editor. Não interferir na permissão do Android, câmera QR e retorno da pesquisa por voz.
 - Preservar GeckoView 158, ETP, dados e download engine, três ABI e Secrets de assinatura. Versão sequencial seguinte `0.1.0-alpha.61`/versionCode 61.
+
+## Versão 0.1.0-alpha.61: cofre de credenciais e importação CSV
+- Cofre AES-GCM no Android Keystore: nunca sobrescrever o conteúdo ao falhar a leitura ou autenticação do armazenamento. Excluir individualmente ou todas as senhas exige confirmação no tema do app.
+- O gerenciador mostra apenas site e usuário, não revela senhas nem exporta credenciais para texto claro. Não copiar senhas para área de transferência, logs ou relatórios.
+- Importação de senhas CSV exige seleção manual, confirmação e origem HTTPS; parser deve lidar com vírgulas, aspas e quebras de linha citadas, rejeitar aspas sem fechamento e impor limites (400 KB/500 registros).
+- Preservar GeckoView 158, ETP, editor URL inline, três ABI, assinatura e histórico de downloads. Próxima versão sequencial alpha.62/versionCode 62.

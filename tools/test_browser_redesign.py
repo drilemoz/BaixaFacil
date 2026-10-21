@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verifica contratos da alpha.60 e exercita o parser real de importação com stubs JDK.
+"""Verifica contratos da alpha.61 e exercita o parser real de importação com stubs JDK.
 Não equivale a teste Android/GeckoView em aparelho.
 """
 from pathlib import Path
@@ -14,6 +14,10 @@ assert 'iconButton("settings","Configurações"' not in pane
 for symbol in ['openAddressEditor','showCompactMenu','startQrScanner','startVoiceSearch','clipboardUrl','BrowserTopSites.mostVisited','showDetectedImages','setLoadingProgress','progressLabel']:
     assert symbol in pane,symbol
 assert 'AndroidKeyStore' in read('SecureLoginStore.java')
+assert 'if(guid==null || guid.isEmpty() || !readable(c))return false;' in read('SecureLoginStore.java')
+assert 'static synchronized boolean deleteAll(Context c)' in read('SecureLoginStore.java')
+assert 'if(!SecureLoginStore.readable(host))' in pane
+assert 'confirmDeleteAllLogins' in pane
 assert 'AES/GCM/NoPadding' in read('SecureLoginStore.java')
 assert 'setAutocompleteStorageDelegate' in read('GeckoEngine.java')
 assert 'onLoginSave' in read('GeckoPromptHandler.java')
@@ -56,6 +60,7 @@ with tempfile.TemporaryDirectory(prefix='baixafacil-parser-') as temp:
               }catch(Exception e){return null;}
             }
             public static boolean save(android.content.Context c,org.mozilla.geckoview.Autocomplete.LoginEntry e){saved++;return true;}
+            public static boolean readable(android.content.Context c){return true;}
           }''',
         'br/com/baixafacil/BrowserImportTestMain.java':r'''package br.com.baixafacil;
           public class BrowserImportTestMain {
@@ -71,13 +76,17 @@ with tempfile.TemporaryDirectory(prefix='baixafacil-parser-') as temp:
               check(SecureLoginStore.saved==1);
               check(BrowserImport.importLogins(c,"url,username,password\nhttps://x.com,user,pass")==1);
               check(BrowserImport.importLogins(c,"username,password\nuser,pass")==0);
+              check(BrowserImport.importLogins(c,"url,username,password\nhttps://multi.test,ana,\"senha\ncom quebra\"")==1);
+              check(BrowserImport.importLogins(c,"url,username,password\nhttps://invalid.test,ana,\"sem fechar")==0);
+              check(CsvRows.parse("url,username,password\nhttps://ok.test,joao,\"uma,duas\"",500).size()==2);
+              check(CsvRows.parse("url,username,password\nhttps://x.test,ana,\"a\"n",500)==null);
               check(BrowserImport.importBookmarks(c,"<a href='https://valid.test'>oi</a>"+"x".repeat(400001))==0);
             }
           }''',
     }
     for path,body in stubs.items():
         dest=t/path;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(body,encoding='utf-8')
-    sources=[str(p) for p in t.rglob('*.java')]+[str(SRC/'BrowserImport.java')]
+    sources=[str(p) for p in t.rglob('*.java')]+[str(SRC/'BrowserImport.java'),str(SRC/'CsvRows.java')]
     result=subprocess.run(['javac','-d',str(t/'classes'),*sources],capture_output=True,text=True)
     assert result.returncode==0,result.stderr
     result=subprocess.run(['java','-cp',str(t/'classes'),'br.com.baixafacil.BrowserImportTestMain'],capture_output=True,text=True)

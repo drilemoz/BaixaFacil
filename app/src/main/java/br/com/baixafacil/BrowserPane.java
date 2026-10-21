@@ -1643,18 +1643,94 @@ final class BrowserPane {
         }catch(Exception err){Toast.makeText(host,"Importação falhou: arquivo inválido ou não suportado",Toast.LENGTH_LONG).show();}
     }
     private void manageSavedLogins(){
+        if(!SecureLoginStore.readable(host)){
+            AppMenus.info(host,"Cofre indisponível",
+                "Não foi possível ler as credenciais protegidas pelo Android Keystore. Nenhum dado foi alterado. " +
+                "Verifique a proteção do dispositivo antes de tentar novamente.",AppMenus.entries());
+            return;
+        }
         java.util.List<org.mozilla.geckoview.Autocomplete.LoginEntry> entries=SecureLoginStore.load(host);
+        entries.sort((a,b)->{
+            int bySite=a.origin.compareToIgnoreCase(b.origin);
+            return bySite!=0?bySite:a.username.compareToIgnoreCase(b.username);
+        });
         List<AppMenus.Entry> rows=AppMenus.entries();
         for(org.mozilla.geckoview.Autocomplete.LoginEntry login:entries){
-            rows.add(AppMenus.Entry.danger("Excluir "+login.username,login.origin,"trash",()->{
-                new AlertDialog.Builder(host).setTitle("Excluir senha?")
-                    .setMessage("Excluir a senha de "+login.username+" em "+login.origin+"?")
-                    .setPositiveButton("Excluir",(d,w)->{SecureLoginStore.delete(host,login.guid);manageSavedLogins();})
-                    .setNegativeButton("Cancelar",(d,w)->{}).show();
-            }));
+            String user=login.username==null||login.username.isEmpty()?"Usuário não informado":login.username;
+            rows.add(AppMenus.Entry.item(user,login.origin,"lock",()->showSavedLoginDetails(login)));
         }
-        if(rows.isEmpty())rows.add(AppMenus.Entry.note("Nenhuma senha armazenada neste aplicativo."));
-        AppMenus.show(host,"Senhas salvas","As senhas nunca são exibidas nesta lista.",rows);
+        if(rows.isEmpty()){
+            rows.add(AppMenus.Entry.note("Nenhuma credencial armazenada no Baixa Fácil."));
+        }else{
+            rows.add(AppMenus.Entry.danger("Excluir todas as senhas",
+                "Exige confirmação. Não afeta senhas salvas em outros navegadores.","trash",this::confirmDeleteAllLogins));
+        }
+        AppMenus.show(host,"Senhas salvas ("+entries.size()+")",
+            "Gerencie contas sem exibir senhas em texto. Armazenamento local cifrado.",rows);
+    }
+    private void showSavedLoginDetails(org.mozilla.geckoview.Autocomplete.LoginEntry login){
+        String user=login.username==null||login.username.isEmpty()?"Usuário não informado":login.username;
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.note("Site: "+login.origin));
+        rows.add(AppMenus.Entry.note("Usuário: "+user));
+        rows.add(AppMenus.Entry.note("Senha: •••••••• (oculta)"));
+        if(login.username!=null&&!login.username.isEmpty()){
+            rows.add(AppMenus.Entry.item("Copiar nome de usuário",
+                "Não copia a senha","copy",()->copyUsername(login.username)));
+        }
+        rows.add(AppMenus.Entry.danger("Excluir esta senha","Ação irreversível no Baixa Fácil",
+            "trash",()->confirmDeleteLogin(login.guid,user,login.origin)));
+        AppMenus.show(host,"Conta salva", "A senha permanece protegida no armazenamento local.",rows);
+    }
+    private void copyUsername(String user){
+        ClipboardManager cb=(ClipboardManager)host.getSystemService(Activity.CLIPBOARD_SERVICE);
+        if(cb!=null){
+            cb.setPrimaryClip(ClipData.newPlainText("Usuário",user));
+            Toast.makeText(host,"Nome de usuário copiado",Toast.LENGTH_SHORT).show();
+        }
+    }
+    private void confirmDeleteLogin(String guid,String user,String origin){
+        confirmCredentialsAction("Excluir esta senha?",
+            "Usuário: "+user+"\nSite: "+origin+"\nEssa operação não pode ser desfeita.",
+            "Excluir",()->{
+                boolean ok=SecureLoginStore.delete(host,guid);
+                Toast.makeText(host,ok?"Senha excluída":"Não foi possível excluir a senha",Toast.LENGTH_LONG).show();
+                if(ok)manageSavedLogins();
+            });
+    }
+    private void confirmDeleteAllLogins(){
+        confirmCredentialsAction("Excluir todas as senhas?",
+            "Todas as credenciais guardadas no Baixa Fácil serão excluídas. " +
+                "Outros navegadores não serão afetados. Esta ação não pode ser desfeita.",
+            "Excluir todas",()->{
+                boolean ok=SecureLoginStore.deleteAll(host);
+                Toast.makeText(host,ok?"Senhas excluídas":"Cofre inacessível; nenhuma senha foi apagada",Toast.LENGTH_LONG).show();
+                if(ok)manageSavedLogins();
+            });
+    }
+    private void confirmCredentialsAction(String title,String message,String action,Runnable confirmed){
+        Ui.Palette p=new Ui.Palette(host);
+        LinearLayout content=Ui.vertical(host);
+        content.setPadding(dp(22),dp(21),dp(22),dp(17));
+        content.setBackground(Ui.shape(host,p.surface,24));
+        content.addView(Ui.text(host,title,19,p.text,true));
+        content.addView(Ui.text(host,message,13,p.muted,false),Ui.lp(host,-1,-2,12));
+        LinearLayout buttons=Ui.horizontal(host);
+        buttons.setGravity(Gravity.END);
+        TextView cancel=Ui.pill(host,"Cancelar",p.text,p.soft);
+        TextView remove=Ui.pill(host,action,p.surface,p.danger);
+        buttons.addView(cancel,new LinearLayout.LayoutParams(-2,dp(44)));
+        LinearLayout.LayoutParams param=new LinearLayout.LayoutParams(-2,dp(44));param.leftMargin=dp(10);
+        buttons.addView(remove,param);
+        content.addView(buttons,Ui.lp(host,-1,-2,18));
+        AlertDialog dialog=new AlertDialog.Builder(host).setView(content).create();
+        cancel.setOnClickListener(v->dialog.dismiss());
+        remove.setOnClickListener(v->{dialog.dismiss();confirmed.run();});
+        dialog.show();
+        if(dialog.getWindow()!=null){
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout(host.getResources().getDisplayMetrics().widthPixels*90/100,-2);
+        }
     }
     private void showHistory(){openAddressEditor();}
     private void showLinkMenu(String url) {

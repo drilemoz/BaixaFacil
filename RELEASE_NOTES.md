@@ -1,3 +1,10 @@
+# Baixa Fácil 0.1.0-alpha.61 (versionCode 61)
+
+## Senhas e importação
+O gerenciador lista contas por site e usuário, oferece exclusão individual ou de todas as contas com confirmação no tema do app e nunca exibe a senha. Uma falha ao ler o cofre cifrado não será tratada como lista vazia para exclusão. A importação CSV aceita linhas citadas com quebras de linha, aspas e vírgulas, rejeitando CSV inválido.
+
+**Validação:** testes estáticos e JDK locais não substituem build Gradle/GeckoView e testes em Android. Após compilar, validar login real, importação e exclusão com contas de teste, sem usar senhas pessoais.
+
 # Baixa Fácil 0.1.0-alpha.60 (versionCode 60)
 
 **Barra de URL sem pop-up:** tocar no endereço abre imediatamente a edição na própria barra, selecionando o URL e solicitando o teclado. Sugestões, histórico, links copiados e sites frequentes surgem em painel que se expande para baixo, sem exigir segundo toque. O leitor QR e a voz ficam na barra durante edição; Voltar fecha primeiro a edição. Recursos e dados existentes preservados.

@@ -65,6 +65,20 @@ final class SecureLoginStore implements Autocomplete.StorageDelegate {
         j.put("u",value.username);j.put("p",value.password);
         return j;
     }
+    /** Nunca converter erro de descriptografia numa lista vazia gravável. */
+    static synchronized boolean readable(Context c){
+        String encrypted=prefs(c).getString("vault",null);
+        if(encrypted==null)return true;
+        try{
+            JSONArray entries=new JSONArray(decrypt(encrypted));
+            for(int i=0;i<entries.length();i++){
+                JSONObject item=entries.optJSONObject(i);
+                if(item==null || secureOrigin(item.optString("o"))==null ||
+                   !item.has("u") || !item.has("p") || item.optString("p").isEmpty())return false;
+            }
+            return true;
+        }catch(Exception ignored){return false;}
+    }
     static synchronized List<Autocomplete.LoginEntry> load(Context c){
         List<Autocomplete.LoginEntry> list=new ArrayList<>();
         String encrypted=prefs(c).getString("vault",null);if(encrypted==null)return list;
@@ -95,25 +109,33 @@ final class SecureLoginStore implements Autocomplete.StorageDelegate {
         // Nunca sobrescrever dados cifrados caso o Keystore tenha sido invalidado.
         String existing=prefs(c).getString("vault",null);
         if(existing!=null){try{new JSONArray(decrypt(existing));}catch(Exception error){return false;}}
+        if(entry==null)return false;
         String origin=secureOrigin(entry.origin);
-        if(origin==null || entry.password==null || entry.password.isEmpty() || entry.password.length()>4096 || entry.username.length()>512)return false;
+        String username=entry.username==null?"":entry.username;
+        if(origin==null || entry.password==null || entry.password.isEmpty() || entry.password.length()>4096 || username.length()>512)return false;
         List<Autocomplete.LoginEntry> list=load(c);
         for(int i=list.size()-1;i>=0;i--){
             Autocomplete.LoginEntry before=list.get(i);
             if((entry.guid!=null && entry.guid.equals(before.guid)) ||
-               (before.origin.equals(origin)&&before.username.equals(entry.username)))list.remove(i);
+               (before.origin.equals(origin)&&before.username.equals(username)))list.remove(i);
         }
         String guid=entry.guid!=null&&!entry.guid.trim().isEmpty()?entry.guid:UUID.randomUUID().toString();
         Autocomplete.LoginEntry.Builder b=new Autocomplete.LoginEntry.Builder().guid(guid).origin(origin)
-            .username(entry.username).password(entry.password);
+            .username(username).password(entry.password);
         if(entry.formActionOrigin!=null)b.formActionOrigin(entry.formActionOrigin);
         if(entry.httpRealm!=null)b.httpRealm(entry.httpRealm);
         list.add(b.build());return write(c,list);
     }
-    static synchronized void delete(Context c,String guid){
-        if(guid==null)return;
+    static synchronized boolean delete(Context c,String guid){
+        if(guid==null || guid.isEmpty() || !readable(c))return false;
         List<Autocomplete.LoginEntry> list=load(c);
-        list.removeIf(x->guid.equals(x.guid));write(c,list);
+        boolean removed=list.removeIf(x->guid.equals(x.guid));
+        return removed && write(c,list);
+    }
+    static synchronized boolean deleteAll(Context c){
+        if(!readable(c))return false;
+        // O cofre é esvaziado, mas a chave permanece para novos logins.
+        return write(c,new ArrayList<>());
     }
     @Override public GeckoResult<Autocomplete.LoginEntry[]> onLoginFetch(String domain){
         String requested=secureOrigin(domain);

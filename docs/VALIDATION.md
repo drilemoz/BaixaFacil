@@ -1,3 +1,10 @@
+## 0.1.0-alpha.61: gestão de senhas e CSV seguro
+
+- Pré-validação do workflow, 3 ABIs e versionCode 61.
+- Teste JDK do importador real de favoritos e CSV, incluindo CSV com quebras de linha, aspas e vírgulas em campos, além de rejeição de conteúdo inválido.
+- Revisão estática de salvaguarda contra exclusão de cofre ilegível.
+- Build Android real e teste de funcionamento do Keystore/GeckoView no aparelho continuam pendentes.
+
 ## 0.1.0-alpha.60: editor inline de endereço
 
 - Contrato automático verifica o toque único em `addressDisplay`, `EditText` no mesmo `row` da barra, painel de sugestões incorporado ao `view` após toolbar (não `AlertDialog`), IME no foco e fechamento via Voltar do Android.
