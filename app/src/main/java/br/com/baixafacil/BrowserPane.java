@@ -86,6 +86,8 @@ final class BrowserPane {
     private static final int QR_CAMERA_REQUEST=6456;
     private static final int VOICE_REQUEST=6457;
     private static final int IMPORT_REQUEST=6458;
+    private BrowserImport.Kind pendingImportKind;
+    private boolean importBusy;
     private boolean suppressSuggestions;
     private TextView status;
     private ProgressBar loading;
@@ -1550,6 +1552,7 @@ final class BrowserPane {
         }
         if(request==IMPORT_REQUEST){
             if(result==Activity.RESULT_OK && data!=null && data.getData()!=null)importFromDocument(data.getData());
+            else pendingImportKind=null;
             return true;
         }
         return false;
@@ -1606,41 +1609,102 @@ final class BrowserPane {
     private void showPasswordsAndImport(){
         List<AppMenus.Entry> rows=AppMenus.entries();
         rows.add(AppMenus.Entry.item("Senhas salvas","Ver e excluir logins protegidos no aparelho","lock",this::manageSavedLogins));
-        rows.add(AppMenus.Entry.item("Importar favoritos HTML","Arquivo exportado de outro navegador","bookmark",()->chooseImport("text/html")));
-        rows.add(AppMenus.Entry.item("Importar senhas CSV","Importação sensível, exige confirmação","lock",()->{
+        rows.add(AppMenus.Entry.section("Trazer dados de outro navegador"));
+        rows.add(AppMenus.Entry.item("Favoritos HTML ou CSV","Chrome, Firefox e outros exportadores compatíveis","bookmark",()->chooseImport(BrowserImport.Kind.BOOKMARKS)));
+        rows.add(AppMenus.Entry.item("Histórico CSV","URLs exportadas manualmente, sem simular visitas","reload",()->chooseImport(BrowserImport.Kind.HISTORY)));
+        rows.add(AppMenus.Entry.item("Senhas CSV","Arquivo confidencial; exige autorização","lock",()->{
             DownloadDialogs.confirm(host,"Importar senhas?",
-                "O arquivo CSV contém senhas em texto claro. Escolha apenas um arquivo confiável e exclua a cópia original com segurança após importar.",
+                "O CSV contém senhas em texto claro. Escolha um arquivo confiável e apague a cópia exportada depois de importar.",
                 "Proteção","Android Keystore","Origem","Arquivo escolhido manualmente",
-                "Destino","Armazenamento cifrado do Baixa Fácil","Não importa cookies ou sessões.",false,()->chooseImport("text/*"));
+                "Destino","Cofre criptografado do Baixa Fácil","Não importa cookies, sessões nem dados privados de outros aplicativos.",false,
+                ()->chooseImport(BrowserImport.Kind.LOGINS));
         }));
-        AppMenus.show(host,"Senhas e importação","Sem acesso automático aos dados privados de outros navegadores.",rows);
+        rows.add(AppMenus.Entry.note("Formatos aceitos: favoritos HTML Netscape/CSV com URL e título; histórico CSV com coluna URL; senhas CSV com url, username e password. Limite: 400 KB e 500 registros."));
+        AppMenus.show(host,"Dados de outros navegadores","Importação local, sempre por arquivo escolhido e com prévia.",rows);
     }
-    private void chooseImport(String type){
+    private void chooseImport(BrowserImport.Kind kind){
+        if(importBusy){Toast.makeText(host,"Uma importação já está em andamento",Toast.LENGTH_SHORT).show();return;}
+        pendingImportKind=kind;
         Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);
-        intent.setType(type);intent.addCategory(Intent.CATEGORY_OPENABLE);
-        try{host.startActivityForResult(intent,IMPORT_REQUEST);}catch(ActivityNotFoundException e){Toast.makeText(host,"Seletor de arquivos indisponível",Toast.LENGTH_LONG).show();}
+        intent.setType("*/*");intent.addCategory(Intent.CATEGORY_OPENABLE);
+        try{host.startActivityForResult(intent,IMPORT_REQUEST);}
+        catch(ActivityNotFoundException e){pendingImportKind=null;Toast.makeText(host,"Seletor de arquivos indisponível",Toast.LENGTH_LONG).show();}
     }
     private void importFromDocument(Uri uri){
-        try(java.io.InputStream in=host.getContentResolver().openInputStream(uri)){
-            if(in==null)return;
-            java.io.ByteArrayOutputStream output=new java.io.ByteArrayOutputStream();
-            byte[] buffer=new byte[8192];int read;
-            while((read=in.read(buffer))!=-1){
-                if(output.size()+read>400_000)throw new IllegalArgumentException("Arquivo maior que 400 KB");
-                output.write(buffer,0,read);
+        BrowserImport.Kind kind=pendingImportKind;pendingImportKind=null;
+        if(kind==null || importBusy)return;
+        importBusy=true;
+        new Thread(()->{
+            String content=null;
+            try(java.io.InputStream in=host.getContentResolver().openInputStream(uri)){
+                if(in==null)throw new IllegalArgumentException("Arquivo inacessível");
+                java.io.ByteArrayOutputStream output=new java.io.ByteArrayOutputStream();
+                byte[] buffer=new byte[8192];int read;
+                while((read=in.read(buffer))!=-1){
+                    if(output.size()+read>BrowserImport.MAX_BYTES)throw new IllegalArgumentException("Arquivo maior que 400 KB");
+                    output.write(buffer,0,read);
+                }
+                content=java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                    .decode(java.nio.ByteBuffer.wrap(output.toByteArray())).toString();
+            }catch(Exception err){
+                host.runOnUiThread(()->{
+                    importBusy=false;
+                    if(!host.isFinishing()&&!host.isDestroyed())AppMenus.info(host,"Arquivo não aceito","Escolha um arquivo UTF-8 válido de até 400 KB.",AppMenus.entries());
+                });
+                return;
             }
-            byte[] bytes=output.toByteArray();
-            if(bytes.length>400_000)throw new IllegalArgumentException("Arquivo maior que 400 KB");
-            String content=new String(bytes,java.nio.charset.StandardCharsets.UTF_8);
-            String name=uri.getLastPathSegment();
-            if(content.toLowerCase(java.util.Locale.ROOT).contains("<a ")||content.toLowerCase(java.util.Locale.ROOT).contains("<dt><a")){
-                int count=BrowserImport.importBookmarks(host,content);
-                Toast.makeText(host,count+" favoritos importados",Toast.LENGTH_LONG).show();
-            }else{
-                int count=BrowserImport.importLogins(host,content);
-                Toast.makeText(host,count+" senhas importadas de CSV",Toast.LENGTH_LONG).show();
-            }
-        }catch(Exception err){Toast.makeText(host,"Importação falhou: arquivo inválido ou não suportado",Toast.LENGTH_LONG).show();}
+            final String selected=content;
+            final BrowserImport.Preview preview=kind==BrowserImport.Kind.LOGINS?null:BrowserImport.preview(kind,selected);
+            host.runOnUiThread(()->{
+                importBusy=false;
+                if(host.isFinishing()||host.isDestroyed())return;
+                if(kind!=BrowserImport.Kind.LOGINS && preview==null){
+                    AppMenus.info(host,"Formato não reconhecido","Para favoritos, exporte HTML ou CSV. Para histórico, forneça CSV com coluna url. Arquivos CSV de senhas não são aceitos nessas opções.",AppMenus.entries());
+                    return;
+                }
+                showImportPreview(kind,preview,selected);
+            });
+        },"BaixaFacil-importacao").start();
+    }
+    private void showImportPreview(BrowserImport.Kind kind,BrowserImport.Preview preview,String content){
+        if(kind==BrowserImport.Kind.LOGINS){
+            List<java.util.List<String>> rowsCsv=CsvRows.parse(content,500);
+            if(rowsCsv==null||rowsCsv.size()<2){AppMenus.info(host,"CSV inválido","Não foram encontrados registros CSV válidos.",AppMenus.entries());return;}
+            List<AppMenus.Entry> rows=AppMenus.entries();
+            rows.add(AppMenus.Entry.note("Arquivo com até "+(rowsCsv.size()-1)+" linhas de dados. Serão aceitas somente origens HTTPS e credenciais válidas. O conteúdo não é exibido."));
+            rows.add(AppMenus.Entry.item("Confirmar importação","Gravar credenciais protegidas no aparelho","lock",()->{
+                if(importBusy)return;
+                importBusy=true;
+                new Thread(()->{
+                    int count=BrowserImport.importLogins(host,content);
+                    host.runOnUiThread(()->{importBusy=false;
+                        if(!host.isFinishing()&&!host.isDestroyed())Toast.makeText(host,count+" senhas importadas",Toast.LENGTH_LONG).show();});
+                },"BaixaFacil-senhas").start();
+            }));
+            AppMenus.show(host,"Conferir importação de senhas","O arquivo ficará apenas em memória durante a operação; não será salvo no app.",rows);
+            return;
+        }
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        rows.add(AppMenus.Entry.note("Formato: "+preview.format+". Links válidos distintos: "+preview.records.size()+". Ignorados ou repetidos: "+preview.rejected+"."));
+        if(preview.kind==BrowserImport.Kind.BOOKMARKS)rows.add(AppMenus.Entry.note("Até 60 favoritos no total. Os já salvos serão preservados, sem duplicar nem substituir títulos."));
+        else rows.add(AppMenus.Entry.note("Até 120 URLs no histórico. Não serão criadas visitas fictícias na lista de sites mais acessados."));
+        for(int i=0;i<Math.min(3,preview.records.size());i++){
+            BrowserImport.Record item=preview.records.get(i);
+            String domain="Endereço válido";
+            try{domain=new URI(item.url).getHost();}catch(Exception ignored){}
+            rows.add(AppMenus.Entry.note("• "+domain));
+        }
+        if(preview.records.isEmpty()){
+            rows.add(AppMenus.Entry.note("Nenhum endereço permitido encontrado. Nenhuma alteração será feita."));
+        }else{
+            rows.add(AppMenus.Entry.item("Confirmar importação","Mesclar com os dados existentes","bookmark",()->{
+                int added=BrowserImport.importPreview(host,preview);
+                Toast.makeText(host,added+" "+(kind==BrowserImport.Kind.BOOKMARKS?"favoritos":"endereços do histórico")+" adicionados",Toast.LENGTH_LONG).show();
+            }));
+        }
+        AppMenus.show(host,"Conferir importação","Revise a quantidade antes de confirmar. Não serão importados cookies, senhas ou sessões nesta opção.",rows);
     }
     private void manageSavedLogins(){
         if(!SecureLoginStore.readable(host)){

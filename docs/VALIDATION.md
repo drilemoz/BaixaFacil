@@ -1,3 +1,10 @@
+## 0.1.0-alpha.62: importação de favoritos/histórico com prévia
+
+- `tools/test_browser_redesign.py`: compila importador e parser CSV reais via JDK/stubs; testa favoritos HTML/CSV, histórico CSV, links duplicados, filtros simulados para URL sensível, CSV de senhas no tipo errado e CSV malformado.
+- `tools/test_address_inline.py`: verifica permanência do editor de endereço inline sem pop-up.
+- `tools/ci_preflight.py`, `tools/test_abi_pipeline.py`, `tools/test_publish_mock.sh`: exigem versionCode 62, sincronismo do coletor e três APKs por ABI na publicação simulada.
+- Tests reais Android/GeckoView, seletor de arquivos, importador e teclado no dispositivo: **não executados**; validar no GitHub Actions e em aparelho.
+
 ## 0.1.0-alpha.61: gestão de senhas e CSV seguro
 
 - Pré-validação do workflow, 3 ABIs e versionCode 61.

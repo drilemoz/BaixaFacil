@@ -56,14 +56,19 @@ public final class BrowserPrefs {
         prefs(c).edit().putString(KEY_HOME, normalized).apply();
         return true;
     }
+    private static final int MAX_HISTORY = 120;
+    static String safeHistoryUrl(String raw) {
+        if (raw == null || raw.length() > 2048) return null;
+        String url = UrlTools.extract(raw);
+        return url != null && url.equals(raw)
+            && !AuthNavigation.isSensitiveLoginPage(url)
+            && !LoginWindowPolicy.hasLoginParameters(url) ? url : null;
+    }
     public static List<String> history(Context c) {
         String raw = prefs(c).getString(KEY_HISTORY, "");
         ArrayList<String> items = new ArrayList<>();
         if (raw != null) for (String item : raw.split("\n")) {
-            if (UrlTools.extract(item) != null && UrlTools.extract(item).equals(item)
-                    && !AuthNavigation.isSensitiveLoginPage(item)
-                    && !LoginWindowPolicy.hasLoginParameters(item)
-                    && !items.contains(item)) items.add(item);
+            if (items.size() < MAX_HISTORY && safeHistoryUrl(item) != null && !items.contains(item)) items.add(item);
         }
         // Limpa URLs sensíveis que tenham sido persistidas por versões anteriores.
         String sanitized = String.join("\n", items);
@@ -72,14 +77,39 @@ public final class BrowserPrefs {
         return items;
     }
     public static void remember(Context c, String url) {
-        if (url == null || !url.equals(UrlTools.extract(url))
-                || AuthNavigation.isSensitiveLoginPage(url)
-                || LoginWindowPolicy.hasLoginParameters(url)) return;
+        if (safeHistoryUrl(url) == null) return;
         List<String> items = history(c);
         items.remove(url);
         items.add(0,url);
-        while (items.size() > 12) items.remove(items.size()-1);
+        while (items.size() > MAX_HISTORY) items.remove(items.size()-1);
         prefs(c).edit().putString(KEY_HISTORY, String.join("\n", items)).apply();
+    }
+    /** Adiciona histórico exportado sem criar visitas fictícias em BrowserTopSites.
+     * Mantém primeiro o histórico já existente, e ignora repetidos e URLs sensíveis. */
+    static synchronized int importHistory(Context c, List<BrowserImport.Record> incoming) {
+        List<String> current = history(c);
+        int added = 0;
+        for (BrowserImport.Record row: incoming) {
+            String url = safeHistoryUrl(row.url);
+            if (url == null || current.contains(url)) continue;
+            if (current.size() >= MAX_HISTORY) break;
+            current.add(url); added++;
+        }
+        if (added > 0) prefs(c).edit().putString(KEY_HISTORY, String.join("\n", current)).apply();
+        return added;
+    }
+    /** Mescla favoritos sem substituir títulos ou posição dos já salvos. */
+    static synchronized int importFavorites(Context c, List<BrowserImport.Record> incoming) {
+        List<Favorite> current = favorites(c);
+        int added = 0;
+        for (BrowserImport.Record row: incoming) {
+            String url = FavoriteRules.url(row.url);
+            if (url == null || findFavorite(current,url) >= 0) continue;
+            if (current.size() >= FavoriteRules.MAX_FAVORITES) break;
+            current.add(new Favorite(url,FavoriteRules.title(row.title,url)));added++;
+        }
+        if (added > 0) writeFavorites(c,current);
+        return added;
     }
     /** Favoritos deliberadamente separados do histórico e da limpeza de cache/cookies. */
     public static final class Favorite {

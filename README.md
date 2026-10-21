@@ -1,3 +1,11 @@
+## 0.1.0-alpha.62: importar favoritos e histórico de outros navegadores
+
+- Menu Dados de outros navegadores separa **Favoritos HTML/CSV**, **Histórico CSV** e **Senhas CSV**. Os arquivos precisam ser exportados e selecionados pelo usuário; não existe leitura automática de perfis externos.
+- Nova prévia com contagem de links válidos/ignorados e confirmação antes de gravar. Rejeita CSV de senhas nas opções de favoritos e histórico; não registra caminhos nem tokens em logs.
+- Mescla favoritos sem alterar títulos existentes (limite total 60) e histórico preservando URLs locais (limite 120). Importação de histórico não incrementa os sites mais visitados nem cria visitas fictícias.
+- Leitura de arquivo limitado a 400 KB, CSV a 500 registros, fora da thread de interface; preservados cofre criptografado, GeckoView 158, ETP, barra inline, arquitetura por ABI e mecanismo de download.
+- Build Android e testes no aparelho ainda pendentes.
+
 ## 0.1.0-alpha.61: gerenciador seguro de credenciais
 
 - Gerenciador de senhas agora mostra contas por site e usuário, com detalhes não sensíveis, cópia do nome de usuário e exclusão individual ou total com confirmação personalizada.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verifica contratos da alpha.61 e exercita o parser real de importação com stubs JDK.
+"""Verifica contratos da alpha.62 e exercita o parser real de importação com stubs JDK.
 Não equivale a teste Android/GeckoView em aparelho.
 """
 from pathlib import Path
@@ -20,6 +20,10 @@ assert 'if(!SecureLoginStore.readable(host))' in pane
 assert 'confirmDeleteAllLogins' in pane
 assert 'AES/GCM/NoPadding' in read('SecureLoginStore.java')
 assert 'setAutocompleteStorageDelegate' in read('GeckoEngine.java')
+assert 'BrowserImport.Kind.HISTORY' in pane and 'showImportPreview' in pane
+assert 'BrowserPrefs.importHistory' in read('BrowserImport.java')
+assert 'BrowserTopSites.record' not in read('BrowserImport.java')
+assert 'MAX_HISTORY = 120' in read('BrowserPrefs.java')
 assert 'onLoginSave' in read('GeckoPromptHandler.java')
 assert 'SitePermissionDialog.show' in read('GeckoSitePermissions.java')
 assert 'msg.includeImages' in (ROOT/'app/src/main/assets/baixafacil_gecko/media.js').read_text()
@@ -42,9 +46,17 @@ with tempfile.TemporaryDirectory(prefix='baixafacil-parser-') as temp:
               }
             }
           }''',
+        'br/com/baixafacil/FavoriteRules.java':'''package br.com.baixafacil;
+          public class FavoriteRules {
+            public static String url(String u){return u!=null&&(u.startsWith("https://")||u.startsWith("http://"))?u:null;}
+            public static String title(String title,String url){return title;}
+          }''',
         'br/com/baixafacil/BrowserPrefs.java':'''package br.com.baixafacil;
           public class BrowserPrefs {
-            public static int saved=0;
+            public static int saved=0,historySaved=0;
+            public static String safeHistoryUrl(String url){return url!=null&&url.startsWith("https://")&&!url.contains("token=")&&!url.contains("login")?url:null;}
+            public static int importFavorites(android.content.Context c,java.util.List<BrowserImport.Record> r){saved+=r.size();return r.size();}
+            public static int importHistory(android.content.Context c,java.util.List<BrowserImport.Record> r){historySaved+=r.size();return r.size();}
             public static boolean addFavorite(android.content.Context c,String url,String title){
               if(!url.startsWith("https://")&&!url.startsWith("http://"))return false;
               saved++;return true;
@@ -81,6 +93,28 @@ with tempfile.TemporaryDirectory(prefix='baixafacil-parser-') as temp:
               check(CsvRows.parse("url,username,password\nhttps://ok.test,joao,\"uma,duas\"",500).size()==2);
               check(CsvRows.parse("url,username,password\nhttps://x.test,ana,\"a\"n",500)==null);
               check(BrowserImport.importBookmarks(c,"<a href='https://valid.test'>oi</a>"+"x".repeat(400001))==0);
+              BrowserImport.Preview fav=BrowserImport.preview(BrowserImport.Kind.BOOKMARKS,
+                "<DT><A ADD_DATE=\"123\" HREF=\"https://site.test/a?x=1&amp;y=2\">Nome &amp; Site</A>"+
+                "<A HREF=\"javascript:alert(1)\">Ruim</A>"+
+                "<A HREF=\"https://site.test/a?x=1&amp;y=2\">Duplicado</A>");
+              check(fav!=null && fav.records.size()==1 && fav.rejected==2);
+              check(fav.records.get(0).url.contains("x=1&y=2"));
+              check(BrowserImport.importPreview(c,fav)==1);
+              BrowserImport.Preview history=BrowserImport.preview(BrowserImport.Kind.HISTORY,
+                "url,title,visit_time\r\nhttps://news.test/1,Notícia,123\r\n"+
+                "https://news.test/1,Repetida,124\r\nhttps://news.test/?token=secret,Protegida,125");
+              check(history!=null && history.records.size()==1 && history.rejected==2);
+              check(BrowserImport.importPreview(c,history)==1 && BrowserPrefs.historySaved==1);
+              check(BrowserImport.preview(BrowserImport.Kind.BOOKMARKS,
+                "url,name\nhttps://example.test,Exemplo").records.size()==1);
+              check(BrowserImport.preview(BrowserImport.Kind.HISTORY,
+                "url,username,password\nhttps://news.test,me,secret")==null);
+              check(BrowserImport.preview(BrowserImport.Kind.BOOKMARKS,
+                "url,name,password\nhttps://news.test,Title,secret")==null);
+              check(BrowserImport.preview(BrowserImport.Kind.HISTORY,
+                "name,nothing\nsite,foo")==null);
+              check(BrowserImport.preview(BrowserImport.Kind.HISTORY,
+                "url,title\nhttps://ok.test,\"unclosed")==null);
             }
           }''',
     }

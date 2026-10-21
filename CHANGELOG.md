@@ -1,3 +1,11 @@
+# Baixa Fácil 0.1.0-alpha.62 (versionCode 62) - 2026-10-20
+
+- Novo importador opt-in com escolha explícita de favoritos HTML/CSV, histórico CSV ou senhas CSV, prévia dos itens válidos e confirmação antes de mesclar.
+- Favoritos duplicados não substituem nomes ou posições; histórico importado não gera contagens de visitas falsas e respeita filtros de URLs sensíveis.
+- Histórico local pode armazenar até 120 URLs, mantendo a migração dos dados anteriores; sem alterar cookies, GeckoView ou downloads.
+- Leitura de arquivo em worker com limite de tamanho e confirmação no tema do app. CSV com colunas sensíveis rejeitado em importações de histórico/favoritos.
+- Atualizados testes locais de parser e versionamento 62; build real e QA Android permanecem pendentes.
+
 # Baixa Fácil 0.1.0-alpha.61 (versionCode 61) - 2026-10-20
 
 - Novo fluxo de gestão de credenciais: lista ordenada, detalhes sem revelar senhas, exclusão individual ou total com confirmação temática.

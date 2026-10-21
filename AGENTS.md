@@ -211,3 +211,9 @@
 - O gerenciador mostra apenas site e usuário, não revela senhas nem exporta credenciais para texto claro. Não copiar senhas para área de transferência, logs ou relatórios.
 - Importação de senhas CSV exige seleção manual, confirmação e origem HTTPS; parser deve lidar com vírgulas, aspas e quebras de linha citadas, rejeitar aspas sem fechamento e impor limites (400 KB/500 registros).
 - Preservar GeckoView 158, ETP, editor URL inline, três ABI, assinatura e histórico de downloads. Próxima versão sequencial alpha.62/versionCode 62.
+
+## Versão 0.1.0-alpha.62: importação opt-in de dados
+- `BrowserImport.preview` identifica o tipo de importação **pela escolha explícita do usuário** (favoritos HTML/CSV ou histórico CSV); não adivinhar senha com base em conteúdo; CSV de senhas só na opção separada.
+- Até 400 KB e 500 entradas; prévia e confirmação antes de mesclar. Não ler perfis privados de outros navegadores, cookies, sessões, tokens nem credenciais implicitamente.
+- Favoritos existentes permanecem inalterados ao importar; histórico importado vem após o histórico local, respeita URLs sensíveis e não incrementa `BrowserTopSites` (não inventar visitas).
+- Manter limites 60 favoritos / 120 URLs do histórico, GeckoView 158, ETP, identidade Android, Secrets e três ABI; próxima versão alpha.63/versionCode 63.

@@ -1,3 +1,10 @@
+# Baixa Fácil 0.1.0-alpha.62 (versionCode 62)
+
+## Migração de dados do navegador
+Importação de favoritos exportados em HTML Netscape ou CSV com colunas URL e nome; histórico em CSV com coluna URL. O usuário seleciona o arquivo, vê uma prévia das quantidades e confirma antes de mesclar. Não altera títulos de favoritos existentes nem gera visitas fictícias. A opção de senhas CSV permanece separada e cifrada com Android Keystore.
+
+**Limites:** máximo 400 KB/500 registros por arquivo, 60 favoritos e 120 endereços no histórico. Não acessa cookies, históricos protegidos nem sessões de outros aplicativos. Nenhum APK desta versão foi compilado ou testado em aparelho neste ambiente.
+
 # Baixa Fácil 0.1.0-alpha.61 (versionCode 61)
 
 ## Senhas e importação
