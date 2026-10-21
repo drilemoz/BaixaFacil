@@ -1,3 +1,18 @@
+## 0.1.0-alpha.64: estabilidade de miniaturas e atualização adaptativa
+
+- `tools/test_media_performance.py` compila `MediaWorkPolicy`, `MediaPreviewLoader` e `MediaPreviewFormat` reais com JDK 17 e pequenos stubs Android, e testa agendamento ativo/ocioso, limites de fila, deduplicação de callbacks e descarte do cache em baixa memória.
+- `tools/ci_preflight.py` inclui esse teste, além das regressões existentes de Gecko, segurança, mídia, barra inline e workflow por ABI.
+- `tools/test_media_alpha63.py`/`tools/test_media_scanner.js`: regressões do scanner e filtros permanecem válidas.
+- `tools/test_abi_pipeline.py` e `tools/test_publish_mock.sh`: simulação dos 3 APKs para `0.1.0-alpha.64` e verificação de SHA-256.
+- **Limitações:** stubs não são Android/GeckoView reais; não foram medidas reduções de RAM ou bateria. Testar no aparelho com 0, 1 e vários downloads ativos, retorno de segundo plano, rolagem de lista de 150 itens, troca de abas e pressão de RAM. Checar geração e assinatura reais dos 3 APKs em GitHub Actions.
+
+## 0.1.0-alpha.63: central de mídias e scanner manual
+
+- `tools/test_media_alpha63.py`: compila `DownloadInfo.java` e `DownloadMediaFilter.java` reais com JDK e executa assertivas de tipos, contagens e exclusões; também verifica ligação dos filtros e proteção do detalhe das imagens.
+- `tools/test_media_scanner.js`: executa a extensão JavaScript empacotada sobre DOM fictício, verificando varredura manual de `srcset`, `picture`, lazy-load, poster e CSS inline, exclusão de URLs com credenciais e cap de 60 imagens. Scan automático não deve incluir imagens nem fazer requisições.
+- `tools/ci_preflight.py` chama o teste novo e mantém regressões da barra inline, importação, três ABIs e versionamento/publish.
+- Limitações: nenhum desses testes simula o motor GeckoView ou o MediaStore real. Necessário conferir no aparelho filtros, contadores, imagens dinâmicas e retenção das sessões/cookies.
+
 ## 0.1.0-alpha.62: importação de favoritos/histórico com prévia
 
 - `tools/test_browser_redesign.py`: compila importador e parser CSV reais via JDK/stubs; testa favoritos HTML/CSV, histórico CSV, links duplicados, filtros simulados para URL sensível, CSV de senhas no tipo errado e CSV malformado.

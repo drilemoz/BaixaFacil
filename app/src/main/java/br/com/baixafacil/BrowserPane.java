@@ -1216,7 +1216,9 @@ final class BrowserPane {
         List<AppMenus.Entry> rows=AppMenus.entries();
         int imageCount;
         synchronized(imageUrls){imageCount=imageUrls.size();}
-        rows.add(AppMenus.Entry.item("Vídeos e streams","Ver fontes e opções de reprodução","play",this::showDetectedVideos));
+        int videoCount;
+        synchronized(videoUrls){videoCount=VideoMenuModel.display(videoUrls,VideoPrefs.showStreams(host),VideoPrefs.showSources(host)).size();}
+        rows.add(AppMenus.Entry.item("Vídeos e streams ("+videoCount+")","Ver fontes e opções de reprodução","play",this::showDetectedVideos));
         rows.add(AppMenus.Entry.item("Imagens ("+imageCount+")","Ver imagens disponíveis nesta página","file",this::showDetectedImages));
         rows.add(AppMenus.Entry.item("Buscar novamente","Atualizar a varredura da página","search",()->scanPageVideos(true)));
         AppMenus.show(host,"Imagens e mídias","Somente fontes acessíveis no documento atual; não contorna DRM.",rows);
@@ -1232,7 +1234,8 @@ final class BrowserPane {
                     actions.add(AppMenus.Entry.item("Baixar imagem","Arquivo HTTP/HTTPS público","download",()->offerDownload(chosen,standardUserAgent,-1)));
                     actions.add(AppMenus.Entry.item("Abrir imagem","Abrir no navegador","globe",()->navigate(chosen)));
                     actions.add(AppMenus.Entry.item("Copiar link","Endereço da imagem","copy",()->copyLink(chosen)));
-                    AppMenus.show(host,"Imagem "+index,chosen,actions);
+                    AppMenus.show(host,"Imagem "+index,
+                        "Origem: "+shownHost(chosen)+". O link completo só é copiado se você escolher Copiar link.",actions);
                 }));
             }
         }

@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.62"
-CODE = "62"
+VERSION = "0.1.0-alpha.64"
+CODE = "64"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -16,6 +16,7 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "alpha63 media filters and manual DOM scan": subprocess.run([sys.executable, str(ROOT / "tools/test_media_alpha63.py")],check=False).returncode==0,
     "ABI collector receives exact Gradle versionCode": (
         len(re.findall(r"(?m)^\s*python3 tools/collect_abi_apks\.py[^\n]*$", workflow)) == 1
         and bool(re.search(r"(?m)^\s*python3 tools/collect_abi_apks\.py[^\n]*\s--code\s+" + CODE + r"\s+--output\s+dist\s*$", workflow))
@@ -110,11 +111,13 @@ checks = {
     "address suggestions": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["openAddressEditor", "updateAddressSuggestions", "BrowserSuggestions.suggest", "dismissAddressSuggestions", "BrowserTopSites.mostVisited", "addSuggestion", "clipboardUrl"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserSuggestions.java") for x in ["LoginWindowPolicy.hasLoginParameters", "AuthNavigation.isSensitiveLoginPage", "LIMIT=5"]),
     "browser editor and import parser regression": subprocess.run([sys.executable, str(ROOT / "tools/test_browser_redesign.py")], check=False).returncode==0,
+    "alpha64 bounded thumbnails and adaptive refresh": subprocess.run([sys.executable, str(ROOT / "tools/test_media_performance.py")], check=False).returncode==0,
     "inline address first-tap regression": subprocess.run([sys.executable, str(ROOT / "tools/test_address_inline.py")], check=False).returncode==0,
     "redesigned browser permissions and media": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
         for x in ["showCompactMenu", "openAddressEditor", "startVoiceSearch", "startQrScanner", "showDetectedImages", "handleBrowserActivityResult"])
         and "SitePermissionDialog.show" in read("app/src/main/java/br/com/baixafacil/GeckoSitePermissions.java")
-        and 'data.images.push' in read("app/src/main/assets/baixafacil_gecko/media.js"),
+        and 'imageSet.add(safe)' in read("app/src/main/assets/baixafacil_gecko/media.js")
+        and 'data.images = [...imageSet]' in read("app/src/main/assets/baixafacil_gecko/media.js"),
     "encrypted login vault": all(x in read("app/src/main/java/br/com/baixafacil/SecureLoginStore.java")
         for x in ["AndroidKeyStore", "AES/GCM/NoPadding", "secureOrigin", "onLoginFetch", "onLoginSave"])
         and "setAutocompleteStorageDelegate" in read("app/src/main/java/br/com/baixafacil/GeckoEngine.java")

@@ -13,7 +13,7 @@ public final class DownloadInfo {
         if(ends(name,".apk",".apks",".xapk",".aab")) return "Aplicativos";
         if(ends(name,".mp4",".mkv",".avi",".mov",".webm",".3gp",".m4v")) return "Vídeos";
         if(ends(name,".mp3",".m4a",".aac",".ogg",".flac",".wav",".opus")) return "Áudios";
-        if(ends(name,".jpg",".jpeg",".png",".webp",".gif",".bmp",".heic",".svg")) return "Imagens";
+        if(ends(name,".jpg",".jpeg",".jfif",".png",".apng",".webp",".gif",".bmp",".heic",".heif",".avif",".svg")) return "Imagens";
         if(ends(name,".pdf",".txt",".doc",".docx",".xls",".xlsx",".ppt",".pptx",".csv",".epub",".odt")) return "Documentos";
         if(ends(name,".zip",".rar",".7z",".tar",".gz",".xz",".bz2",".zst")) return "Compactados";
         return "Outros";

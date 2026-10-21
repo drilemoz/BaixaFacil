@@ -1,3 +1,19 @@
+## 0.1.0-alpha.64: desempenho, RAM e bateria
+
+- Central de downloads reduz a frequência de atualização de **1,2 s para 6 s** sem transferências ativas e mantém 1,2 s durante fila/transferência; a Activity suspende o agendamento ao sair do primeiro plano e atualiza imediatamente após ações do usuário.
+- Miniaturas locais com fila limitada a **10 URIs**, até **8 callbacks por URI** para reduzir trabalhos repetidos, cache LRU de até **4 MiB** e descarte do cache em eventos reais de pouca memória. Imagens exibidas não são recicladas enquanto as views ainda as usam.
+- Resposta quando fila estiver cheia mantém a interface funcional sem carregar novos arquivos; visualização de metadados pode exigir nova tentativa após liberar a fila.
+- GeckoView, ETP, atualização da barra, filtros, Media3 e downloads/retomada preservados. **Build Android e teste físico pendentes**. Consulte `docs/VALIDATION.md`.
+
+## 0.1.0-alpha.63: mídias na central de downloads e varredura manual ampliada
+
+- Central de downloads ganhou filtros rápidos horizontais **Todos / Mídias / Vídeos / Imagens / Áudios**, com contadores apenas dos registros locais, inclusive itens não concluídos. O menu de organização também oferece Mídias.
+- Filtros preservam a combinação atual com status, pesquisa, tamanho e origem. Trocar de filtro encerra seleção múltipla por segurança; não move, apaga ou retoma transferências.
+- Classificação por extensão passou a reconhecer imagens AVIF, HEIF, JFIF e APNG. Não declara MIME verificado, nem varre a pasta Download fora do aplicativo.
+- Varredura manual da página Gecko identifica imagens `srcset`, `<picture>`, atributos lazy-load, pôsteres `<video>` e fundos CSS inline visíveis no DOM principal. Limite de 60 links de imagem, sem downloads automáticos nem novo fetch.
+- URLs com credenciais ou fragmento não entram na lista de imagens. O modal de imagem mostra somente o domínio; copiar o endereço completo exige toque explícito.
+- GeckoView 158, ETP, mídia HLS/DASH e gerenciamento HTTP foram preservados. **Build Android real e QA no aparelho pendentes.**
+
 ## 0.1.0-alpha.62: importar favoritos e histórico de outros navegadores
 
 - Menu Dados de outros navegadores separa **Favoritos HTML/CSV**, **Histórico CSV** e **Senhas CSV**. Os arquivos precisam ser exportados e selecionados pelo usuário; não existe leitura automática de perfis externos.

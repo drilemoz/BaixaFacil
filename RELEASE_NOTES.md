@@ -1,3 +1,19 @@
+# Baixa Fácil 0.1.0-alpha.64 (versionCode 64)
+
+## Estabilidade e economia de recursos
+
+O painel de downloads reduz consultas periódicas enquanto ocioso, mas mantém atualização rápida se há downloads em andamento. A geração de miniaturas locais agora tem um limite explícito de fila, reutiliza trabalhos repetidos e descarta miniaturas do cache sob sinalização de pouca memória do Android, sem interromper downloads.
+
+A versão preserva GeckoView 158, ETP, segurança TLS, downloads e três APKs por arquitetura. **Este ZIP é código-fonte, sem build Android ou medições reais de bateria.** É necessário compilar no GitHub Actions e verificar a interface no aparelho.
+
+# Baixa Fácil 0.1.0-alpha.63 (versionCode 63)
+
+## Downloads e detecção de mídia
+- Filtros rápidos Todos, Mídias, Vídeos, Imagens e Áudios, com contagens do histórico local do app. A seleção dos tipos não altera arquivos ou a fila.
+- Varredura manual ampliada de imagens responsivas, carregamento tardio, pôsteres de vídeo e CSS inline da página, com limites de segurança. URLs inseguras são rejeitadas; não há download automático ou promessa de acesso a mídias protegidas.
+- Identificação por nome de imagens AVIF, HEIF, APNG e JFIF. Contagem se refere a registros, não a arquivos detectados em todo o celular.
+- GeckoView 158, ETP, downloads/retomada, assinatura e três APKs por ABI preservados. Os APKs precisam ser compilados no GitHub Actions e testados em Android antes de considerar a versão validada.
+
 # Baixa Fácil 0.1.0-alpha.62 (versionCode 62)
 
 ## Migração de dados do navegador

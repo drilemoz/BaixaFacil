@@ -1,8 +1,21 @@
 /* Executa somente no documento principal. Sem envio de cookies, formulários ou tokens. */
 (() => {
   const port = browser.runtime.connectNative('baixafacil');
-  const supported = /^https?:\/\//i;
-  const normalize = value => typeof value === 'string' && supported.test(value) && value.length <= 4096 ? value : '';
+  // Inspeciona apenas fontes do DOM principal: não realiza fetch nem varre recursos de outros apps.
+  function normalize(value) {
+    if (typeof value !== 'string' || !value || value.length > 4096) return '';
+    try {
+      const url = new URL(value, document.baseURI);
+      if (!['http:', 'https:'].includes(url.protocol) || !url.hostname ||
+          url.username || url.password || url.hash || url.href.length > 4096) return '';
+      return url.href;
+    } catch (_) { return ''; }
+  }
+  function srcSetCandidates(srcset) {
+    if (!srcset || srcset.length > 4096) return [];
+    // srcset de URLs HTTP(S); data: e blob: não são candidatos à transferência.
+    return srcset.split(',').slice(0, 8).map(part => part.trim().split(/\s+/)[0]).filter(Boolean);
+  }
   function scan(includeImages) {
     const data = { media: [], images: [], players: 0, unsupported: 0 };
     try {
@@ -21,17 +34,32 @@
           add(source.src, 'source', source.type);
       }
       if (includeImages) {
-        for (const picture of [...document.querySelectorAll('img')].slice(0, 100)) {
-          const src = picture.currentSrc || picture.src;
-          const safe = normalize(src);
-          if (safe && data.images.length < 60 && !data.images.includes(safe))
-            data.images.push(safe);
+        // Somente varredura manual: fontes responsivas/lazy e pôsteres já presentes no DOM.
+        const imageSet = new Set();
+        function addImage(value) {
+          const safe = normalize(value);
+          if (safe && !imageSet.has(safe) && imageSet.size < 60) imageSet.add(safe);
+        }
+        for (const img of [...document.querySelectorAll('img')].slice(0, 120)) {
+          addImage(img.currentSrc || img.src);
+          addImage(img.getAttribute('data-src'));
+          addImage(img.getAttribute('data-original'));
+          for (const candidate of srcSetCandidates(img.getAttribute('srcset'))) addImage(candidate);
+        }
+        for (const source of [...document.querySelectorAll('picture source[srcset]')].slice(0, 40)) {
+          for (const candidate of srcSetCandidates(source.getAttribute('srcset'))) addImage(candidate);
+        }
+        for (const video of videos) addImage(video.poster || video.getAttribute('poster'));
+        // CSS inline apenas; não força getComputedStyle em todo o documento.
+        for (const element of [...document.querySelectorAll('[style*="background-image"]')].slice(0, 40)) {
+          const style = element.style && element.style.backgroundImage || '';
+          for (const match of style.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/gi)) addImage(match[2]);
         }
         for (const link of [...document.querySelectorAll('a[href]')].slice(0, 100)) {
           const href = normalize(link.href);
-          if (href && /\.(png|jpe?g|webp|gif|avif)(\?|#|$)/i.test(href) &&
-              data.images.length < 60 && !data.images.includes(href)) data.images.push(href);
+          if (href && /\.(png|jpe?g|webp|gif|avif)(\?|$)/i.test(href)) addImage(href);
         }
+        data.images = [...imageSet];
       }
       for (const link of [...document.querySelectorAll('a[href]')].slice(0, 100))
         if (/\.(mp4|m4v|webm|mov|ogv|3gp|m3u8|mpd)(\?|#|$)/i.test(link.href))

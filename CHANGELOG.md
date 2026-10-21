@@ -1,3 +1,18 @@
+# Baixa Fácil 0.1.0-alpha.64 (versionCode 64) - 2026-10-20
+
+- Otimização de atualização da central de downloads: 1,2 s com transferências ativas e 6 s sem atividades, parando quando a Activity não está visível.
+- `MediaPreviewLoader`: fila máxima de 10 URIs, até 8 callbacks por URI, extração única de miniaturas duplicadas, cache de 4 MiB, limpeza em evento de baixa memória e proteção contra resultados antigos repovoarem o cache.
+- `MediaWorkPolicy` e teste de regressão JDK com stubs Android adicionados. Preservados GeckoView 158, Media3, FaviconLoader, ETP, sistema de downloads e os três ABIs.
+- Sem mudança de permissões ou leitura de dados privados. Compilação Gradle/Android ainda pendente.
+
+# Baixa Fácil 0.1.0-alpha.63 (versionCode 63) - 2026-10-20
+
+- Adicionados filtros rápidos de mídia e contadores por registros no histórico de downloads, combináveis com filtros existentes e com seleção encerrada ao mudar de tipo.
+- Varredura manual de mídia na WebExtension ampliada para `srcset`, `<picture>`, lazy-load, pôsteres e CSS inline; sem fazer novas requisições, mantendo limite de 60 imagens e scan automático leve.
+- URLs com usuário/senha e fragmentos são descartadas da coleta de imagens. Janelas mostram domínio, não a query assinada; o link integral somente é copiado mediante ação explícita.
+- Atualizado `DownloadInfo` para AVIF/HEIF/APNG/JFIF. Incluídos testes JDK para filtros reais e Node.js para JS empacotado; preflight, workflow por 3 ABIs e metadados sincronizados.
+- Sem SDK Android no ambiente: compilação real e teste de interface ainda pendentes.
+
 # Baixa Fácil 0.1.0-alpha.62 (versionCode 62) - 2026-10-20
 
 - Novo importador opt-in com escolha explícita de favoritos HTML/CSV, histórico CSV ou senhas CSV, prévia dos itens válidos e confirmação antes de mesclar.

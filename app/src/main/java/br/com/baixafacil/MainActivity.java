@@ -44,10 +44,7 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable updateLoop = new Runnable() {
         @Override public void run() {
-            if(downloadsVisible) {
-                refresh();
-                handler.postDelayed(this, 1200);
-            }
+            if(downloadsVisible && activityVisible)refresh();
         }
     };
     private EditText urlInput;
@@ -59,6 +56,8 @@ public class MainActivity extends Activity {
     private GeckoFilePicker geckoPicker;
     private LinearLayout browserBottomBar;
     private boolean downloadsVisible;
+    private boolean activityVisible;
+    private boolean activeDownloadsForRefresh;
     private android.widget.FrameLayout[] bottomButtons;
     private int appearanceMode;
     private android.window.OnBackInvokedCallback systemBackCallback;
@@ -163,6 +162,7 @@ public class MainActivity extends Activity {
     private Ui.Palette colors;
     private View emptyState;
     private TextView[] filterChips;
+    private TextView[] mediaQuickChips;
 
     private android.widget.FrameLayout iconButton(String name, String description, Runnable click) {
         android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
@@ -301,6 +301,24 @@ public class MainActivity extends Activity {
         }
         updateFilterChips();
         header.addView(filterRow,Ui.lp(this,-1,44,3));
+        // Acesso direto às mídias registradas: sem abrir o menu de organização.
+        android.widget.HorizontalScrollView mediaScroll=new android.widget.HorizontalScrollView(this);
+        mediaScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout mediaChoices=Ui.horizontal(this);
+        String[] mediaTypes={"Todos","Mídias","Vídeos","Imagens","Áudios"};
+        mediaQuickChips=new TextView[mediaTypes.length];
+        for(int i=0;i<mediaTypes.length;i++){
+            final String choice=mediaTypes[i];
+            TextView chip=Ui.pill(this,choice,colors.text,colors.surface);
+            chip.setContentDescription("Filtrar downloads: "+choice);
+            LinearLayout.LayoutParams lp=Ui.lp(this,-2,44,0);
+            if(i>0)lp.leftMargin=dp(7);
+            mediaChoices.addView(chip,lp);
+            mediaQuickChips[i]=chip;
+            chip.setOnClickListener(v->{typeFilter=choice;applyDownloadFilters();});
+        }
+        mediaScroll.addView(mediaChoices,new android.widget.HorizontalScrollView.LayoutParams(-2,-2));
+        header.addView(mediaScroll,Ui.lp(this,-1,46,7));
         activeFilterBar=Ui.horizontal(this);
         activeFilterBar.setPadding(dp(12),dp(3),dp(8),dp(3));
         activeFilterBar.setBackground(Ui.shape(this,colors.soft,13));
@@ -435,7 +453,6 @@ public class MainActivity extends Activity {
         browserPane.view.setVisibility(View.GONE);
         browserPane.pause();
         handler.removeCallbacks(updateLoop);
-        handler.post(updateLoop);
         refresh();updateBottomBar();
     }
     private void showBrowser() {
@@ -504,6 +521,29 @@ public class MainActivity extends Activity {
             boolean selected = i==0 ? "Todos".equals(listFilter) : i==1 ? "Fila".equals(listFilter) : "Arquivos".equals(listFilter);
             filterChips[i].setTextColor(selected ? Color.WHITE : colors.text);
             filterChips[i].setBackground(Ui.shape(this,selected ? Ui.TEAL : colors.surface,50));
+        }
+    }
+
+    private void updateMediaQuickFilters(java.util.List<JSONObject> all){
+        if(mediaQuickChips==null)return;
+        java.util.List<String> filenames=new java.util.ArrayList<>();
+        for(JSONObject row:all){
+            String name=row.optString("name");
+            if(name.isEmpty() || "Preparando download".equals(name))
+                name=FileNames.choose(null,row.optString("url"),null);
+            filenames.add(name);
+        }
+        DownloadMediaFilter.Counts counts=DownloadMediaFilter.count(filenames);
+        String[] text={"Todos", "Mídias "+counts.media, "Vídeos "+counts.videos,
+            "Imagens "+counts.images,"Áudios "+counts.audio};
+        String[] choices={"Todos","Mídias","Vídeos","Imagens","Áudios"};
+        for(int i=0;i<mediaQuickChips.length;i++){
+            TextView chip=mediaQuickChips[i];
+            boolean selected=choices[i].equals(typeFilter);
+            chip.setText(text[i]);
+            chip.setTextColor(selected?android.graphics.Color.WHITE:colors.text);
+            chip.setBackground(Ui.shape(this,selected?Ui.TEAL:colors.surface,50));
+            chip.setContentDescription("Filtrar downloads: "+text[i]+(selected?", selecionado":""));
         }
     }
 
@@ -791,7 +831,7 @@ public class MainActivity extends Activity {
     }
 
     private void chooseFileType() {
-        final String[] types={"Todos","Aplicativos","Vídeos","Áudios","Imagens","Documentos","Compactados","Outros"};
+        final String[] types={"Todos","Mídias","Aplicativos","Vídeos","Áudios","Imagens","Documentos","Compactados","Outros"};
         List<AppMenus.Entry> rows=AppMenus.entries();
         for(String type:types){
             rows.add(AppMenus.Entry.item(type+(type.equals(typeFilter)?" • atual":""),
@@ -889,7 +929,17 @@ public class MainActivity extends Activity {
 
     private void refresh() {
         if (adapter == null) return;
-        adapter.reload();
+        java.util.List<JSONObject> all=DownloadStore.all(this);
+        activeDownloadsForRefresh=false;
+        for(JSONObject row:all){
+            if(MediaWorkPolicy.needsFrequentRefresh(row.optString("status"))
+                    || TransferStarter.isActive(row.optString("id"))){
+                activeDownloadsForRefresh=true;
+                break;
+            }
+        }
+        updateMediaQuickFilters(all);
+        adapter.reload(all);
         updateActiveFilterBar();
         if(selectingDownloads){
             // IDs inválidos/alterados nunca sobrevivem na seleção.
@@ -908,11 +958,16 @@ public class MainActivity extends Activity {
             boolean empty=adapter.getCount()==0;
             emptyState.setVisibility(empty?View.VISIBLE:View.GONE);
             if(empty && emptyTitle!=null && emptySub!=null){
-                boolean hasHistory=!DownloadStore.all(this).isEmpty();
+                boolean hasHistory=!all.isEmpty();
                 emptyTitle.setText(hasHistory?"Nenhum download neste filtro":"Seus downloads aparecerão aqui");
                 emptySub.setText(hasHistory?"Experimente limpar os filtros ou mudar a pesquisa.":"Cole um link ou use o navegador para começar.");
             }
         }
+        // Sem downloads ativos, evita JSON, miniaturas e novos layouts a cada 1,2 s.
+        // Uma ação do usuário chama refresh() e reprograma a próxima atualização.
+        handler.removeCallbacks(updateLoop);
+        if(downloadsVisible && activityVisible)
+            handler.postDelayed(updateLoop,MediaWorkPolicy.refreshDelay(true,activeDownloadsForRefresh));
     }
 
     private void showItemActions(JSONObject entry) {
@@ -1228,23 +1283,27 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        activityVisible=true;
         if(Ui.mode(this)!=appearanceMode){recreate();return;}
         if(browserPane!=null && BrowserPrefs.consumeClearRequest(this))browserPane.clearLocalData();
         if(browserPane!=null&&!downloadsVisible)browserPane.resume();
         handler.removeCallbacks(updateLoop);
-        handler.post(updateLoop);
+        if(downloadsVisible)refresh();
     }
     @Override protected void onPause() {
+        activityVisible=false;
         handler.removeCallbacks(updateLoop);
         if(browserPane!=null)browserPane.pause();
         super.onPause();
     }
     @Override public void onTrimMemory(int level){
         super.onTrimMemory(level);
+        mediaPreviewLoader.onTrimMemory(level);
         if(browserPane!=null)browserPane.onMemoryPressure(level);
     }
     @Override public void onLowMemory(){
         super.onLowMemory();
+        mediaPreviewLoader.onTrimMemory(15);
         if(browserPane!=null)browserPane.onMemoryPressure(15);
     }
     @Override protected void onDestroy(){
@@ -1268,19 +1327,19 @@ public class MainActivity extends Activity {
     private class DownloadAdapter extends BaseAdapter {
         private final List<JSONObject> data=new ArrayList<>();
         private final java.util.Map<String,long[]> speeds=new java.util.HashMap<>();
-        void reload() {
+        void reload(java.util.List<JSONObject> all) {
             List<JSONObject> next=new ArrayList<>();
             boolean rateChanged=false;
             long now=android.os.SystemClock.elapsedRealtime();
             String query=searchInput==null?"":searchInput.getText().toString().trim().toLowerCase(Locale.ROOT);
-            for(JSONObject item:DownloadStore.all(MainActivity.this)) {
+            for(JSONObject item:all) {
                 String status=item.optString("status");
                 if("Arquivos".equals(listFilter)&&!"Concluído".equals(status)) continue;
                 if("Fila".equals(listFilter) && ("Concluído".equals(status) || "Cancelado".equals(status) || "Falhou".equals(status) || "Interrompido".equals(status))) continue;
                 if(!query.isEmpty() && !(item.optString("name")+" "+status+" "+item.optString("url")).toLowerCase(Locale.ROOT).contains(query))continue;
                 String guess=item.optString("name");
                 if("Preparando download".equals(guess)||guess.isEmpty()) guess=FileNames.choose(null,item.optString("url"),null);
-                if(!"Todos".equals(typeFilter) && !typeFilter.equals(DownloadInfo.kind(guess)))continue;
+                if(!DownloadMediaFilter.matches(typeFilter,guess))continue;
                 if(!DownloadListFilters.matchesSize(sizeFilter,item.optLong("total",-1),item.optLong("bytes",0),status))continue;
                 if(!DownloadListFilters.matchesOrigin(originFilter,item.optString("url")))continue;
                 next.add(item);

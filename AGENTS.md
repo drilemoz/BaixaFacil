@@ -217,3 +217,16 @@
 - Até 400 KB e 500 entradas; prévia e confirmação antes de mesclar. Não ler perfis privados de outros navegadores, cookies, sessões, tokens nem credenciais implicitamente.
 - Favoritos existentes permanecem inalterados ao importar; histórico importado vem após o histórico local, respeita URLs sensíveis e não incrementa `BrowserTopSites` (não inventar visitas).
 - Manter limites 60 favoritos / 120 URLs do histórico, GeckoView 158, ETP, identidade Android, Secrets e três ABI; próxima versão alpha.63/versionCode 63.
+
+## Versão 0.1.0-alpha.63: central de mídias e busca manual ampliada
+- Filtros rápidos no histórico são apenas sobre registros do app; contadores incluem estados pendentes e NÃO afirmam acesso a arquivos de outros apps ou a todos os arquivos da pasta Download.
+- Ao trocar de tipo, encerrar seleção múltipla. Preservar filtros combináveis, fila, itens pausados/retomáveis, histórico e links autenticados privados.
+- Varredura JS de imagens responsivas, lazy-load, poster e CSS inline apenas no gesto manual. Nunca executar fetch automático, contornar DRM, ler cookies ou guardar tokens em relatório. Máximo 60 URLs de imagem, rejeitar URLs com credenciais.
+- DownloadInfo por extensão é estimativa; AVIF/HEIF/APNG/JFIF são imagens para filtro, não garantia de MIME real. URL completa da imagem apenas após ação explícita de copiar.
+- Manter GeckoView 158, compileSdk 37.0, minSdk 29, targetSdk 34, ABI ARM32/ARM64/x86_64 e assinatura. Próxima versão sequencial: `0.1.0-alpha.64`, `versionCode 64`.
+
+## Versão 0.1.0-alpha.64: atualização adaptativa e fila de miniaturas
+- Atualização da lista de downloads: 1,2 s com estados ativos (`Aguardando`, `Na fila`, `Conectando`, `Baixando`, `Retomando` ou serviço ativo) e 6 s ociosa; sem loop de UI no background. Ações do usuário devem atualizar imediatamente.
+- `MediaPreviewLoader` limita a 10 solicitações pendentes e 8 callbacks por URI, cache máximo 4 MiB. Tratamento do Android `onTrimMemory` não deve reciclar bitmaps ainda em uso por ImageViews. Fila cheia não pode gerar novas tarefas sem limite.
+- Manter atualizações de bytes/status no DownloadEngine, TransferService e JobService intactas e não impedir retomada. Testes JDK de contratos não comprovam build Android ou ganho efetivo de bateria/RAM.
+- Preservar GeckoView 158, ETP, Media3, três ABI, minSdk29/targetSdk34/compileSdk37.0. Próxima versão `0.1.0-alpha.65`/versionCode 65.
