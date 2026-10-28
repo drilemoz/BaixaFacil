@@ -1,4 +1,7 @@
 # Regras do projeto
+
+- Alpha.69: assistente de primeira abertura com opção Pular, guardando escolhas locais. O filtro adulto é opt-in, desativado por padrão, apenas por domínios conhecidos, conferido no GeckoView em navegações e subframes. SafeSearch só se aplica a buscadores compatíveis. Não prometer inspeção de conteúdo, controle de outro navegador ou bloqueio integral. Proteger contra matches parciais (`evil-example.com` não é `example.com`). Testar os níveis OFF/MODERATE/STRICT.
+
 - Não afirmar que intercepta o `DownloadManager` do Android: apps comuns não têm essa interface universal.
 - Toda alteração gera próxima `0.1.0-alpha.N` e incrementa `versionCode` em 1.
 - Sincronizar Gradle, README, CHANGELOG, docs/VERSIONING, docs/VALIDATION, notas e workflow.

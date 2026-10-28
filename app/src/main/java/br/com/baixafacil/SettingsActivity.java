@@ -47,6 +47,10 @@ public final class SettingsActivity extends Activity {
             manageFavorites();
         }
     }
+    @Override protected void onResume(){
+        super.onResume();
+        if(list!=null)render();
+    }
     private void render(){
         palette=new Ui.Palette(this);
         Ui.systemBars(this,palette);
@@ -85,6 +89,16 @@ public final class SettingsActivity extends Activity {
         downloadSwitch("Login em Custom Tabs",
             "Quando disponível, usa um navegador instalado para login Google e páginas incompatíveis. Sessões e downloads desse navegador são separados dos do Baixa Fácil.",
             CustomTabsBrowser.forLogin(this),CustomTabsBrowser::setForLogin);
+
+        section("Filtro de conteúdo adulto");
+        option("Bloqueio de sites adultos",adultLevelName(),"shield",this::chooseAdultLevel);
+        option("Reabrir configuração inicial","Escolher aparência, busca, privacidade e downloads","settings",()->{
+            startActivity(new Intent(this,SetupActivity.class));
+        });
+        TextView filterNote=Ui.text(this,
+            "Filtro opcional por domínios conhecidos e pesquisa segura. Não analisa conteúdo de imagens, redes sociais ou todos os recursos da página. Não substitui controles parentais do sistema.",
+            12,palette.muted,false);
+        filterNote.setPadding(dp(8),dp(9),dp(8),dp(10));list.addView(filterNote);
 
         section("🛡 Bloqueio de anúncios");
         option("Proteção GeckoView", adBlockModeName(), "shield", this::chooseAdBlockMode);
@@ -137,8 +151,8 @@ public final class SettingsActivity extends Activity {
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
         option("Diagnóstico e alertas",AppEventLog.enabled(this)?"Captura local ativada":"Captura local desativada","alert",()->{diagnosticsPage=true;render();});
-        option("Sobre","Baixa Fácil 0.1.0-alpha.68","webdown",()->{
-            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.68\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
+        option("Sobre","Baixa Fácil 0.1.0-alpha.69","webdown",()->{
+            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.69\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
         });
     }
     private void renderSessionSettings(){
@@ -369,6 +383,26 @@ public final class SettingsActivity extends Activity {
                     Toast.makeText(this,"Endereço inválido",Toast.LENGTH_LONG).show();
                 render();
             }).show();
+    }
+    private String adultLevelName(){
+        switch(ContentPrefs.level(this)){
+            case AdultContentPolicy.MODERATE:return "Moderado • sites conhecidos";
+            case AdultContentPolicy.STRICT:return "Rigoroso • lista ampliada";
+            default:return "Desativado";
+        }
+    }
+    private void chooseAdultLevel(){
+        List<AppMenus.Entry> rows=AppMenus.entries();
+        String[] names={"Desativado","Moderado","Rigoroso"};
+        String[] notes={"Navegação sem filtro de categoria adulta",
+            "Domínios conhecidos e pesquisa segura","Lista ampliada de domínios e pesquisa segura"};
+        for(int i=0;i<names.length;i++){
+            final int chosen=i;
+            rows.add(AppMenus.Entry.item(names[i]+(ContentPrefs.level(this)==i?" • atual":""),
+                notes[i],"shield",()->{ContentPrefs.setLevel(this,chosen);render();}));
+        }
+        AppMenus.show(this,"Filtro adulto",
+            "O bloqueio não é completo. Sites em redes sociais ou domínios desconhecidos podem escapar.",rows);
     }
     private void changeSearch(){
         List<AppMenus.Entry> rows=AppMenus.entries();

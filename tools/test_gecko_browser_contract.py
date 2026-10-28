@@ -12,7 +12,7 @@ PANE = (ROOT / 'app/src/main/java/br/com/baixafacil/BrowserPane.java').read_text
 VIEW = (ROOT / 'app/src/main/java/br/com/baixafacil/GeckoBrowserView.java').read_text(encoding='utf-8')
 
 # Métodos herdados de android.view.View / android.view.ViewGroup.
-INHERITED = {'getParent', 'postDelayed', 'removeCallbacks'}
+INHERITED = {'getParent', 'post', 'postDelayed', 'removeCallbacks'}
 
 # O compilador Java resolve tipos e herança. Este teste cobre o contrato de nomes
 # concretamente usado pelo BrowserPane, sem tentar substituir o javac Android.

@@ -1,0 +1,84 @@
+package br.com.baixafacil;
+
+import java.net.IDN;
+import java.net.URI;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+
+/** Filtragem conservadora, offline, de navegações. NÃO analisa imagens/termos ou tráfego HTTPS.
+ * O nível rigoroso amplia somente a lista de domínios; não equivale a controle parental do SO.
+ */
+final class AdultContentPolicy {
+    static final int OFF=0, MODERATE=1, STRICT=2;
+    private static final Set<String> COMMON=new HashSet<>(Arrays.asList(
+        "pornhub.com", "xvideos.com", "xnxx.com", "xhamster.com", "redtube.com",
+        "youporn.com", "tube8.com", "spankbang.com", "eporner.com", "beeg.com",
+        "tnaflix.com", "sunporno.com", "porn.com", "youjizz.com", "drtuber.com",
+        "sex.com", "thumbzilla.com", "4tube.com", "pornhd.com", "hqporner.com"
+    ));
+    private static final Set<String> EXTRA=new HashSet<>(Arrays.asList(
+        "brazzers.com", "bangbros.com", "realitykings.com", "naughtyamerica.com",
+        "onlyfans.com", "chaturbate.com", "stripchat.com", "bongacams.com",
+        "livejasmin.com", "myfreecams.com", "cam4.com", "camsoda.com",
+        "manyvids.com", "fansly.com", "rule34.xxx", "nhentai.net", "e-hentai.org",
+        "hentaihaven.xxx", "literotica.com", "youporngay.com"
+    ));
+    private AdultContentPolicy() {}
+
+    static int normalize(int mode){return mode==MODERATE||mode==STRICT?mode:OFF;}
+    static String host(String raw){
+        if(raw==null||raw.length()>4096)return null;
+        try {
+            URI uri=new URI(raw);
+            if(!"https".equalsIgnoreCase(uri.getScheme())&&!"http".equalsIgnoreCase(uri.getScheme()))return null;
+            if(uri.getRawUserInfo()!=null)return null;
+            String host=uri.getHost();
+            if(host==null||host.isEmpty())return null;
+            while(host.endsWith("."))host=host.substring(0,host.length()-1);
+            if(host.isEmpty())return null;
+            return IDN.toASCII(host,IDN.USE_STD3_ASCII_RULES).toLowerCase(Locale.ROOT);
+        } catch(Exception ignored){return null;}
+    }
+    private static boolean sameOrChild(String host,String domain){return host.equals(domain)||host.endsWith("."+domain);}
+    static boolean blocked(String url,int mode){
+        if(normalize(mode)==OFF)return false;
+        String host=host(url);
+        if(host==null)return false;
+        for(String name:COMMON)if(sameOrChild(host,name))return true;
+        if(mode==STRICT)for(String name:EXTRA)if(sameOrChild(host,name))return true;
+        return false;
+    }
+    /** Pesquisa segura é um filtro de resultados, não bloqueio de conteúdo dentro dos sites. */
+    static String safeSearchUrl(String raw,int mode){
+        if(normalize(mode)==OFF||raw==null||raw.length()>4096)return raw;
+        String host=host(raw);
+        if(host==null)return raw;
+        try {
+            URI uri=new URI(raw);
+            String path=uri.getRawPath();
+            String query=uri.getRawQuery();
+            if(query==null)return raw;
+            String key=null,value=null;
+            if((sameOrChild(host,"google.com")||host.matches("(^|.*\\.)google\\.[a-z]{2,3}(\\.[a-z]{2})?"))
+                && "/search".equals(path)) {key="safe";value="active";}
+            else if(sameOrChild(host,"bing.com")&&"/search".equals(path)){key="adlt";value="strict";}
+            else if(sameOrChild(host,"duckduckgo.com")&&("/".equals(path)||"/html/".equals(path))) {key="kp";value="1";}
+            if(key==null)return raw;
+            StringBuilder filtered=new StringBuilder();
+            for(String part:query.split("&",-1)){
+                String name=part.split("=",2)[0];
+                if(name.equalsIgnoreCase(key))continue;
+                if(filtered.length()>0)filtered.append('&');
+                filtered.append(part);
+            }
+            if(filtered.length()>0)filtered.append('&');
+            filtered.append(key).append('=').append(value);
+            // Construção com raw components: preservar percent-encoding da consulta original.
+            String prefix=raw.substring(0,raw.indexOf('?'));
+            String fragment=uri.getRawFragment();
+            return prefix+"?"+filtered+(fragment==null?"":"#"+fragment);
+        }catch(Exception ignored){return raw;}
+    }
+}

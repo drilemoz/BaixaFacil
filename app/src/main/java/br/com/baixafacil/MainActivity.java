@@ -100,6 +100,8 @@ public class MainActivity extends Activity {
         DownloadStore.reconcile(this);
         createScreen(savedInstanceState);
         handleIntent(getIntent());
+        if (savedInstanceState == null && ContentPrefs.needsSetup(this))
+            startActivity(new Intent(this,SetupActivity.class));
         if (Build.VERSION.SDK_INT >= 33) {
             systemBackCallback=this::handleBack;
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(

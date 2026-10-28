@@ -55,6 +55,7 @@
                 <data android:scheme="http" />
             </intent-filter>
         </activity>
+        <activity android:name=".SetupActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".SettingsActivity"
             android:exported="false"

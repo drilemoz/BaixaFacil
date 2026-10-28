@@ -1,3 +1,10 @@
+## 0.1.0-alpha.69: assistente inicial e filtro adulto opcional
+
+- Na primeira abertura, o assistente oferece tema, buscador, preferências de privacidade e de downloads. É possível pular. As configurações continuam editáveis depois.
+- Configurações > Filtro de conteúdo adulto: **Desativado (padrão)**, **Moderado** ou **Rigoroso**. O filtro local bloqueia apenas domínios conhecidos nas navegações do GeckoView; o rigoroso amplia essa lista. Busca segura para Google/Bing/DuckDuckGo nos URLs de pesquisa suportados.
+- Não há reconhecimento visual/textual de pornografia e não há atualização automática de uma base ampla. Não controla Chrome, Firefox ou outros apps; conteúdo adulto em domínios desconhecidos e redes sociais pode escapar. Sem PIN nesta versão. Não substituir por uma promessa de controle parental.
+- Testes de política executados localmente; **o APK Android e a interface não foram testados em dispositivo**.
+
 ## 0.1.0-alpha.68: correção de compilação GeckoSitePermissions
 
 - Corrigido o campo inexistente `pendingAndroidOrigin` no fluxo de cancelamento de permissões por origem (`Gerar APK 34`), passando a utilizar `requestedAndroidOrigin`.

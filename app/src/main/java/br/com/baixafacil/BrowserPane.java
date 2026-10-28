@@ -349,12 +349,29 @@ final class BrowserPane {
                     status.setText("Endereço bloqueado: apenas HTTP e HTTPS.");
                     return GeckoResult.fromValue(AllowOrDeny.DENY);
                 }
+                if(AdultContentPolicy.blocked(url,ContentPrefs.level(host))){
+                    showAdultBlocked(url);
+                    return GeckoResult.fromValue(AllowOrDeny.DENY);
+                }
+                String safe=AdultContentPolicy.safeSearchUrl(url,ContentPrefs.level(host));
+                if(safe!=null && !safe.equals(url)){
+                    // Voltar a carregar no GeckoView (não buscar com cliente externo).
+                    if(web!=null)web.post(()->{
+                        if(web!=null && web.session==gecko)web.loadUrl(safe);
+                    });
+                    return GeckoResult.fromValue(AllowOrDeny.DENY);
+                }
                 // Janelas são tratadas por onNewSession; nunca permitir abertura automática.
                 if(request.target==GeckoSession.NavigationDelegate.TARGET_WINDOW_NEW){
                     popupGestureAllowed=request.hasUserGesture;
                     if(!popupGestureAllowed)return GeckoResult.fromValue(AllowOrDeny.DENY);
                 }
                 return GeckoResult.fromValue(AllowOrDeny.ALLOW);
+            }
+            @Override public GeckoResult<AllowOrDeny> onSubframeLoadRequest(GeckoSession gecko,
+                    GeckoSession.NavigationDelegate.LoadRequest request){
+                return GeckoResult.fromValue(AdultContentPolicy.blocked(request.uri,ContentPrefs.level(host))
+                    ? AllowOrDeny.DENY : AllowOrDeny.ALLOW);
             }
             @Override public void onLocationChange(GeckoSession gecko,String url,
                     List<GeckoSession.PermissionDelegate.ContentPermission> permissions,Boolean gesture) {
@@ -661,7 +678,17 @@ final class BrowserPane {
         String url=BrowserPrefs.destination(host,input);
         if(url==null){Toast.makeText(host,"Endereço inválido ou não suportado",Toast.LENGTH_SHORT).show();return;}
         dismissAddressSuggestions();setAddressFromPage(url);showSecurity(url);
+        if(AdultContentPolicy.blocked(url,ContentPrefs.level(host))){showAdultBlocked(url);return;}
+        url=AdultContentPolicy.safeSearchUrl(url,ContentPrefs.level(host));
         if(web!=null)web.loadUrl(url);
+    }
+    private void showAdultBlocked(String url){
+        String hostname=AdultContentPolicy.host(url);
+        status.setText("Site bloqueado pelo filtro adulto.");
+        AppMenus.info(host,"Conteúdo bloqueado",
+            "O endereço "+(hostname==null?"solicitado":hostname)+" está em uma lista local de domínios adultos. " +
+            "Para alterar o filtro, abra Configurações > Filtro de conteúdo adulto. " +
+            "Esse filtro não identifica todo conteúdo inadequado.",AppMenus.entries());
     }
     void goBack(){if(web.canGoBack()) web.goBack();}
     void goForward(){if(web.canGoForward()) web.goForward();}

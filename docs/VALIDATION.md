@@ -1,4 +1,10 @@
+## 0.1.0-alpha.69: assistente e filtro de conteúdo
+- Teste JDK de domínios/subdomínios, limites de hostname e SafeSearch, incluindo URLs codificadas e domínios semelhantes: `python3 tools/test_adult_content.py`.
+- Configurações locais e fluxo do GeckoView sujeitos a validação Android e teste no aparelho. Sem alegação de bloqueio integral da web.
+- Validações anteriores de ABI/Release continuam exigidas.
+
 ## 0.1.0-alpha.68: regressão de compilação Gecko/Android
+
 
 - Log do workflow 34: `:app:compileDebugJavaWithJavac` falhou por `cannot find symbol: pendingAndroidOrigin` na linha 36 de `GeckoSitePermissions.java` (duas ocorrências).
 - Corrigido para o campo previamente declarado `requestedAndroidOrigin`. Não simplificar para autorização por domínio nem dispensar validação por origem HTTPS.

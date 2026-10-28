@@ -202,13 +202,13 @@ public final class BrowserPrefs {
     }
     public static String destination(Context c, String input) {
         String fullUrl = UrlTools.normalizeAddress(input);
-        if (fullUrl != null) return fullUrl;
+        if (fullUrl != null) return AdultContentPolicy.safeSearchUrl(fullUrl,ContentPrefs.level(c));
         String result = UrlTools.browserAddress(input);
-        if (result == null || !result.startsWith("https://www.google.com/search?q=")) return result;
+        if (result == null || !result.startsWith("https://www.google.com/search?q=")) return AdultContentPolicy.safeSearchUrl(result,ContentPrefs.level(c));
         if ("DuckDuckGo".equals(searchEngine(c))) {
             String query = input == null ? "" : input.trim();
-            return "https://duckduckgo.com/?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
+            return AdultContentPolicy.safeSearchUrl("https://duckduckgo.com/?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8),ContentPrefs.level(c));
         }
-        return result;
+        return AdultContentPolicy.safeSearchUrl(result,ContentPrefs.level(c));
     }
 }

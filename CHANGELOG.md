@@ -1,5 +1,13 @@
 # Baixa Fácil 0.1.0-alpha.68 (versionCode 68) - 2026-10-28
 
+## 0.1.0-alpha.69 | Primeira abertura e filtro adulto opcional
+- Assistente em três etapas: tema/buscador, privacidade/conteúdo e downloads/bateria; opção Pular e reabertura em Configurações.
+- Filtro adulto local com níveis Desativado (padrão), Moderado e Rigoroso. Bloqueia domínios conhecidos e subdomínios nas navegações e nos frames (incluindo redirecionamentos) e mostra aviso de bloqueio.
+- Pesquisa segura forçada em pesquisas Google, Bing e DuckDuckGo quando filtro ativo; reescrita de URL idempotente.
+- Não inspeciona imagens/texto, nem filtra outros aplicativos e não é um controle parental completo. Não cria telemetria de URLs.
+- Novos testes de domínios, variantes de hostname e pesquisas seguras; versionCode 69 sincronizado.
+
+
 - Corrigidos os dois erros `cannot find symbol: pendingAndroidOrigin` do workflow **Gerar APK 34** em `GeckoSitePermissions.java`; utilizado `requestedAndroidOrigin`, campo existente.
 - Adicionada regressão semântica que compila a classe de permissões real com JDK 17 e stubs mínimos de Android/GeckoView; testa rejeição quando muda origem/porta e preservação na mesma origem.
 - Sincronizados Gradle, UI, User-Agent, workflow, testes, documentação e três APKs por ABI. Build Android completo e testes no aparelho permanecem pendentes.

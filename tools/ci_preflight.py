@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.68"
-CODE = "68"
+VERSION = "0.1.0-alpha.69"
+CODE = "69"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -16,6 +16,11 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "alpha69 local adult filter and safe search JDK": subprocess.run([sys.executable, str(ROOT / "tools/test_adult_content.py")],check=False).returncode==0
+        and subprocess.run([sys.executable, str(ROOT / "tools/test_setup_compile.py")],check=False).returncode==0
+        and "AdultContentPolicy.blocked(request.uri,ContentPrefs.level(host))" in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")
+        and ".SetupActivity" in read("app/src/main/AndroidManifest.xml")
+        and "ContentPrefs.needsSetup(this)" in read("app/src/main/java/br/com/baixafacil/MainActivity.java"),
     "workflow 34: GeckoSitePermissions javac compiles real class and tests origin cancellation": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_permission_compile.py")],check=False).returncode==0,
     "alpha67 inline address first tap keeps URL editable": subprocess.run([sys.executable, str(ROOT / "tools/test_address_inline.py")],check=False).returncode==0,
     "alpha66 origin-bound permissions and form choices": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_permission_origin.py")],check=False).returncode==0,

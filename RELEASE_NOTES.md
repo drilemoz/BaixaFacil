@@ -1,5 +1,9 @@
 # Baixa Fácil 0.1.0-alpha.68 (versionCode 68)
 
+## 0.1.0-alpha.69
+Novo assistente opcional de primeira abertura para aparência, buscador, privacidade e downloads. Filtro adulto local (desativado por padrão) com bloqueio de domínios conhecidos e pesquisa segura em buscadores compatíveis. Configurações editáveis a qualquer momento. A filtragem não é infalível nem substitui controle parental. Build Android e testes em aparelho ainda pendentes.
+
+
 Correção de compilação após os logs do workflow **Gerar APK 34**: a rotina de permissões utilizava `pendingAndroidOrigin`, variável inexistente. Agora consulta corretamente `requestedAndroidOrigin`, preservando o cancelamento seguro quando a navegação muda de origem.
 
 Incluído teste `javac` semântico da classe com stubs Android/GeckoView e casos de regressão de origem. Código-fonte validado localmente, mas **APK Android não compilado neste ambiente**. Mantidos três APKs por ABI, GeckoView 158 e políticas de download/assinatura.
