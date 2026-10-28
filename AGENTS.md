@@ -1,3 +1,9 @@
+# Regras da alpha.71
+
+- Permissão POST_NOTIFICATIONS somente após iniciar download (nunca sobrepor assistente inicial); pedir no máximo uma vez, respeitando recusa, com acesso à configuração do Android para reativar.
+- SafeSearch somente em domínios oficiais explicitamente aprovados, sem confundir domínios parecidos/subdomínios de terceiros; preservar consulta codificada, impedir flags duplicadas e loops de reescrita. Não prometer filtragem universal de conteúdo.
+- Testes `tools/test_first_run_and_search.py` e JUnit entram no preflight; manter GeckoView, perfis, ETP, três ABIs e assinatura. Próxima alpha.72/code72; build Android e QA físico pendentes.
+
 # Regras do projeto
 
 - Alpha.69: assistente de primeira abertura com opção Pular, guardando escolhas locais. O filtro adulto é opt-in, desativado por padrão, apenas por domínios conhecidos, conferido no GeckoView em navegações e subframes. SafeSearch só se aplica a buscadores compatíveis. Não prometer inspeção de conteúdo, controle de outro navegador ou bloqueio integral. Proteger contra matches parciais (`evil-example.com` não é `example.com`). Testar os níveis OFF/MODERATE/STRICT.
@@ -257,3 +263,11 @@
 - Não remover a proteção: rejeitar a permissão Android pendente ao trocar de origem, preservar callbacks na mesma origem e impedir concessões atrasadas.
 - `tools/test_gecko_permission_compile.py` deve compilar o arquivo Java REAL com stubs mínimos das APIs Android/Gecko e exercitar o cancelamento na troca de origem. Só parser de Java não detecta símbolos indefinidos.
 - Sincronizar Gradle/workflow/3 ABI/mock/doc/UI/User-Agent. Compilação Android completa continua pendente; próxima `0.1.0-alpha.69`/versionCode 69.
+
+## Versão 0.1.0-alpha.70: filtro adulto também nos pop-ups GeckoView
+- Aplicar uma política única em navegação da sessão principal e em sessões secundárias criadas por gesto, incluindo redirecionamentos e subframes. Janela não pode contornar lista por usar delegate próprio.
+- Pesquisa segura nas buscas suportadas também nas sessões secundárias, sem loop; nunca reescrever ou abrir URL externa silenciosamente. Com filtro desligado, navegação anterior é preservada.
+- Normalizar variantes Unicode de ponto no domínio conforme IDN para evitar contorno sem bloquear nomes parecidos. Não registrar URLs, cookies ou credenciais.
+- `tools/test_content_gate.py` deve compilar as classes reais e verificar a integração com as duas sessões. `BrowserContentGateTest` no Gradle. Build Android real continua obrigatório.
+- Preservar GeckoView 158, três ABIs, Secrets e demais preferências. Próxima versão `0.1.0-alpha.71` / versionCode 71.
+

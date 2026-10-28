@@ -1,3 +1,10 @@
+# Baixa Fácil 0.1.0-alpha.71 (versionCode 71)
+
+- Filtro adulto opcional da alpha.69 agora também é aplicado a janelas secundárias (pop-ups) criadas no GeckoView, inclusive em redirecionamentos e frames, antes da navegação.
+- Pesquisa segura compatível com Google/Bing/DuckDuckGo é reescrita também nos pop-ups; política compartilhada evita divergência com a aba principal. Reconhecimento de domínios Unicode com caracteres equivalentes a ponto.
+- Sem inspeção visual/textual de conteúdos, lista ampla dinâmica, PIN ou bloqueio de outros apps. Um filtro local por domínios não garante controle parental completo.
+- Testes JDK do classificador e regressões de ABI executáveis em `python3 tools/ci_preflight.py`; build e interface Android reais ainda pendentes.
+
 ## 0.1.0-alpha.69: assistente inicial e filtro adulto opcional
 
 - Na primeira abertura, o assistente oferece tema, buscador, preferências de privacidade e de downloads. É possível pular. As configurações continuam editáveis depois.

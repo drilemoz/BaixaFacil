@@ -1,3 +1,17 @@
+## 0.1.0-alpha.71 | Primeira abertura e pesquisa segura
+
+- Notificações de downloads não interrompem o assistente inicial: a solicitação opcional acontece somente após o primeiro download efetivamente iniciado, no máximo uma vez. O acesso pode ser alterado nas configurações do Android.
+- Pesquisas com SafeSearch são reescritas somente para domínios oficiais explicitamente conhecidos de Google, Bing e DuckDuckGo (incluindo google.com.br), nunca em hosts apenas parecidos. Flags equivalentes com nome URL-encoded são removidas antes de inserir o parâmetro seguro.
+- Novos testes JDK/JUnit das preferências de notificações e da pesquisa segura, integrados ao preflight. Preservado GeckoView 158, ETP, sessões, três ABIs, assinaturas e downloads.
+- Compilação Android completa e ensaios em dispositivo ainda pendentes.
+
+## 0.1.0-alpha.70 | Filtro de conteúdo consistente nos pop-ups
+- Correção de lacuna: janelas secundárias do GeckoView aplicam filtro adulto antes de criar a sessão, em cada navegação e nos subframes, incluindo redirecionamentos.
+- Classe `BrowserContentGate` compartilha a decisão bloquear/permitir/reescrever busca entre página principal e pop-ups. Pesquisa segura idempotente e filtro opcional desligado por padrão.
+- Domínios internacionais com separadores Unicode equivalentes a ponto são normalizados via IDN, evitando contornar a lista local. Não bloqueia nomes de outros domínios só por conter termos no caminho.
+- Teste unitário JUnit e teste local JDK verificam decisões, Unicode, pop-up e integração em código real. Preservados GeckoView 158, 3 APKs/ABI, motor HTTP, ETP, permissões e assinaturas.
+- Android Gradle completo/validação física pendentes.
+
 # Baixa Fácil 0.1.0-alpha.68 (versionCode 68) - 2026-10-28
 
 ## 0.1.0-alpha.69 | Primeira abertura e filtro adulto opcional

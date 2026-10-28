@@ -349,15 +349,15 @@ final class BrowserPane {
                     status.setText("Endereço bloqueado: apenas HTTP e HTTPS.");
                     return GeckoResult.fromValue(AllowOrDeny.DENY);
                 }
-                if(AdultContentPolicy.blocked(url,ContentPrefs.level(host))){
+                BrowserContentGate.Decision decision=BrowserContentGate.evaluate(url,ContentPrefs.level(host));
+                if(decision.action==BrowserContentGate.Action.BLOCK){
                     showAdultBlocked(url);
                     return GeckoResult.fromValue(AllowOrDeny.DENY);
                 }
-                String safe=AdultContentPolicy.safeSearchUrl(url,ContentPrefs.level(host));
-                if(safe!=null && !safe.equals(url)){
+                if(decision.action==BrowserContentGate.Action.REWRITE){
                     // Voltar a carregar no GeckoView (não buscar com cliente externo).
                     if(web!=null)web.post(()->{
-                        if(web!=null && web.session==gecko)web.loadUrl(safe);
+                        if(web!=null && web.session==gecko)web.loadUrl(decision.url);
                     });
                     return GeckoResult.fromValue(AllowOrDeny.DENY);
                 }
@@ -370,7 +370,7 @@ final class BrowserPane {
             }
             @Override public GeckoResult<AllowOrDeny> onSubframeLoadRequest(GeckoSession gecko,
                     GeckoSession.NavigationDelegate.LoadRequest request){
-                return GeckoResult.fromValue(AdultContentPolicy.blocked(request.uri,ContentPrefs.level(host))
+                return GeckoResult.fromValue(BrowserContentGate.blocked(request.uri,ContentPrefs.level(host))
                     ? AllowOrDeny.DENY : AllowOrDeny.ALLOW);
             }
             @Override public void onLocationChange(GeckoSession gecko,String url,
@@ -884,7 +884,8 @@ final class BrowserPane {
     /** Apenas janelas criadas por gesto e carregadas em GeckoSession separada. */
     private GeckoResult<GeckoSession> createLoginWindow(String uri){
         if(!LoginWindowPolicy.allowPopup(popupGestureAllowed,loginPopup!=null) ||
-                (uri!=null && !LoginWindowPolicy.safeWebAddress(uri))){
+                (uri!=null && (!LoginWindowPolicy.safeWebAddress(uri) ||
+                    BrowserContentGate.blocked(uri,ContentPrefs.level(host))))){
             popupGestureAllowed=false;
             return GeckoResult.fromValue(null);
         }
@@ -903,7 +904,25 @@ final class BrowserPane {
                     offerExternalGoogleLogin(request.uri);
                     return GeckoResult.fromValue(AllowOrDeny.DENY);
                 }
-                return GeckoResult.fromValue(LoginWindowPolicy.safeWebAddress(request.uri)?AllowOrDeny.ALLOW:AllowOrDeny.DENY);
+                if(!LoginWindowPolicy.safeWebAddress(request.uri))
+                    return GeckoResult.fromValue(AllowOrDeny.DENY);
+                BrowserContentGate.Decision decision=BrowserContentGate.evaluate(request.uri,ContentPrefs.level(host));
+                if(decision.action==BrowserContentGate.Action.BLOCK){
+                    if(status!=null)status.post(()->status.setText("Janela bloqueada pelo filtro adulto."));
+                    return GeckoResult.fromValue(AllowOrDeny.DENY);
+                }
+                if(decision.action==BrowserContentGate.Action.REWRITE){
+                    popup.post(()->{
+                        if(loginPopup==popup && popup.session==gecko && gecko.isOpen())popup.loadUrl(decision.url);
+                    });
+                    return GeckoResult.fromValue(AllowOrDeny.DENY);
+                }
+                return GeckoResult.fromValue(AllowOrDeny.ALLOW);
+            }
+            @Override public GeckoResult<AllowOrDeny> onSubframeLoadRequest(GeckoSession gecko,
+                    GeckoSession.NavigationDelegate.LoadRequest request){
+                return GeckoResult.fromValue(BrowserContentGate.blocked(request.uri,ContentPrefs.level(host))
+                    ? AllowOrDeny.DENY : AllowOrDeny.ALLOW);
             }
             @Override public void onLocationChange(GeckoSession gecko,String url,
                     List<GeckoSession.PermissionDelegate.ContentPermission> perms,Boolean gesture){popup.currentUrl(url);}

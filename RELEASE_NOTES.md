@@ -1,3 +1,11 @@
+## 0.1.0-alpha.71 (versionCode 71)
+
+Primeira abertura sem permissão de notificações sobrepondo o assistente. O aplicativo solicita a permissão opcional apenas após o primeiro download iniciado, sem repetir automaticamente se recusada; ajuste posterior disponível nas configurações de notificações do Android. SafeSearch restrito a domínios reconhecidos para evitar alteração de sites com nomes parecidos. Parâmetros repetidos/codificados tratados com mais consistência. Testes locais executados, mas build Android e teste físico pendentes.
+
+## 0.1.0-alpha.70 (versionCode 70)
+
+Filtro de conteúdo adulto opcional mais consistente: agora janelas secundárias do GeckoView seguem o mesmo bloqueio por domínio e a mesma pesquisa segura das páginas principais, inclusive em redirecionamentos e frames. Corrigido tratamento de alguns endereços Unicode. Testes locais e simulação de publicação incluídos; APK Android ainda não compilado aqui. A lista é limitada e não substitui controle parental do dispositivo.
+
 # Baixa Fácil 0.1.0-alpha.68 (versionCode 68)
 
 ## 0.1.0-alpha.69

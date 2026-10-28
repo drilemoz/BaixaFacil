@@ -2,6 +2,8 @@ package br.com.baixafacil;
 
 import java.net.IDN;
 import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
@@ -25,7 +27,27 @@ final class AdultContentPolicy {
         "manyvids.com", "fansly.com", "rule34.xxx", "nhentai.net", "e-hentai.org",
         "hentaihaven.xxx", "literotica.com", "youporngay.com"
     ));
+    // Lista deliberadamente limitada: não reescrever domínios apenas parecidos
+    // com um buscador (ex.: google.bad) nem subdomínios arbitrários.
+    private static final Set<String> GOOGLE_SEARCH_DOMAINS=new HashSet<>(Arrays.asList(
+        "google.com", "google.com.br", "google.com.ar", "google.com.mx", "google.com.co",
+        "google.com.pe", "google.com.au", "google.com.tr", "google.co.uk", "google.co.jp",
+        "google.co.in", "google.co.za", "google.ca", "google.de", "google.fr",
+        "google.es", "google.it", "google.pt", "google.cl", "google.nl"
+    ));
     private AdultContentPolicy() {}
+
+    private static boolean searchDomain(String host, String domain){
+        return host.equals(domain) || host.equals("www."+domain);
+    }
+    private static boolean googleSearchDomain(String host){
+        String base=host.startsWith("www.")?host.substring(4):host;
+        return GOOGLE_SEARCH_DOMAINS.contains(base);
+    }
+    private static boolean matchesEncodedKey(String rawName,String key){
+        try { return key.equalsIgnoreCase(URLDecoder.decode(rawName,StandardCharsets.UTF_8)); }
+        catch(IllegalArgumentException error) { return key.equalsIgnoreCase(rawName); }
+    }
 
     static int normalize(int mode){return mode==MODERATE||mode==STRICT?mode:OFF;}
     static String host(String raw){
@@ -35,7 +57,23 @@ final class AdultContentPolicy {
             if(!"https".equalsIgnoreCase(uri.getScheme())&&!"http".equalsIgnoreCase(uri.getScheme()))return null;
             if(uri.getRawUserInfo()!=null)return null;
             String host=uri.getHost();
-            if(host==null||host.isEmpty())return null;
+            if(host==null){
+                // java.net.URI não reconhece todos os domínios Unicode; o GeckoView
+                // pode normalizá-los via IDNA antes de navegar. Evitar essa lacuna.
+                String authority=uri.getRawAuthority();
+                if(authority==null || authority.indexOf('@')>=0 || authority.startsWith("["))return null;
+                int colon=authority.lastIndexOf(':');
+                if(colon>=0){
+                    // Portas inválidas e múltiplos ':' não viram falsos domínios.
+                    if(authority.indexOf(':')!=colon)return null;
+                    String port=authority.substring(colon+1);
+                    if(port.isEmpty() || port.length()>5)return null;
+                    for(int i=0;i<port.length();i++)if(!Character.isDigit(port.charAt(i)))return null;
+                    authority=authority.substring(0,colon);
+                }
+                host=authority;
+            }
+            if(host.isEmpty())return null;
             while(host.endsWith("."))host=host.substring(0,host.length()-1);
             if(host.isEmpty())return null;
             return IDN.toASCII(host,IDN.USE_STD3_ASCII_RULES).toLowerCase(Locale.ROOT);
@@ -61,15 +99,14 @@ final class AdultContentPolicy {
             String query=uri.getRawQuery();
             if(query==null)return raw;
             String key=null,value=null;
-            if((sameOrChild(host,"google.com")||host.matches("(^|.*\\.)google\\.[a-z]{2,3}(\\.[a-z]{2})?"))
-                && "/search".equals(path)) {key="safe";value="active";}
-            else if(sameOrChild(host,"bing.com")&&"/search".equals(path)){key="adlt";value="strict";}
-            else if(sameOrChild(host,"duckduckgo.com")&&("/".equals(path)||"/html/".equals(path))) {key="kp";value="1";}
+            if(googleSearchDomain(host) && "/search".equals(path)) {key="safe";value="active";}
+            else if(searchDomain(host,"bing.com")&&"/search".equals(path)){key="adlt";value="strict";}
+            else if(searchDomain(host,"duckduckgo.com")&&("/".equals(path)||"/html/".equals(path))) {key="kp";value="1";}
             if(key==null)return raw;
             StringBuilder filtered=new StringBuilder();
             for(String part:query.split("&",-1)){
                 String name=part.split("=",2)[0];
-                if(name.equalsIgnoreCase(key))continue;
+                if(matchesEncodedKey(name,key))continue;
                 if(filtered.length()>0)filtered.append('&');
                 filtered.append(part);
             }

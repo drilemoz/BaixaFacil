@@ -51,6 +51,18 @@ public final class SettingsActivity extends Activity {
         super.onResume();
         if(list!=null)render();
     }
+    private void openDownloadNotifications(){
+        try {
+            Intent intent = new Intent(Build.VERSION.SDK_INT >= 26
+                ? Settings.ACTION_APP_NOTIFICATION_SETTINGS : Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            if(Build.VERSION.SDK_INT >= 26)
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE,getPackageName());
+            else intent.setData(Uri.parse("package:"+getPackageName()));
+            startActivity(intent);
+        } catch(ActivityNotFoundException ex) {
+            Toast.makeText(this,"Configurações de notificações indisponíveis",Toast.LENGTH_LONG).show();
+        }
+    }
     private void render(){
         palette=new Ui.Palette(this);
         Ui.systemBars(this,palette);
@@ -114,6 +126,7 @@ public final class SettingsActivity extends Activity {
         option("Configurações de vídeos","Detecção, arquivos diretos e streaming HLS/DASH","play",()->{videoSettingsPage=true;render();});
 
         section("Downloads • rede e bateria");
+        option("Notificações de downloads", "Autorizar, bloquear ou reativar avisos nas configurações do Android", "alert", this::openDownloadNotifications);
         downloadSwitch("Somente Wi-Fi",
             "Bloqueia downloads nas demais redes, inclusive dados móveis e VPN sem Wi-Fi identificável.",
             DownloadRestrictions.wifiOnly(this), DownloadRestrictions::setWifiOnly);
@@ -151,8 +164,8 @@ public final class SettingsActivity extends Activity {
         option("Aparência","Sistema, claro ou escuro AMOLED","settings",this::chooseAppearance);
         option("Links padrão do Android","Abertura de links por este aplicativo","link",this::openDefaultLinks);
         option("Diagnóstico e alertas",AppEventLog.enabled(this)?"Captura local ativada":"Captura local desativada","alert",()->{diagnosticsPage=true;render();});
-        option("Sobre","Baixa Fácil 0.1.0-alpha.69","webdown",()->{
-            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.69\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
+        option("Sobre","Baixa Fácil 0.1.0-alpha.71","webdown",()->{
+            AppMenus.info(this,"Baixa Fácil","Versão 0.1.0-alpha.71\nNavegador e downloads integrados.\nO app não intercepta downloads de outros aplicativos.",AppMenus.entries());
         });
     }
     private void renderSessionSettings(){

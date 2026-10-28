@@ -1,3 +1,15 @@
+## 0.1.0-alpha.71: notificações contextuais e SafeSearch restrito
+
+- `python3 tools/test_first_run_and_search.py`: compila classes reais `AdultContentPolicy` e `NotificationPermissionPolicy` com JDK 17 e verifica que somente o primeiro download pode solicitar notificação, sem interferir na primeira abertura; sites que imitam domínios de buscadores não são reescritos; Google Brasil/Reino Unido, parâmetros codificados e idempotência preservados.
+- `BrowserContentGateTest` e `NotificationPermissionPolicyTest`: testes JUnit previstos no workflow GitHub Actions.
+- `python3 tools/ci_preflight.py`, `python3 tools/test_abi_pipeline.py` e `bash tools/test_publish_mock.sh`: pré-validação, 3 ABIs e publicação simulada.
+- **Pendentes:** `:app:testDebugUnitTest`, `:app:assembleDebug`/Release no GitHub Actions e teste do assistente/teclado/notificações no celular.
+
+## 0.1.0-alpha.70: política de conteúdo em abas e pop-ups
+- `python3 tools/test_content_gate.py`: compila classes Java reais, verifica blocos por domínio, Unicode equivalente a ponto, falsos positivos, política off e reescrita idempotente de pesquisa. Confere conexão ao onLoadRequest/onSubframeLoadRequest das duas sessões Gecko.
+- `app/src/test/java/br/com/baixafacil/BrowserContentGateTest.java`: testes JUnit executáveis no GitHub Actions durante `:app:testDebugUnitTest`.
+- `python3 tools/ci_preflight.py`, `python3 tools/test_abi_pipeline.py`, `bash tools/test_publish_mock.sh`: versão 70 e três arquiteturas alinhadas. **Não há validação de build Android real ou teste de interação no aparelho nesta entrega.**
+
 ## 0.1.0-alpha.69: assistente e filtro de conteúdo
 - Teste JDK de domínios/subdomínios, limites de hostname e SafeSearch, incluindo URLs codificadas e domínios semelhantes: `python3 tools/test_adult_content.py`.
 - Configurações locais e fluxo do GeckoView sujeitos a validação Android e teste no aparelho. Sem alegação de bloqueio integral da web.

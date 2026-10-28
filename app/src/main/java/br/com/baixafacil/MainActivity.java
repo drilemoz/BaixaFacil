@@ -1,6 +1,5 @@
 package br.com.baixafacil;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
@@ -8,7 +7,6 @@ import android.content.ClipData;
 import android.content.ContentValues;
 import android.content.ClipboardManager;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.widget.ImageView;
 import android.widget.HorizontalScrollView;
@@ -106,9 +104,6 @@ public class MainActivity extends Activity {
             systemBackCallback=this::handleBack;
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,systemBackCallback);
-        }
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 10);
         }
     }
 
