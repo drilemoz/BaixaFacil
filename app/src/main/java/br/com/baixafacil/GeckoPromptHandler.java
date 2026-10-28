@@ -3,6 +3,7 @@ package br.com.baixafacil;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.widget.EditText;
+import android.widget.ArrayAdapter;
 import org.mozilla.geckoview.GeckoResult;
 import org.mozilla.geckoview.Autocomplete;
 import org.mozilla.geckoview.GeckoSession;
@@ -53,15 +54,30 @@ final class GeckoPromptHandler implements GeckoSession.PromptDelegate {
             .setOnCancelListener(d->result.complete(request.dismiss())).create();
         dialog.show();return result;
     }
-    private java.util.List<ChoicePrompt.Choice> flatten(ChoicePrompt.Choice[] options){
-        java.util.List<ChoicePrompt.Choice> items=new java.util.ArrayList<>();
-        if(options==null)return items;
-        for(ChoicePrompt.Choice choice:options){
-            if(choice.separator)continue;
-            if(choice.items!=null){items.addAll(flatten(choice.items));}
-            else items.add(choice);
+    /** Conserva opções desativadas inclusive dentro de grupos optgroup. */
+    private static final class ChoiceRow {
+        final ChoicePrompt.Choice choice;
+        final boolean disabled;
+        final String label;
+        ChoiceRow(ChoicePrompt.Choice choice,boolean disabled,String label){
+            this.choice=choice;this.disabled=disabled;this.label=label;
         }
-        return items;
+    }
+    private void flatten(ChoicePrompt.Choice[] options,boolean parentDisabled,String group,
+                         java.util.List<ChoiceRow> items){
+        if(options==null)return;
+        for(ChoicePrompt.Choice choice:options){
+            if(choice==null||choice.separator)continue;
+            boolean disabled=parentDisabled || choice.disabled;
+            if(choice.items!=null){
+                String next=(group.isEmpty()?"":group+" · ")+(choice.label==null?"":choice.label);
+                flatten(choice.items,disabled,next,items);
+            }else{
+                String caption=(choice.label==null?"":choice.label);
+                if(!group.isEmpty())caption=group+" · "+caption;
+                items.add(new ChoiceRow(choice,disabled,caption));
+            }
+        }
     }
     private boolean available(){return !host.isFinishing()&&!host.isDestroyed();}
     private String title(String value){return value==null || value.isEmpty()?"Mensagem do site":value;}
@@ -98,34 +114,48 @@ final class GeckoPromptHandler implements GeckoSession.PromptDelegate {
     }
     @Override public GeckoResult<PromptResponse> onChoicePrompt(GeckoSession session,ChoicePrompt prompt){
         if(!available())return GeckoResult.fromValue(prompt.dismiss());
-        ChoicePrompt.Choice[] choices=flatten(prompt.choices).toArray(new ChoicePrompt.Choice[0]);
-        if(choices.length==0)return GeckoResult.fromValue(prompt.dismiss());
+        java.util.List<ChoiceRow> choices=new java.util.ArrayList<>();
+        flatten(prompt.choices,false,"",choices);
+        if(choices.isEmpty())return GeckoResult.fromValue(prompt.dismiss());
         GeckoResult<PromptResponse> result=new GeckoResult<>();
-        String[] labels=new String[choices.length];
-        for(int i=0;i<choices.length;i++)labels[i]=choices[i].label+(choices[i].disabled?" (indisponível)":"");
+        String[] labels=new String[choices.size()];
+        for(int i=0;i<choices.size();i++){
+            ChoiceRow item=choices.get(i);
+            labels[i]=item.label+(item.disabled?" (indisponível)":"");
+        }
         if(prompt.type==ChoicePrompt.Type.MULTIPLE){
-            boolean[] selected=new boolean[choices.length];
-            for(int i=0;i<choices.length;i++)selected[i]=choices[i].selected;
+            boolean[] selected=new boolean[choices.size()];
+            for(int i=0;i<choices.size();i++)selected[i]=choices.get(i).choice.selected;
             AlertDialog multi=new AlertDialog.Builder(host).setTitle(title(prompt.title))
                 .setMultiChoiceItems(labels,selected,(dialog,index,checked)->{
-                    if(!choices[index].disabled)selected[index]=checked;
+                    if(choices.get(index).disabled){
+                        // Android marca visualmente a linha antes do callback; restaurar a seleção.
+                        ((AlertDialog)dialog).getListView().setItemChecked(index,selected[index]);
+                    }else selected[index]=checked;
                 })
                 .setPositiveButton("OK",(dialog,which)->{
                     java.util.ArrayList<ChoicePrompt.Choice> chosen=new java.util.ArrayList<>();
-                    for(int i=0;i<choices.length;i++)if(selected[i]&&!choices[i].disabled)chosen.add(choices[i]);
+                    for(int i=0;i<choices.size();i++)if(selected[i])chosen.add(choices.get(i).choice);
                     result.complete(prompt.confirm(chosen.toArray(new ChoicePrompt.Choice[0])));
                 })
                 .setNegativeButton("Cancelar",(dialog,which)->result.complete(prompt.dismiss()))
                 .setOnCancelListener(d->result.complete(prompt.dismiss())).create();
             multi.show();return result;
         }
+        // Linhas desabilitadas permanecem visíveis mas não são clicáveis nem fecham o menu.
+        ArrayAdapter<String> adapter=new ArrayAdapter<String>(host,android.R.layout.simple_list_item_1,labels){
+            @Override public boolean isEnabled(int position){return !choices.get(position).disabled;}
+            @Override public android.view.View getView(int position,android.view.View convertView,
+                                                         android.view.ViewGroup parent){
+                android.view.View row=super.getView(position,convertView,parent);
+                row.setEnabled(isEnabled(position));return row;
+            }
+        };
         AlertDialog dialog=new AlertDialog.Builder(host).setTitle(title(prompt.title))
-            .setItems(labels,(d,index)->{
-                if(choices[index].disabled||choices[index].items!=null)result.complete(prompt.dismiss());
-                else result.complete(prompt.confirm(choices[index]));
-            })
+            .setAdapter(adapter,(d,index)->result.complete(prompt.confirm(choices.get(index).choice)))
             .setNegativeButton("Cancelar",(d,w)->result.complete(prompt.dismiss()))
             .setOnCancelListener(d->result.complete(prompt.dismiss())).create();
         dialog.show();return result;
     }
+
 }

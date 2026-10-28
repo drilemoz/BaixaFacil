@@ -1,3 +1,24 @@
+## 0.1.0-alpha.67: edição direta da barra de endereços
+
+- `tools/test_address_inline.py` verifica que o toque no domínio chama `openAddressEditor`, que a URL completa é carregada com `TextWatcher` suprimido, que o `EditText` recebe foco/seleção e solicita teclado, e que as sugestões inicialmente permanecem ocultas.
+- Verifica que sugestões são expandidas somente após alteração do texto, que o Histórico no menu abre a lista sob demanda e que Voltar volta ao estado compacto sem perder a sessão.
+- `tools/ci_preflight.py` executa a regressão e mantém testes de segurança, mídia, 3 ABI e script de publicação. Testes locais validam lógica/contratos, **não são um teste real de UI Android**.
+- Ainda validar no aparelho: um toque no domínio de página carregada; seleção, edição em posição intermediária, apagar, colar e Ir; sugestões durante digitação; foco depois de troca de aba; teclado com `adjustResize`; Histórico pelo menu e Voltar do sistema.
+
+## 0.1.0-alpha.66: permissões e formulários Gecko
+
+- `tools/test_gecko_permission_origin.py` compila e executa a política Java real no JDK e testa equivalência de porta HTTPS 443, rejeição de HTTP/portas diferentes/credenciais/URLs internas e proteção de parâmetros.
+- Preflight verifica callbacks de navegação, rejeição de pendências Android e multimídia em troca de origem e desativação de itens agrupados em HTML.
+- Foi adicionado `GeckoPermissionPolicyTest` para o `:app:testDebugUnitTest` do GitHub Actions; a execução local com JDK usa o teste independente sem Android.
+- Pendentes: compilar os três APKs com GeckoView 158/SDK 37.0 no GitHub Actions e testar câmera, microfone, localização, autoplay e formulários com DOM real em aparelho. Sem medições de bateria nesta versão.
+
+## 0.1.0-alpha.65: favicons, rolagem e cache limitado
+
+- `tools/test_favicon_scroll.py`: compila `FaviconLoader` e `FaviconWorkPolicy` reais com stubs Android/JDK e verifica origem HTTPS segura, fila, cooldown, pressão de memória, callbacks e integração com a lista que adia miniaturas durante rolagem.
+- `FaviconWorkPolicyTest` (JUnit/CI): regras de limitação, prazo de falhas, uso da cache e solicitação de prévias somente quando paradas e visíveis.
+- `tools/test_media_performance.py`: preserva limites 10 URIs/8 callbacks e atualização 1,2 s/6 s da alpha.64. `tools/ci_preflight.py` executa os testes e a regressão ABI/publicação.
+- **Pendente:** compilação real Gradle/SDK 37 no GitHub Actions, rolagem com arquivos reais, falhas de rede/ícones ICO e medição de consumo de RAM/bateria no aparelho.
+
 ## 0.1.0-alpha.64: estabilidade de miniaturas e atualização adaptativa
 
 - `tools/test_media_performance.py` compila `MediaWorkPolicy`, `MediaPreviewLoader` e `MediaPreviewFormat` reais com JDK 17 e pequenos stubs Android, e testa agendamento ativo/ocioso, limites de fila, deduplicação de callbacks e descarte do cache em baixa memória.

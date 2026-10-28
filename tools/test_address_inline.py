@@ -11,6 +11,9 @@ def portion(start,end):
 
 build=portion('private void build(Bundle saved)', 'private void dismissAddressSuggestions()')
 open_editor=portion('private void openAddressEditor()', 'private void addSuggestion(String url,String title,String kind)')
+focus=portion('private void focusAddressInput()', 'private void revealAddressSuggestions()')
+reveal=portion('private void revealAddressSuggestions()', 'private void openAddressEditor()')
+watcher=portion('address.addTextChangedListener(new TextWatcher(){', 'securityIcon.setClickable(true)')
 close=portion('private void dismissAddressSuggestions()', 'private String shownHost(')
 assert 'addressDisplay.setOnClickListener(v->openAddressEditor())' in build
 assert 'row.addView(address,new LinearLayout.LayoutParams(0,dp(48),1))' in build
@@ -23,12 +26,22 @@ assert 'scroll.addView(suggestionRows' in build
 assert 'new LinearLayout.LayoutParams(-1,dp(215))' in build
 assert 'addressPanel.setVisibility(View.GONE)' in build
 assert 'addressEditing=true;' in open_editor
-assert 'addressPanel.setVisibility(View.VISIBLE)' in open_editor
+assert 'addressPanel.setVisibility(View.GONE)' in open_editor
+assert 'addressPanel.setVisibility(View.VISIBLE)' not in open_editor
 assert 'address.setVisibility(View.VISIBLE)' in open_editor
 assert 'address.requestFocus()' in open_editor
 assert 'address.selectAll()' in open_editor
-assert 'keyboard.showSoftInput(address,InputMethodManager.SHOW_IMPLICIT)' in open_editor
+assert 'keyboard.showSoftInput(address,InputMethodManager.SHOW_IMPLICIT)' in focus
 assert 'AlertDialog' not in open_editor and 'PopupWindow' not in open_editor
+assert 'suppressSuggestions=true;' in open_editor and 'suppressSuggestions=false;' in open_editor
+assert open_editor.index('suppressSuggestions=true;') < open_editor.index('address.setText(current==null?"":current)')
+assert open_editor.index('address.setText(current==null?"":current)') < open_editor.index('addressEditing=true;')
+assert 'updateAddressSuggestions()' not in open_editor
+assert 'addressPanel.setVisibility(View.VISIBLE)' in reveal
+assert 'if(addressEditing && !suppressSuggestions)' in watcher
+assert 'revealAddressSuggestions()' in watcher
+assert 'address.setFocusableInTouchMode(true)' in build
+assert 'private void showHistory(){' in pane and 'revealAddressSuggestions();' in portion('private void showHistory(){', 'private void showLinkMenu(')
 assert 'addressEditorActions.setVisibility(View.VISIBLE)' in open_editor
 assert 'addressMenuButton.setVisibility(View.GONE)' in open_editor
 assert 'addressPanel.setVisibility(View.GONE)' in close
@@ -39,6 +52,6 @@ assert 'browserPane.handleAddressBack();\n        downloadsVisible=true;' in act
 assert 'android:windowSoftInputMode="adjustResize"' in manifest
 assert 'addressDialog' not in pane
 assert 'dismissAddressSuggestions();setAddressFromPage(url)' in pane
-assert 'if(addressEditing)updateAddressSuggestions()' in pane
+assert 'if(addressEditing && !suppressSuggestions)' in watcher
 assert 'if(!addressEditing)openAddressEditor();' in pane
-print('PASSOU: editor inline sem pop-up, primeiro toque, sugestões, IME e Voltar')
+print('PASSOU: primeiro toque edita URL com teclado, sem sugestões automáticas; sugestões ao digitar/Histórico, Voltar')

@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.64"
-CODE = "64"
+VERSION = "0.1.0-alpha.67"
+CODE = "67"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -16,6 +16,8 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "alpha67 inline address first tap keeps URL editable": subprocess.run([sys.executable, str(ROOT / "tools/test_address_inline.py")],check=False).returncode==0,
+    "alpha66 origin-bound permissions and form choices": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_permission_origin.py")],check=False).returncode==0,
     "alpha63 media filters and manual DOM scan": subprocess.run([sys.executable, str(ROOT / "tools/test_media_alpha63.py")],check=False).returncode==0,
     "ABI collector receives exact Gradle versionCode": (
         len(re.findall(r"(?m)^\s*python3 tools/collect_abi_apks\.py[^\n]*$", workflow)) == 1
@@ -111,6 +113,7 @@ checks = {
     "address suggestions": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java") for x in ["openAddressEditor", "updateAddressSuggestions", "BrowserSuggestions.suggest", "dismissAddressSuggestions", "BrowserTopSites.mostVisited", "addSuggestion", "clipboardUrl"])
         and all(x in read("app/src/main/java/br/com/baixafacil/BrowserSuggestions.java") for x in ["LoginWindowPolicy.hasLoginParameters", "AuthNavigation.isSensitiveLoginPage", "LIMIT=5"]),
     "browser editor and import parser regression": subprocess.run([sys.executable, str(ROOT / "tools/test_browser_redesign.py")], check=False).returncode==0,
+    "alpha65 favicon queue and scroll behavior": subprocess.run([sys.executable, str(ROOT / "tools/test_favicon_scroll.py")], check=False).returncode==0,
     "alpha64 bounded thumbnails and adaptive refresh": subprocess.run([sys.executable, str(ROOT / "tools/test_media_performance.py")], check=False).returncode==0,
     "inline address first-tap regression": subprocess.run([sys.executable, str(ROOT / "tools/test_address_inline.py")], check=False).returncode==0,
     "redesigned browser permissions and media": all(x in read("app/src/main/java/br/com/baixafacil/BrowserPane.java")

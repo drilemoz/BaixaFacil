@@ -28,6 +28,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.AbsListView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -58,6 +59,8 @@ public class MainActivity extends Activity {
     private boolean downloadsVisible;
     private boolean activityVisible;
     private boolean activeDownloadsForRefresh;
+    private boolean scrollingDownloads;
+
     private android.widget.FrameLayout[] bottomButtons;
     private int appearanceMode;
     private android.window.OnBackInvokedCallback systemBackCallback;
@@ -365,6 +368,17 @@ public class MainActivity extends Activity {
 
         adapter = new DownloadAdapter();
         history.setAdapter(adapter);
+        history.setOnScrollListener(new AbsListView.OnScrollListener(){
+            @Override public void onScroll(AbsListView view,int firstVisibleItem,int visibleItemCount,int totalItemCount){}
+            @Override public void onScrollStateChanged(AbsListView view,int scrollState){
+                boolean moving=scrollState!=AbsListView.OnScrollListener.SCROLL_STATE_IDLE;
+                if(scrollingDownloads==moving)return;
+                scrollingDownloads=moving;
+                // Só repintar as linhas visíveis ao parar; nada de decodificação no fling.
+                if(!moving && adapter!=null && downloadsVisible && activityVisible)
+                    adapter.notifyDataSetChanged();
+            }
+        });
         history.setOnItemClickListener((parent,view,position,id)->{
             int index=position-history.getHeaderViewsCount();
             if(index>=0 && index<adapter.getCount()) {
@@ -449,6 +463,7 @@ public class MainActivity extends Activity {
         browserPane.exitVideoFullscreen();
         browserPane.handleAddressBack();
         downloadsVisible=true;
+        scrollingDownloads=false;
         downloadsList.setVisibility(View.VISIBLE);
         browserPane.view.setVisibility(View.GONE);
         browserPane.pause();
@@ -1388,7 +1403,12 @@ public class MainActivity extends Activity {
             try{host=new java.net.URI(entry.optString("url")).getHost();}catch(Exception ignored){}
             if(host==null||host.isEmpty())host="Origem indisponível";
 
-            LinearLayout outer=Ui.vertical(MainActivity.this);
+            // O ListView recicla o cartão anterior: não criar outra raiz a cada rolagem.
+            LinearLayout outer;
+            if(convertView instanceof LinearLayout){
+                outer=(LinearLayout)convertView;
+                outer.removeAllViews();
+            }else outer=Ui.vertical(MainActivity.this);
             outer.setPadding(dp(12),dp(3),dp(12),dp(3));
             LinearLayout card=Ui.vertical(MainActivity.this);
             card.setPadding(dp(11),dp(10),dp(10),dp(10));
@@ -1444,7 +1464,8 @@ public class MainActivity extends Activity {
                 String sourceHost=host;
                 Uri previewUri=safeUri(itemUri);
                 fileIcon.setTag(itemUri);
-                if(previewUri!=null)mediaPreviewLoader.load(MainActivity.this,previewUri,filename,result->{
+                if(previewUri!=null && FaviconWorkPolicy.shouldLoadPreview(finished,scrollingDownloads,downloadsVisible && activityVisible))
+                    mediaPreviewLoader.load(MainActivity.this,previewUri,filename,result->{
                     if(!itemUri.equals(fileIcon.getTag()) || isFinishing() || isDestroyed())return;
                     if(result.bitmap!=null && !result.bitmap.isRecycled()){
                         fileIcon.removeAllViews();

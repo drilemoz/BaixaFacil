@@ -1,3 +1,25 @@
+# Baixa Fácil 0.1.0-alpha.67 (versionCode 67) - 2026-10-27
+
+- Correção do foco na barra de endereços: tocar no domínio exibe o URL completo no campo editável e abre o teclado no primeiro toque, sem mostrar antes o painel de sugestões.
+- Sugestões continuam abaixo da barra após o usuário modificar o texto; o menu Histórico abre explicitamente a lista, sem alterar o endereço digitado.
+- Supressão de notificações do TextWatcher durante preenchimento programático, mantendo seleção do endereço para substituição rápida.
+- Teste de regressão `tools/test_address_inline.py` ampliado para verificar ordem de foco, visibilidade do painel, teclado e Histórico. Build Android e teste de toque no aparelho pendentes.
+
+# Baixa Fácil 0.1.0-alpha.66 (versionCode 66) - 2026-10-21
+
+- Nova `GeckoPermissionPolicy` para isolar permissões à origem HTTPS real da aba (host+porta), sem armazenar URL com parâmetros.
+- `GeckoSitePermissions` vincula pendências de Android/câmera/microfone/localização/autoplay à origem e cancela ao navegar para outro site; valida resposta Android contra permissões requisitadas. Seletor de mídia de terceiros não obtém privilégio implicitamente.
+- `GeckoPromptHandler` respeita grupos e escolhas HTML desativadas em seleção simples/múltipla, evitando escolha indevida de opções indisponíveis.
+- Regressão JDK e preflight com versão 66 sincronizada; testes GeckoView/Android reais pendentes.
+
+# Baixa Fácil 0.1.0-alpha.65 (versionCode 65) - 2026-10-21
+
+- Otimização do `FaviconLoader`: até 24 origens aguardando, até 8 views por origem e lista de 96 falhas temporárias. Falhas repetidas aguardam 5 minutos antes de tentar novamente. Cache de 2 MiB, remoção em alerta de pouca RAM e descarte de resultados de tarefas antigas.
+- Favicons continuam sem cookies e apenas na própria origem HTTPS, sem redirecionar. URLs com credenciais, IPs literais e domínios locais não disparam download de ícones.
+- Lista de downloads reutiliza a raiz de cada cartão entregue pelo `ListView` e adia novas solicitações de miniaturas durante a rolagem, retomando a exibição quando a lista fica parada e visível.
+- Teste de regressão JDK com stubs Android para o carregador de favicons, limites e integração de rolagem, além de teste JUnit da política. Sem mudança no serviço de download, transferências, cookies ou Media3.
+- Compilação Android no GitHub Actions e métricas físicas de rolagem/RAM/bateria ainda pendentes.
+
 # Baixa Fácil 0.1.0-alpha.64 (versionCode 64) - 2026-10-20
 
 - Otimização de atualização da central de downloads: 1,2 s com transferências ativas e 6 s sem atividades, parando quando a Activity não está visível.

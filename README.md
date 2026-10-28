@@ -1,3 +1,22 @@
+## 0.1.0-alpha.67: endereço editável no primeiro toque
+
+- Ao tocar na barra com um endereço já aberto, o campo **EditText** mostra a URL completa e recebe foco, seleção e teclado imediatamente. O painel de sugestões não se antepõe à edição.
+- Sugestões e sites frequentes permanecem disponíveis ao começar a digitar; o menu ⋮ > Histórico abre a lista diretamente, sem pop-up. O comando Voltar fecha a edição antes de voltar à página.
+- Não altera navegação GeckoView, dados locais, histórico de downloads, senhas nem mecanismos de transferência. O teste de interface em dispositivo Android ainda é necessário.
+
+## 0.1.0-alpha.66: permissões vinculadas à origem e formulários acessíveis
+
+- Solicitações de câmera, microfone, localização e autoplay ficam vinculadas à origem HTTPS do documento principal. Mudança de host, protocolo ou porta descarta consentimentos pendentes antes da concessão; navegação dentro da mesma origem preserva o diálogo.
+- Respostas da permissão Android validam os nomes solicitados, códigos concedidos e a origem atual. Frames de terceiros não herdam automaticamente consentimento da página principal.
+- Seletores HTML simples e agrupados preservam o estado desativado; opções de `optgroup` desativado ficam visíveis e não podem ser escolhidas. No seletor múltiplo, toques em opções indisponíveis restauram a marcação original.
+- Preservados GeckoView 158, ETP, cofre de senhas, barra inline, Media3, fila de downloads e ABIs. Testes JDK de política e regressão; build Android/GeckoView real ainda pendente.
+
+## 0.1.0-alpha.65: favicons e rolagem de downloads
+
+- Pedidos de favicon deduplicados e limitados por origem HTTPS (máximo 24 origens e 8 visualizações por origem), cache local de 2 MiB com limpeza sob baixa memória e prazo de 5 minutos para repetir falhas. Não consulta serviços terceirizados; não busca ícones de IPs locais nem envia cookies.
+- A central de downloads reaproveita a estrutura externa dos cartões e **não inicia novas miniaturas enquanto a lista estiver rolando**; ao parar, solicita as prévias visíveis normalmente. A fila da alpha.64 continua limitada a 10 URIs.
+- Novos testes JDK e JUnit para limites e ciclo de vida dos favicons, origem permitida e comportamento de rolagem. **O build Android e a medição de ganho de desempenho no aparelho ainda não foram executados.**
+
 ## 0.1.0-alpha.64: desempenho, RAM e bateria
 
 - Central de downloads reduz a frequência de atualização de **1,2 s para 6 s** sem transferências ativas e mantém 1,2 s durante fila/transferência; a Activity suspende o agendamento ao sair do primeiro plano e atualiza imediatamente após ações do usuário.

@@ -1,3 +1,19 @@
+# Baixa Fácil 0.1.0-alpha.67 (versionCode 67)
+
+**Barra de endereço corrigida:** um toque no endereço atual abre a edição diretamente na própria barra, com URL completa e teclado. Sugestões aparecem abaixo apenas após modificar o campo ou escolher Histórico no menu, sem bloquear o editor. O botão Ir do teclado continua navegando, e o Voltar encerra a edição.
+
+Preservados GeckoView 158, ETP, cofre de senhas, imagens e mídias, três APKs por ABI e downloads. **Testes estáticos e de regressão local não substituem a compilação Android nem o teste de toque e teclado em dispositivo físico.**
+
+# Baixa Fácil 0.1.0-alpha.66 (versionCode 66)
+
+**Segurança e compatibilidade do navegador.** Requisições de permissões web exigem origem HTTPS correspondente à página principal e são rejeitadas quando a navegação troca de origem antes da resposta. Portas diferentes não compartilham permissão; links internos na mesma origem não interrompem a solicitação. O formulário de opções HTML agora mantém grupos e entradas desativados corretamente, incluindo seletores múltiplos.
+
+Não altera motor HTTP, cookies, dados criptografados ou download existente. Preserva três APKs por ABI e Secrets. **Testes executados localmente não equivalem ao build Gradle nem à validação física de câmera/microfone/permissões.**
+
+# Baixa Fácil 0.1.0-alpha.65 (versionCode 65)
+
+Esta versão diminui o trabalho visual das listas, sem alterar a execução de downloads. O carregador de favicons passou a deduplicar pedidos sob limites fixos, reutilizar o cache em memória e evitar buscas reiteradas em sites sem ícones. Quando o Android sinaliza pressão de RAM, a fila de ícones antigos é descartada sem reciclar bitmaps ainda visíveis. Na central de downloads, a rolagem rápida adia o carregamento de miniaturas até a lista parar e reaproveita a raiz visual dos cartões. Mantidos GeckoView 158, ETP, importação, login, Media3 e três ABIs. Testes de lógica foram executados localmente; a compilação Android e a avaliação no celular continuam pendentes.
+
 # Baixa Fácil 0.1.0-alpha.64 (versionCode 64)
 
 ## Estabilidade e economia de recursos

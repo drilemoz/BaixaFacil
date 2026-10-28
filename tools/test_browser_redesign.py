@@ -27,7 +27,7 @@ assert 'MAX_HISTORY = 120' in read('BrowserPrefs.java')
 assert 'onLoginSave' in read('GeckoPromptHandler.java')
 assert 'SitePermissionDialog.show' in read('GeckoSitePermissions.java')
 assert 'msg.includeImages' in (ROOT/'app/src/main/assets/baixafacil_gecko/media.js').read_text()
-assert 'setImageBitmap(found)' in read('FaviconLoader.java')
+assert 'origin.equals(target.getTag())' in read('FaviconLoader.java') and 'target.setImageBitmap(result)' in read('FaviconLoader.java')
 assert 'com.journeyapps:zxing-android-embedded:4.3.0' in (ROOT/'app/build.gradle').read_text()
 with tempfile.TemporaryDirectory(prefix='baixafacil-parser-') as temp:
     t=Path(temp)

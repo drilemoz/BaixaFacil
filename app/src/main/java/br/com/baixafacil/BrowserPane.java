@@ -185,6 +185,7 @@ final class BrowserPane {
         // O próprio campo da barra vira EditText no primeiro toque: sem janela ou segundo clique.
         address=new EditText(host);
         address.setSingleLine(true);address.setSelectAllOnFocus(true);address.setTextSize(14);
+        address.setFocusableInTouchMode(true);
         address.setTextColor(colors.text);address.setHintTextColor(colors.muted);
         address.setHint("Pesquisar ou digitar um URL");address.setBackgroundColor(Color.TRANSPARENT);
         address.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
@@ -208,7 +209,10 @@ final class BrowserPane {
         address.addTextChangedListener(new TextWatcher(){
             @Override public void beforeTextChanged(CharSequence v,int start,int count,int after){}
             @Override public void onTextChanged(CharSequence v,int start,int before,int count){
-                if(addressEditing)updateAddressSuggestions();
+                if(addressEditing && !suppressSuggestions){
+                    // Somente alterações do campo revelam sugestões; o primeiro toque é para editar.
+                    revealAddressSuggestions();
+                }
             }
             @Override public void afterTextChanged(Editable e){}
         });
@@ -354,6 +358,7 @@ final class BrowserPane {
             }
             @Override public void onLocationChange(GeckoSession gecko,String url,
                     List<GeckoSession.PermissionDelegate.ContentPermission> permissions,Boolean gesture) {
+                sitePermissions.onPageLocationChanged(url);
                 web.currentUrl(url);
                 if(url!=null && url.equals(UrlTools.extract(url))){
                     setAddressFromPage(url);showSecurity(url);BrowserPrefs.remember(host,url);
@@ -381,6 +386,7 @@ final class BrowserPane {
         });
         session.setProgressDelegate(new GeckoSession.ProgressDelegate(){
             @Override public void onPageStart(GeckoSession gecko,String url){
+                sitePermissions.onPageLocationChanged(url);
                 adBlock.setPage(url);
                 geckoBlockedOnPage=0;
                 lastHttpStatus=0;
@@ -512,14 +518,32 @@ final class BrowserPane {
         // Não sobrescrever a pesquisa que está sendo digitada durante um redirecionamento.
         if(address!=null && !addressEditing)address.setText(url==null?"":url);
     }
+    private void focusAddressInput(){
+        address.requestFocus();
+        address.post(()->{
+            if(!addressEditing || !address.isShown())return;
+            InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
+            if(keyboard!=null)keyboard.showSoftInput(address,InputMethodManager.SHOW_IMPLICIT);
+        });
+    }
+    private void revealAddressSuggestions(){
+        if(!addressEditing)return;
+        addressPanel.setVisibility(View.VISIBLE);
+        updateAddressSuggestions();
+    }
     private void openAddressEditor(){
         if(addressEditing){
-            address.requestFocus();
+            focusAddressInput();
             return;
         }
+        // Não exibir sugestões ao tocar em um endereço existente: prioridade é editar.
+        // setText é programático e não deve disparar o TextWatcher de sugestões.
+        suppressSuggestions=true;
+        try {
+            String current=web==null?"":web.getUrl();
+            address.setText(current==null?"":current);
+        } finally { suppressSuggestions=false; }
         addressEditing=true;
-        String current=web==null?"":web.getUrl();
-        address.setText(current==null?"":current);
         addressDisplay.setVisibility(View.GONE);
         address.setVisibility(View.VISIBLE);
         addressEditorActions.setVisibility(View.VISIBLE);
@@ -527,17 +551,12 @@ final class BrowserPane {
         securityIcon.addView(Ui.icon(host,"search",colors.muted,22),
             new FrameLayout.LayoutParams(dp(24),dp(24),Gravity.CENTER));
         addressMenuButton.setVisibility(View.GONE);
-        addressPanel.setVisibility(View.VISIBLE);
+        addressPanel.setVisibility(View.GONE);
         editorClipboard=clipboardUrl(); // Somente depois do toque; sem leitura constante.
-        updateAddressSuggestions();
-        // Uma única interação seleciona o URL e apresenta o teclado.
+        // O primeiro toque mostra o URL completo, seleciona e abre o teclado.
         address.requestFocus();
         address.selectAll();
-        address.post(()->{
-            if(!addressEditing)return;
-            InputMethodManager keyboard=(InputMethodManager)host.getSystemService(Activity.INPUT_METHOD_SERVICE);
-            if(keyboard!=null)keyboard.showSoftInput(address,InputMethodManager.SHOW_IMPLICIT);
-        });
+        focusAddressInput();
     }
     private void addSuggestion(String url,String title,String kind){
         LinearLayout row=Ui.horizontal(host);row.setPadding(dp(9),dp(8),dp(4),dp(8));
@@ -683,6 +702,7 @@ final class BrowserPane {
     void onMemoryPressure(int level){
         if(!BrowserPerformancePolicy.seriousMemoryPressure(level))return;
         memoryPressure=true;
+        favicons.onTrimMemory(level);
         cancelMediaScan();
         // Miniaturas de vídeos ficam somente na sessão, são descartáveis e podem ser pesadas.
         synchronized(videoPreviewMeta){videoPreviewMeta.clear();}
@@ -1799,7 +1819,11 @@ final class BrowserPane {
             dialog.getWindow().setLayout(host.getResources().getDisplayMetrics().widthPixels*90/100,-2);
         }
     }
-    private void showHistory(){openAddressEditor();}
+    private void showHistory(){
+        openAddressEditor();
+        // O comando explícito Histórico abre a lista, diferente do toque no endereço.
+        revealAddressSuggestions();
+    }
     private void showLinkMenu(String url) {
         boolean supported = url.equals(UrlTools.extract(url));
         List<AppMenus.Entry> rows=AppMenus.entries();

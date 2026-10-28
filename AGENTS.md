@@ -230,3 +230,21 @@
 - `MediaPreviewLoader` limita a 10 solicitações pendentes e 8 callbacks por URI, cache máximo 4 MiB. Tratamento do Android `onTrimMemory` não deve reciclar bitmaps ainda em uso por ImageViews. Fila cheia não pode gerar novas tarefas sem limite.
 - Manter atualizações de bytes/status no DownloadEngine, TransferService e JobService intactas e não impedir retomada. Testes JDK de contratos não comprovam build Android ou ganho efetivo de bateria/RAM.
 - Preservar GeckoView 158, ETP, Media3, três ABI, minSdk29/targetSdk34/compileSdk37.0. Próxima versão `0.1.0-alpha.65`/versionCode 65.
+
+## Versão 0.1.0-alpha.65: cache de favicons e rolagem
+- Cache de favicon 2 MiB com fila de 24 origens e máximo de 8 views aguardando por origem; falhas por 5 minutos e máximo de 96 negativas. Apenas a própria origem HTTPS, sem credenciais, IPs locais, redirecionamento ou cookies.
+- Limpar cache e enfileiramento de favicon em eventos verdadeiros de pouca RAM, sem reciclar bitmaps em uso. Descarta retornos de solicitações anteriores quando a geração muda.
+- Lista de downloads reutiliza a raiz dos cartões e suspende novas extrações de prévia em rolagem. Ao parar, recarrega visíveis. O serviço e a cadência de transferências não mudam; MediaPreviewLoader continua limitado como na alpha.64.
+- Sincronizar documentação, Gradle, workflow e testes a cada release. Próxima versão `0.1.0-alpha.66`/versionCode 66.
+
+## Versão 0.1.0-alpha.66: consentimento por origem e formulários HTML
+- `GeckoPermissionPolicy.sameOrigin`: HTTPS apenas, host e porta efetiva (443 padrão); nunca confiar só no domínio base ou ignorar mudança de porta. Não persistir URLs com tokens.
+- `GeckoSitePermissions`: vincular consentimento pendente ao documento principal. Cancelar callbacks e diálogos quando a origem mudar; não conceder resposta Android após troca de origem nem aceitar nomes de permissão diferentes dos solicitados. Mesma origem deve continuar navegável normalmente.
+- Gecko prompts: respeitar `disabled` herdado de grupos `<optgroup>` e preservar estado de itens desativados mesmo em seleção múltipla. Não preencher senhas indiscriminadamente nem ignorar cancelamentos.
+- Manter GeckoView 158, ETP, certificados TLS, motor HTTP, três ABIs e Secrets. Próxima `0.1.0-alpha.67`/versionCode 67; build Android e testes reais pendentes.
+
+## Versão 0.1.0-alpha.67: editor de URL sem sugestões prematuras
+- Toque na barra em endereço preenchido deve oferecer edição direta da URL completa com `EditText`, foco/teclado no primeiro toque e URL selecionada. Não abrir sugestões automaticamente.
+- O `TextWatcher` só revela o painel abaixo da barra após modificação do campo; uso do menu Histórico revela a lista explicitamente. Preenchimento programático ao entrar em edição não pode ativar sugestões.
+- Ao fechar editor, manter site/GeckoSession e histórico de navegação; Voltar do Android fecha o editor primeiro. Não quebrar ações de colar URL, QR ou microfone.
+- Sincronizar versão/CI/documentação e manter três APKs ARM32/ARM64/x86_64; próxima alpha.68/versionCode68. Build Android e teste físico ainda pendentes.
