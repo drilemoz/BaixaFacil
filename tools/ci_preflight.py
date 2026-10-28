@@ -6,8 +6,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha.67"
-CODE = "67"
+VERSION = "0.1.0-alpha.68"
+CODE = "68"
 
 def read(path): return (ROOT / path).read_text(encoding="utf-8")
 
@@ -16,6 +16,7 @@ workflow = read(".github/workflows/android.yml")
 service = read("app/src/main/java/br/com/baixafacil/DownloadEngine.java")
 foreground_service = read("app/src/main/java/br/com/baixafacil/TransferService.java")
 checks = {
+    "workflow 34: GeckoSitePermissions javac compiles real class and tests origin cancellation": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_permission_compile.py")],check=False).returncode==0,
     "alpha67 inline address first tap keeps URL editable": subprocess.run([sys.executable, str(ROOT / "tools/test_address_inline.py")],check=False).returncode==0,
     "alpha66 origin-bound permissions and form choices": subprocess.run([sys.executable, str(ROOT / "tools/test_gecko_permission_origin.py")],check=False).returncode==0,
     "alpha63 media filters and manual DOM scan": subprocess.run([sys.executable, str(ROOT / "tools/test_media_alpha63.py")],check=False).returncode==0,

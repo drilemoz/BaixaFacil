@@ -1,3 +1,10 @@
+## 0.1.0-alpha.68: regressão de compilação Gecko/Android
+
+- Log do workflow 34: `:app:compileDebugJavaWithJavac` falhou por `cannot find symbol: pendingAndroidOrigin` na linha 36 de `GeckoSitePermissions.java` (duas ocorrências).
+- Corrigido para o campo previamente declarado `requestedAndroidOrigin`. Não simplificar para autorização por domínio nem dispensar validação por origem HTTPS.
+- `python3 tools/test_gecko_permission_compile.py`: compila `GeckoSitePermissions.java` **real** com `javac --release 17` e stubs mínimos Android/GeckoView; verifica rejeição em outra origem/porta, nenhuma concessão tardia e continuidade na mesma origem.
+- `tools/ci_preflight.py` passa a executar esse teste antes da compilação Android no GitHub Actions. Ainda executar Gradle/GeckoView real e testes físicos.
+
 ## 0.1.0-alpha.67: edição direta da barra de endereços
 
 - `tools/test_address_inline.py` verifica que o toque no domínio chama `openAddressEditor`, que a URL completa é carregada com `TextWatcher` suprimido, que o `EditText` recebe foco/seleção e solicita teclado, e que as sugestões inicialmente permanecem ocultas.

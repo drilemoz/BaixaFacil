@@ -1,3 +1,9 @@
+## 0.1.0-alpha.68: correção de compilação GeckoSitePermissions
+
+- Corrigido o campo inexistente `pendingAndroidOrigin` no fluxo de cancelamento de permissões por origem (`Gerar APK 34`), passando a utilizar `requestedAndroidOrigin`.
+- Novo teste `tools/test_gecko_permission_compile.py`: compila classe Java real com stubs Android/GeckoView e valida origem trocada, mesma origem e mudança de porta.
+- Proteção de câmera/microfone/localização, GeckoView 158, ETP, downloads e barra de URL preservados. Não confundir testes de stubs com build Android/uso em aparelho.
+
 ## 0.1.0-alpha.67: endereço editável no primeiro toque
 
 - Ao tocar na barra com um endereço já aberto, o campo **EditText** mostra a URL completa e recebe foco, seleção e teclado imediatamente. O painel de sugestões não se antepõe à edição.

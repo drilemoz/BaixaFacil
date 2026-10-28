@@ -248,3 +248,9 @@
 - O `TextWatcher` só revela o painel abaixo da barra após modificação do campo; uso do menu Histórico revela a lista explicitamente. Preenchimento programático ao entrar em edição não pode ativar sugestões.
 - Ao fechar editor, manter site/GeckoSession e histórico de navegação; Voltar do Android fecha o editor primeiro. Não quebrar ações de colar URL, QR ou microfone.
 - Sincronizar versão/CI/documentação e manter três APKs ARM32/ARM64/x86_64; próxima alpha.68/versionCode68. Build Android e teste físico ainda pendentes.
+
+## Versão 0.1.0-alpha.68: correção javac do workflow Gerar APK 34
+- A alpha.67 falhou em `:app:compileDebugJavaWithJavac`: `GeckoSitePermissions.onPageLocationChanged` usava `pendingAndroidOrigin` inexistente em vez do campo `requestedAndroidOrigin`.
+- Não remover a proteção: rejeitar a permissão Android pendente ao trocar de origem, preservar callbacks na mesma origem e impedir concessões atrasadas.
+- `tools/test_gecko_permission_compile.py` deve compilar o arquivo Java REAL com stubs mínimos das APIs Android/Gecko e exercitar o cancelamento na troca de origem. Só parser de Java não detecta símbolos indefinidos.
+- Sincronizar Gradle/workflow/3 ABI/mock/doc/UI/User-Agent. Compilação Android completa continua pendente; próxima `0.1.0-alpha.69`/versionCode 69.

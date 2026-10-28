@@ -1,3 +1,9 @@
+# Baixa Fácil 0.1.0-alpha.68 (versionCode 68)
+
+Correção de compilação após os logs do workflow **Gerar APK 34**: a rotina de permissões utilizava `pendingAndroidOrigin`, variável inexistente. Agora consulta corretamente `requestedAndroidOrigin`, preservando o cancelamento seguro quando a navegação muda de origem.
+
+Incluído teste `javac` semântico da classe com stubs Android/GeckoView e casos de regressão de origem. Código-fonte validado localmente, mas **APK Android não compilado neste ambiente**. Mantidos três APKs por ABI, GeckoView 158 e políticas de download/assinatura.
+
 # Baixa Fácil 0.1.0-alpha.67 (versionCode 67)
 
 **Barra de endereço corrigida:** um toque no endereço atual abre a edição diretamente na própria barra, com URL completa e teclado. Sugestões aparecem abaixo apenas após modificar o campo ou escolher Histórico no menu, sem bloquear o editor. O botão Ir do teclado continua navegando, e o Voltar encerra a edição.

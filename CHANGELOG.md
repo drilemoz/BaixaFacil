@@ -1,3 +1,9 @@
+# Baixa Fácil 0.1.0-alpha.68 (versionCode 68) - 2026-10-28
+
+- Corrigidos os dois erros `cannot find symbol: pendingAndroidOrigin` do workflow **Gerar APK 34** em `GeckoSitePermissions.java`; utilizado `requestedAndroidOrigin`, campo existente.
+- Adicionada regressão semântica que compila a classe de permissões real com JDK 17 e stubs mínimos de Android/GeckoView; testa rejeição quando muda origem/porta e preservação na mesma origem.
+- Sincronizados Gradle, UI, User-Agent, workflow, testes, documentação e três APKs por ABI. Build Android completo e testes no aparelho permanecem pendentes.
+
 # Baixa Fácil 0.1.0-alpha.67 (versionCode 67) - 2026-10-27
 
 - Correção do foco na barra de endereços: tocar no domínio exibe o URL completo no campo editável e abre o teclado no primeiro toque, sem mostrar antes o painel de sugestões.

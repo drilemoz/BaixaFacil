@@ -33,7 +33,7 @@ final class GeckoSitePermissions implements GeckoSession.PermissionDelegate {
     }
     /** Rejeita solicitações ainda pendentes quando muda a origem do documento principal. */
     void onPageLocationChanged(String destination){
-        if(pendingAndroidOrigin!=null && !GeckoPermissionPolicy.sameOrigin(pendingAndroidOrigin,destination)){
+        if(requestedAndroidOrigin!=null && !GeckoPermissionPolicy.sameOrigin(requestedAndroidOrigin,destination)){
             Callback previous=pendingAndroid;
             pendingAndroid=null;requestedAndroid=null;requestedAndroidOrigin=null;
             if(previous!=null)previous.reject();
